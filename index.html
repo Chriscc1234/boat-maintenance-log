@@ -140,6 +140,20 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .fhd .rule{flex:1;height:1px;background:#12293D}
 .fhd .n{font-size:11px;color:#507490}
 .fcard{background:#0C1F30;border:1px solid #163148;border-radius:7px;padding:12px 14px;margin-bottom:7px;cursor:pointer;transition:border-color .12s}
+/* A focus card wrapped for swiping. The gap between cards moves out to the
+   wrapper: left on the card it would sit INSIDE the clipping box (overflow
+   hidden makes one, so the margin cannot collapse out) and the coloured panel
+   would run 7px taller than the card sliding over it. */
+.fsw{border-radius:7px;margin-bottom:7px}
+.fsw .fcard{margin-bottom:0}
+.fsw .sw-fg{background:transparent}
+/* Blocked and postponed cards are dimmed by opacity. Left on the card, a
+   translucent card sliding over a solid green panel would let the green show
+   through it. The dimming moves to the wrapper so card and panel fade together
+   and the card stays opaque against it. */
+.fsw.blocked{opacity:.82}
+.fsw.later{opacity:.6}
+.fsw .fcard.blocked,.fsw .fcard.later{opacity:1}
 .fcard:hover{border-color:#26506F}
 .fcard.now{border-left:3px solid #34D399}
 .fcard.next{border-left:3px solid #38BDF8}
@@ -666,7 +680,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -678,6 +692,14 @@ const APP_VERSION = "1.7.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.8.0", "14 Aug 2026", "Swipe on the Focus tab",
+   "Focus cards swipe too now, which is where it was always most wanted: that "
+ + "is the list you are trying to get shorter, so both actions clear the card "
+ + "off the screen in front of you. Swipe right to complete a job, left to take "
+ + "it off the list. Neither label needs a second state here — everything on "
+ + "Focus is open and on the list — so putting a job back stays in All Work, "
+ + "where you can see it again."],
+
   ["1.7.0", "14 Aug 2026", "Swipe left takes a job off the Focus list",
    "Postponing was the wrong action, because Postponed is itself a group ON "
  + "Focus — the swipe claimed to clear a job off the list and only moved it to "
@@ -1271,6 +1293,7 @@ function renderFocus(){
   if (bar) bar.style.display = "none";
 
   const all = allEntries().filter(e => e.st === "active");
+  const canSwipe = !!DOC && !readOnly();
   let h = "";
 
   // The plan, pinned at the top. It is `doc.plan` — NOT a job, because it is a
@@ -1319,7 +1342,7 @@ function renderFocus(){
       const todo = e.b.filter(b => b.indexOf("\u2610") === 0);
       const nextStep = todo.length ? todo[0].replace(/^\u2610\s*/, "") : "";
       const sc = SYS_COLORS[e.sys] || "#94A3B8";
-      h += `<div class="fcard ${key}" data-jump="${esc(e.id)}">
+      const card = `<div class="fcard ${key}" data-jump="${esc(e.id)}">
         <div class="fct">${esc(e.title)}</div>
         <div class="fcm">
           <span style="color:${sc}">&#9679; ${esc(e.sys)}</span>
@@ -1328,6 +1351,21 @@ function renderFocus(){
         </div>
         ${nextStep ? `<div class="fcn"><span class="box">next &rsaquo;</span> ${esc(nextStep)}</div>` : ""}
       </div>`;
+      // Both actions REMOVE the card from this tab, which is the point of having
+      // them here: Focus is the list you are trying to get shorter, so the
+      // feedback is the card leaving. Neither label needs a second state —
+      // everything on Focus is open (so it is always COMPLETE, never REOPEN) and
+      // on the list (so it is always OFF FOCUS, never TO FOCUS). Putting a job
+      // back is All Work's job, because that is where you can see it again.
+      h += canSwipe
+        ? `<div class="sw-row fsw ${key}">
+             <div class="sw-bg">
+               <div class="sw-act sw-lead">COMPLETE</div>
+               <div class="sw-act sw-trail">OFF FOCUS</div>
+             </div>
+             <div class="sw-fg" data-swipe="${esc(e.id)}">${card}</div>
+           </div>`
+        : card;
     }
     h += `</div>`;
   }
@@ -3437,11 +3475,14 @@ function renderHelp(){
     </div>
 
     <div class="up-sec">Swiping a job</div>
-    <div class="hp">In <b>All Work</b>, <b>Active</b> and <b>Completed</b>, a job
-      row can be swiped, the way a mail app works. No need to turn on editing.
+    <div class="hp">Job rows and Focus cards can both be swiped, the way a mail
+      app works. No need to turn on editing.
       <p><b>Swipe right</b> to mark it complete — or to reopen it if it already
       is. <b>Swipe left</b> to take it off the <b>Focus</b> tab, and swipe left
       again to put it back under <i>Next up</i>.</p>
+      <p>On <b>Focus</b> itself both swipes clear the card off the screen, which
+      is the point — that list is the one you are trying to get shorter. Putting
+      a job back is done from <b>All Work</b>, where you can see it again.</p>
       <p>You have to carry the row about a third of the way across. Let go short
       of that and it springs back and nothing happens, which is deliberate: a
       half-hearted swipe should never do anything. Scrolling up and down is
