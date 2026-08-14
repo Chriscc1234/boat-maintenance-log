@@ -59,9 +59,13 @@ a{color:#0EA5E9}
    job gone. But a maintenance log is a RECORD, and the one gesture you can make
    by accident with a thumb should not be the one that removes history. Deleting
    should take some effort — it is in the job editor behind edit mode and a
-   confirm, and that is the right amount of friction. The swipe postpones
-   instead, which is what "get this off my list" nearly always means on a boat
-   where the part has not arrived yet.
+   confirm, and that is the right amount of friction.
+
+   What the trailing swipe does instead is TAKE THE JOB OFF THE FOCUS LIST, and
+   put it back if it is already off. 1.6.0 had it postpone, which sounded right
+   and was not: Postponed is itself a group ON Focus, so the swipe moved a job
+   to the bottom of the same screen while claiming to clear it. See the comment
+   on FOCUS_DEFAULT for the whole distinction.
 
    touch-action:pan-y is what makes it possible: it hands the horizontal axis to
    the page and keeps vertical scrolling native, so the list still scrolls
@@ -440,6 +444,8 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .hp p{margin:9px 0 0}
 .hp b{color:#E4F2FF;font-weight:600}
 .hp i{color:#8FB4CE}
+.hp-list{margin:9px 0 0;padding-left:20px}
+.hp-list li{margin:5px 0}
 .tab.on{color:#E4F2FF;border-bottom-color:#0EA5E9}
 
 /* ── Layout ───────────────────────────────── */
@@ -483,6 +489,10 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .entry-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .edate{font-size:11px;font-family:monospace;color:#507490}
 .esys{font-size:11px;font-weight:500;padding:1px 8px;border-radius:3px;background:rgba(0,0,0,.35)}
+/* Deliberately quieter than the system chip: no pill, just tinted text. It says
+   whether the job is on the Focus list, which matters less than what system it
+   belongs to and should not compete with it down a long list. */
+.epri{font-size:11px;font-weight:500;opacity:.85}
 .eudct{font-size:11px;color:#507490}
 .chev{color:#507490;font-size:10px;flex-shrink:0;transition:transform .18s}
 .entry-body{padding:0 16px 16px;border-top:1px solid #163148;display:none}
@@ -656,7 +666,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -668,6 +678,21 @@ const APP_VERSION = "1.6.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.7.0", "14 Aug 2026", "Swipe left takes a job off the Focus list",
+   "Postponing was the wrong action, because Postponed is itself a group ON "
+ + "Focus — the swipe claimed to clear a job off the list and only moved it to "
+ + "the bottom of the same screen, and the state that genuinely clears it had no "
+ + "gesture at all. Swipe left now takes a job off Focus outright; swipe left "
+ + "again puts it back under Next up. The job is untouched otherwise: still "
+ + "open, still in All Work, still in the record. Postponed goes back to meaning "
+ + "what it should — work you DO want in view, parked at the bottom, chosen in "
+ + "the job editor. Each row in All Work now shows its priority, so you can see "
+ + "which jobs are on your Focus list without changing tab, and the swipe "
+ + "visibly does something. Focus also draws the log's OWN priorities in their "
+ + "own order rather than a hardcoded four, so a renamed or added one no longer "
+ + "puts jobs on a list that then does not draw them. Help gained a section on "
+ + "what actually puts a job on Focus."],
+
   ["1.6.0", "14 Aug 2026", "Swiping postpones instead of deleting",
    "The trailing swipe no longer deletes a job. It moves it to Postponed, and "
  + "swiping the same row again brings it back to Next up. The trailing edge is "
@@ -843,25 +868,43 @@ function bStyle(b){
 /** The one place a job gets created. Rendered at the top of whichever list of
  *  jobs you are looking at, so "add one" is next to the ones you are reading
  *  rather than in a toolbar that has to be found first. */
-/** What a trailing swipe moves a job INTO, and what it moves back to.
+/** WHAT PUTS A JOB ON THE FOCUS TAB. Read this before touching priorities.
+ *
+ *  Focus shows a job when it is ACTIVE and CARRIES A PRIORITY — any priority.
+ *  So "no priority" is not a missing value, it is a real and useful state: the
+ *  job is in the record, in All Work, and off the working list. That is the
+ *  state you want when a job is real but not something you are tracking.
+ *
+ *  This is the distinction 1.6.0 got wrong. Postponing set the priority to
+ *  "later", which is still ON Focus — the bottom group, in grey. So the swipe
+ *  advertised as "get this off my list" only moved it down the same screen, and
+ *  the state that genuinely clears it had no gesture at all, only a dropdown in
+ *  the editor. Chris: "how do you get things out of the postponed focus?" You
+ *  could not, easily. Now the trailing swipe clears the priority outright, and
+ *  Postponed goes back to meaning what it should: a job you DO want in view,
+ *  parked at the bottom, chosen deliberately in the editor.
  *
  *  Priorities are the log's own list and can be renamed, added to and deleted,
- *  so these are ids that MIGHT NOT EXIST. Every use is guarded: a log whose
- *  owner has deleted "Postponed" simply gets no trailing swipe rather than a
- *  gesture that writes a priority the document does not define — which the
- *  validator would then reject, from a thumb movement.
+ *  so any id here MIGHT NOT EXIST and every use is guarded. Putting a job back
+ *  on Focus lands in "next" when there is one, else the log's first priority —
+ *  never a bare id the document does not define, which the validator would
+ *  reject, from a thumb movement.
  *
- *  Resuming lands in "next" rather than the priority it came from, because the
- *  old one was never recorded. That is a guess, but a cheap and visible one:
- *  the job reappears under Next up, where you can move it in one tap. Storing a
- *  hidden "priority before it was postponed" on every entry to avoid it would
- *  be a schema change earning its keep once. */
-const POSTPONE_TO = "later", RESUME_TO = "next";
+ *  Coming back lands somewhere sensible rather than where it came from, because
+ *  the priority a job held before is not recorded anywhere. That is a guess, but
+ *  a cheap and visible one: the job reappears under Next up where you can move
+ *  it in a tap. Storing a hidden "priority before" on every entry would be a
+ *  schema change earning its keep once. */
+const FOCUS_DEFAULT = "next";
 const hasPriority = id => !!(DOC && (DOC.priorities || []).some(p => p.id === id));
 const priorityLabel = id => {
   const p = DOC && (DOC.priorities || []).find(x => x.id === id);
   return p ? p.label : id;
 };
+/** The priority a job gets when a swipe puts it back on Focus, or null if this
+ *  log has no priorities at all — in which case Focus cannot be joined. */
+const focusPriority = () => hasPriority(FOCUS_DEFAULT) ? FOCUS_DEFAULT
+  : ((DOC && (DOC.priorities || [])[0] || {}).id || null);
 
 const addJobRow = () =>
   (EDIT && DOC && !readOnly())
@@ -878,7 +921,9 @@ function renderLog() {
   const canWrite = !!DOC && !readOnly();
   const canOrder = EDIT && canWrite;
   const canSwipe = canWrite;
-  const canPostpone = canWrite && hasPriority(POSTPONE_TO);
+  // Taking a job OFF Focus is always possible; putting one on needs a priority
+  // to put it under, which a log with none at all does not have.
+  const canJoinFocus = canWrite && !!focusPriority();
 
   for (const yr of years) {
     const ye = entries.filter(e=>e.yr===yr);
@@ -889,13 +934,21 @@ function renderLog() {
       const isOpen = !!S.expanded[e.id];
       const accent = isA ? "#F59E0B" : "#0EA5E9";
       const sc = SYS_COLORS[e.sys] || "#94A3B8";
+      // Shown on the row because the trailing swipe changes exactly this, and a
+      // gesture whose only feedback is a status message that fades after four
+      // seconds may as well not have happened. It also answers "is this job on
+      // my Focus list?" without changing tab, which is the question the whole
+      // priority field exists to answer. Completed jobs keep theirs hidden —
+      // Focus does not show them either way, so it would be noise on a long list.
+      const pm = (isA && e.pri) ? PRI_META[e.pri] : null;
 
       html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
         <div class="sw-row">
         ${canSwipe ? `<div class="sw-bg">
           <div class="sw-act sw-lead">${isA ? "COMPLETE" : "REOPEN"}</div>
-          ${canPostpone ? `<div class="sw-act sw-trail">${
-            e.pri === POSTPONE_TO ? "RESUME" : "POSTPONE"}</div>` : ""}
+          ${(isA && (e.pri || canJoinFocus))
+            ? `<div class="sw-act sw-trail">${e.pri ? "OFF FOCUS" : "TO FOCUS"}</div>`
+            : ""}
         </div>` : ""}
         <div class="sw-fg"${canSwipe ? ` data-swipe="${esc(e.id)}"` : ""}>
         ${canOrder ? `<div class="ord">
@@ -909,6 +962,7 @@ function renderLog() {
             <div class="entry-sub">
               <span class="edate">${esc(e.date)}</span>
               <span class="esys" style="color:${sc}">${esc(e.sys)}</span>
+              ${pm ? `<span class="epri" style="color:${pm.color}">&#9642; ${esc(pm.label)}</span>` : ""}
             </div>
           </div>
           <span class="chev" style="${isOpen?"transform:rotate(180deg)":""}">▼</span>
@@ -1039,16 +1093,22 @@ document.getElementById("log-content").addEventListener("click", function(e) {
       const nowComplete = e.status !== "complete";
       mutate(() => { e.status = nowComplete ? "complete" : "active"; });
       setEditStatus(`${e.id} marked ${nowComplete ? "complete" : "active"}`);
+    } else if (e.status === "complete"){
+      // No trailing action on a completed job: Focus does not show it whatever
+      // its priority, so "off Focus" would be a label for nothing happening.
+      el.style.transform = "";
+    } else if (e.priority != null){
+      // Off the Focus list. The job is untouched otherwise — still active, still
+      // in All Work, still in the record. This is the "not something I am
+      // tracking" state, and it is the one people mean by getting a job off
+      // their list.
+      mutate(() => { e.priority = null; });
+      setEditStatus(`${e.id} taken off Focus — still here in All Work`);
     } else {
-      // Postpone, or bring a postponed job back. Guarded, because "later" is an
-      // ordinary priority the owner is free to have deleted.
-      if (!hasPriority(POSTPONE_TO)){ el.style.transform = ""; return; }
-      const wasLater = e.priority === POSTPONE_TO;
-      const to = wasLater ? (hasPriority(RESUME_TO) ? RESUME_TO : null) : POSTPONE_TO;
+      const to = focusPriority();
+      if (!to){ el.style.transform = ""; return; }
       mutate(() => { e.priority = to; });
-      setEditStatus(to
-        ? `${e.id} moved to ${priorityLabel(to)}`
-        : `${e.id} is no longer postponed`);
+      setEditStatus(`${e.id} back on Focus, under ${priorityLabel(to)}`);
     }
   };
   document.addEventListener("pointerup", finish);
@@ -1241,7 +1301,14 @@ function renderFocus(){
   }
 
 
-  for (const key of ["now","next","blocked","later"]){
+  // The log's own priorities, in the log's own order — not a hardcoded four.
+  // PRI_META is rebuilt from DOC.priorities on load, keyed in `order` order (not
+  // array order — see the rebuild), so iterating its keys gives the groups as
+  // the log defines them. This used to be a literal ["now","next","blocked",
+  // "later"], which meant a renamed or added priority put jobs on Focus that
+  // Focus then did not draw. Now that a swipe decides whether a job is on this
+  // list at all, a job that says it is on Focus has to actually appear on it.
+  for (const key of Object.keys(PRI_META)){
     const items = all.filter(e => e.pri === key);
     if (!items.length) continue;
     const m = PRI_META[key];
@@ -1273,11 +1340,10 @@ function renderFocus(){
   box.innerHTML = addJobRow() + h;
   sizeTextareas();
 
-  const c = {};
-  ["now","next","blocked","later"].forEach(k => c[k] = all.filter(e=>e.pri===k).length);
+  const c = k => all.filter(e => e.pri === k).length;
   document.getElementById("meta").innerHTML =
-    `<span style="color:#34D399">${c.now} in progress</span> &ensp;·&ensp; ${c.next} ready &ensp;·&ensp; `
-    + `<span class="amber">${c.blocked} blocked</span>`;
+    `<span style="color:#34D399">${c("now")} in progress</span> &ensp;·&ensp; ${c("next")} ready &ensp;·&ensp; `
+    + `<span class="amber">${c("blocked")} blocked</span>`;
 }
 
 /** Open a job in All Work, expanded. In edit mode that expansion IS the editor,
@@ -3374,18 +3440,40 @@ function renderHelp(){
     <div class="hp">In <b>All Work</b>, <b>Active</b> and <b>Completed</b>, a job
       row can be swiped, the way a mail app works. No need to turn on editing.
       <p><b>Swipe right</b> to mark it complete — or to reopen it if it already
-      is. <b>Swipe left</b> to postpone it, and swipe left again to bring it
-      back to <i>Next up</i>.</p>
+      is. <b>Swipe left</b> to take it off the <b>Focus</b> tab, and swipe left
+      again to put it back under <i>Next up</i>.</p>
       <p>You have to carry the row about a third of the way across. Let go short
       of that and it springs back and nothing happens, which is deliberate: a
       half-hearted swipe should never do anything. Scrolling up and down is
       unaffected.</p>
       <p><b>Nothing here deletes.</b> A swipe is easy to make by accident and
-      this is a record of work done, so the worst a slip can do is move a job to
-      Postponed — which the same swipe undoes. Deleting a job is in the job
+      this is a record of work done, so the worst a slip can do is take a job
+      off Focus — which the same swipe puts back. Deleting a job is in the job
       itself, while editing, behind a confirmation.</p>
       <p>Both actions are undoable, and both are also in the job itself, so the
       swipe is a shortcut rather than the only way.</p>
+    </div>
+
+    <div class="up-sec">What puts a job on the Focus tab</div>
+    <div class="hp">A job appears on <b>Focus</b> when it is still open
+      <i>and</i> it has a <b>priority</b>. That is the whole rule.
+      <p>So a job is in one of four places:</p>
+      <ul class="hp-list">
+        <li><b>Working on now / Next up / Blocked</b> — on Focus, in that
+          group.</li>
+        <li><b>Postponed</b> — still on Focus, in the grey group at the bottom.
+          For work you want kept in view but are not doing yet.</li>
+        <li><b>No priority</b> — not on Focus at all. Still in All Work, still
+          part of the record. This is the one to use for a job that is real but
+          isn't something you're tracking.</li>
+        <li><b>Complete</b> — off Focus whatever its priority, and over in
+          Completed.</li>
+      </ul>
+      <p>Swiping left is the quick way in and out of that third state. To park a
+      job in <i>Postponed</i> instead — on the list, just not now — open it while
+      editing and set <b>Priority</b>.</p>
+      <p>The priority shows on each row in All Work, so you can see which jobs
+      are on your Focus list without changing tab.</p>
     </div>
 
     <div class="up-sec">Changing things</div>
