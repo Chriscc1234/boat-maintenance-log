@@ -88,6 +88,8 @@ informational and may be absent.
   "make": "Grand Banks",
   "model": "36 Classic",
   "year": "1984",
+  "length": "36'",
+  "loa": "37' 4\"",
   "hullType": "Trawler",
   "homePort": "Shilshole Bay, Seattle WA",
   "berth": "Dock C, Slip 42",
@@ -111,6 +113,14 @@ They are separated because they change for different reasons: renaming the boat
 is one edit, restyling the header is another.
 
 `name` is required. Everything else may be an empty string.
+
+`length` is the nominal length — the number the builder put on the model, used in
+the header. `loa` is the real length overall and is shown only in the details,
+because the two are rarely the same and the header wants the familiar one.
+
+`headerLabel` is built automatically from name, year, length, make and model, in
+that order, unless `headerLabelCustom` is `true` — which the app sets the moment
+someone types their own. Leave both alone and it keeps itself up to date.
 
 `icon` is optional — the owner's own picture of the boat, as a PNG data URI. The
 app squares and re-encodes anything uploaded to 512×512 before storing it, so it

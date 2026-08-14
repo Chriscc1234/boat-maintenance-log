@@ -221,8 +221,18 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 
 /* ── Edit mode ─────────────────────────────
    Hidden entirely until edit mode is on, so the reading view is untouched. */
+.edit-toggle{position:absolute;top:calc(20px + env(safe-area-inset-top));
+ right:calc(24px + env(safe-area-inset-right));background:#0B2135;border:1px solid #24567A;
+ color:#A8C6E0;border-radius:7px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+.edit-toggle:hover{background:#12324B;color:#E4F2FF}
+.edit-toggle.on{background:#F59E0B;border-color:#F59E0B;color:#0A1B2A}
+.hdr{position:relative}
+/* Editing is a MODE, so it has to be obvious at a glance rather than inferred
+   from a row of buttons having appeared. The whole header changes colour. */
+.editing .hdr{background:#14100A;border-bottom-color:#F59E0B}
+.editing .entry{border-left-style:dashed}
 .editbar{display:none;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 0 10px;
- border-top:1px solid #163148;margin-top:2px}
+ border-top:1px solid #3F2D06;margin-top:2px}
 .editbar.on{display:flex}
 .editbar button{background:#0B2135;border:1px solid #24567A;color:#A8C6E0;
  border-radius:6px;padding:5px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
@@ -246,9 +256,18 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .ed-chk{flex-shrink:0;width:28px;background:none;border:1px solid #204A6B;color:#38BDF8;
  border-radius:6px;font-size:14px;line-height:1;padding:5px 0;cursor:pointer}
 .ed-chk.off{color:#507490}
-.ed-text{flex:1;min-height:32px;resize:vertical;background:#0A1D2E;border:1px solid #204A6B;
+.ed-text{width:100%;box-sizing:border-box;min-height:32px;resize:vertical;background:#0A1D2E;border:1px solid #204A6B;
  color:#E4F2FF;border-radius:6px;padding:6px 9px;font:inherit;font-size:12.5px;line-height:1.45}
 .ed-text:focus{outline:none;border-color:#0EA5E9}
+.ed-itemmain{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.ed-role{background:#0A1D2E;border:1px solid #204A6B;color:#8FB4CE;border-radius:6px;
+ padding:3px 7px;font:inherit;font-size:11px;align-self:flex-start}
+.ed-pin{background:#0A1B2A;border:1px solid #16324A;border-radius:8px;padding:11px 13px;margin-bottom:4px}
+.ed-pin label{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#B8D4E8;cursor:pointer}
+.ed-pin label.ed-row{display:block;cursor:default}
+.ed-pin input[type=checkbox]{width:auto;margin:2px 0 0;flex-shrink:0}
+.ed-pin-note{font-size:11.5px;color:#6E93B0;line-height:1.5;margin-top:8px}
+.ed-pin-note b{color:#A8C6E0}
 .ed-itembtns{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
 .ed-itembtns button{width:24px;background:none;border:1px solid #1B3E5A;color:#6E93B0;
  border-radius:5px;font-size:10px;line-height:1;padding:3px 0;cursor:pointer}
@@ -287,6 +306,29 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .up-pending strong{color:#FDE047}
 .up-pending button{margin-left:8px}
 .up-pending-detail{margin-top:7px;font-size:11.5px;color:#A8886A;line-height:1.5}
+.bt-head{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+.bt-icon{width:62px;height:62px;border-radius:14px;flex-shrink:0;border:1px solid #1B3E5A;object-fit:cover}
+.bt-name{font-size:20px;font-weight:600;color:#E4F2FF;letter-spacing:.3px}
+.bt-sub{font-size:12.5px;color:#6E93B0;margin-top:3px}
+.bt-table{display:flex;flex-direction:column;gap:1px}
+.bt-row{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid #10283D;font-size:13px}
+.bt-row:last-child{border-bottom:none}
+.bt-l{color:#507490;min-width:96px;flex-shrink:0}
+.bt-v{color:#D6E9F8}
+.bt-empty{font-size:12.5px;color:#507490;padding:6px 0;line-height:1.5}
+.bt-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
+.bt-stats>div{background:#0A1B2A;border:1px solid #16324A;border-radius:8px;padding:11px 8px;text-align:center}
+.bt-stats b{display:block;font-size:21px;font-weight:600;color:#38BDF8;line-height:1.1}
+.bt-stats span{display:block;font-size:11px;color:#6E93B0;margin-top:3px}
+.bt-sys{display:flex;flex-wrap:wrap;gap:5px}
+.bt-chip{display:flex;align-items:center;gap:5px;background:none;border:1px solid #163148;
+ color:#8FB4CE;border-radius:20px;padding:4px 11px;font-size:11.5px;white-space:nowrap}
+.bt-chip .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.bt-chip .ct{opacity:.6;font-size:10px}
+.hp{font-size:13.5px;color:#B8D4E8;line-height:1.6;margin-bottom:4px}
+.hp p{margin:9px 0 0}
+.hp b{color:#E4F2FF;font-weight:600}
+.hp i{color:#8FB4CE}
 .tab.on{color:#E4F2FF;border-bottom-color:#0EA5E9}
 
 /* ── Layout ───────────────────────────────── */
@@ -338,18 +380,21 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
   <div class="vessel-lbl"></div>
   <h1>Master Maintenance Log <span class="ver-badge" id="ver-badge" title="Click for revision history"></span></h1>
   <p class="meta" id="meta"></p>
+  <button id="edit-toggle" class="edit-toggle">Edit</button>
   <nav class="tabs">
     <button class="tab on" data-f="focus">Focus</button>
     <button class="tab" data-f="all">All Work</button>
     <button class="tab" data-f="active">Active Projects</button>
     <button class="tab" data-f="complete">Completed</button>
     <button class="tab" data-f="voyages">Voyages</button>
+    <button class="tab" data-f="boat">Boat</button>
     <button class="tab" data-f="updates">Updates</button>
+    <button class="tab" data-f="help">Help</button>
   </nav>
   <div class="sysbar" id="sysbar"></div>
   <div class="editbar" id="editbar">
     <button id="eb-add">+ New job</button>
-    <button id="eb-manage">Boat &amp; categories</button>
+    <button id="eb-manage">Boat details</button>
     <button id="eb-undo">Undo</button>
     <button id="eb-import">Import…</button>
     <button id="eb-export">Export</button>
@@ -483,7 +528,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const APP_REPO = "Chriscc1234/boat-maintenance-log";   // enables the update check
 
 // Put the boat's name on the lock screen if this device has seen it before.
@@ -673,7 +718,9 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   t.scrollIntoView({block:"nearest", inline:"nearest"});
   syncTabStrip();
   S.filter=t.dataset.f;
-  if (S.filter==="voyages"){ renderVoyages(); }
+  if (S.filter==="help"){ renderHelp(); }
+  else if (S.filter==="boat"){ renderBoat(); }
+  else if (S.filter==="voyages"){ renderVoyages(); }
   else if (S.filter==="updates"){ renderUpdates(); }
   else if (S.filter==="focus"){ renderFocus(); }
   else { const b=document.getElementById("sysbar"); if(b) b.style.display=""; renderSysBar(); renderLog(); }
@@ -1017,7 +1064,8 @@ let CHECKING = false;
 // the user is on Focus, and unconditionally calling renderUpdates() would have
 // dropped the Updates view into the Focus tab.
 function renderCurrent(){
-  if (S.filter === "manage")       renderManage();
+  if (S.filter === "help")         renderHelp();
+  else if (S.filter === "manage" || S.filter === "boat") renderBoat();
   else if (S.filter === "voyages") renderVoyages();
   else if (S.filter === "updates") renderUpdates();
   else if (S.filter === "focus")   renderFocus();
@@ -2327,8 +2375,14 @@ function setEditStatus(msg, bad){
 
 function updateEditBar(){
   const bar = document.getElementById("editbar");
-  if (!bar) return;
+  const tog = document.getElementById("edit-toggle");
   if (readOnly()) EDIT = false;
+  if (tog){
+    tog.textContent = EDIT ? "Done editing" : "Edit";
+    tog.classList.toggle("on", EDIT);
+    tog.style.display = readOnly() ? "none" : "";
+  }
+  if (!bar) return;
   bar.classList.toggle("on", EDIT);
   const u = document.getElementById("eb-undo");
   if (u) u.disabled = !UNDO.length;
@@ -2375,11 +2429,19 @@ function entryEditor(e){
     DOC.priorities.map(p =>
       `<option value="${esc(p.id)}"${p.id===e.priority?" selected":""}>${esc(p.label)}</option>`).join("");
 
+  const isCp = e.role === "critical-path";
+  const roleOpts = it => ["", "goal", "step", "bottleneck", "after-launch"].map(r =>
+    `<option value="${r}"${(it.role || "") === r ? " selected" : ""}>${
+      r === "" ? "plain line" : r === "after-launch" ? "after launch" : r}</option>`).join("");
+
   const items = (e.items || []).map((it, i) => `
     <div class="ed-item" data-i="${i}">
       <button class="ed-chk${it.type==="task"?"":" off"}" data-act="toggle-type" title="task or note">${
         it.type==="task" ? (it.done ? "☑" : "☐") : "·"}</button>
-      <textarea class="ed-text" data-act="item-text" rows="1">${esc(it.text)}</textarea>
+      <div class="ed-itemmain">
+        <textarea class="ed-text" data-act="item-text" rows="1">${esc(it.text)}</textarea>
+        ${isCp ? `<select class="ed-role" data-act="item-role">${roleOpts(it)}</select>` : ""}
+      </div>
       <div class="ed-itembtns">
         <button data-act="item-up" title="move up"${i===0?" disabled":""}>↑</button>
         <button data-act="item-down" title="move down"${i===e.items.length-1?" disabled":""}>↓</button>
@@ -2404,6 +2466,22 @@ function entryEditor(e){
     <label class="ed-row"><span>Waiting on</span>
       <input class="ed-in" data-act="waitingOn" value="${esc(e.waitingOn||"")}"
              placeholder="why this is blocked — shown on the Focus card"></label>
+    <div class="ed-sec">Focus tab</div>
+    <div class="ed-pin">
+      <label><input type="checkbox" data-act="pin-cp"${isCp ? " checked" : ""}>
+        <span>Pin this to the top of Focus as the plan</span></label>
+      ${isCp ? `
+        <label class="ed-row" style="margin-top:8px"><span>Heading</span>
+          <input class="ed-in" data-act="cp-heading"
+                 value="${esc((DOC.settings && DOC.settings.criticalPathHeading) || "Critical Path")}"></label>
+        <div class="ed-pin-note">Each line below can be marked. <b>goal</b> shows under
+          the heading, <b>step</b> lines become the numbered list, <b>bottleneck</b> is
+          the note at the bottom. Everything else stays a plain line on the entry.</div>`
+        : `<div class="ed-pin-note">One job can be pinned. It becomes the plan at the
+            top of the Focus tab — a goal, a numbered list of what has to happen, and
+            what is holding it up.</div>`}
+    </div>
+
     <div class="ed-sec">Tasks and notes</div>
     <div class="ed-items">${items || '<div class="ed-empty">Nothing here yet.</div>'}</div>
     <div class="ed-add">
@@ -2430,6 +2508,11 @@ document.addEventListener("input", function(ev){
     mutate(d => { e.items[i].text = el.value; }, { rerender: false });
     return;
   }
+  if (act === "cp-heading"){
+    mutate(d => { d.settings = d.settings || {}; d.settings.criticalPathHeading = el.value;
+                  CP_HEADING = el.value; }, { rerender: false });
+    return;
+  }
   if (["title","sortKey","year","dateLabel","waitingOn"].includes(act)){
     mutate(d => { e[act] = act === "waitingOn" ? (el.value || null) : el.value; }, { rerender: false });
   }
@@ -2444,6 +2527,27 @@ document.addEventListener("change", function(ev){
   if (act === "system")   mutate(() => { e.system = el.value; });
   if (act === "priority") mutate(() => { e.priority = el.value || null; });
   if (act === "status")   mutate(() => { e.status = el.value; });
+
+  if (act === "item-role"){
+    const i = +el.closest(".ed-item").dataset.i;
+    mutate(() => { e.items[i].role = el.value || null; });
+  }
+  if (act === "pin-cp"){
+    mutate(() => {
+      // Only one entry can be the plan, so pinning this unpins whatever held it.
+      // Two would render two pinned blocks and the validator refuses the document.
+      for (const x of DOC.entries) if (x.role === "critical-path") x.role = null;
+      if (el.checked){
+        e.role = "critical-path";
+        // A plan with no goal is just a job. Seed one from the title so the
+        // Focus block has something to show before anything is typed.
+        if (!(e.items || []).some(i => i.role === "goal"))
+          (e.items = e.items || []).unshift({ type:"note", text:e.title, role:"goal" });
+      } else {
+        for (const it of (e.items || [])) it.role = null;
+      }
+    });
+  }
 });
 
 document.addEventListener("click", function(ev){
@@ -2496,6 +2600,165 @@ function addEntry(){
 }
 
 // ── Category and priority editor ──────────────────────────────────────────
+/** The Boat tab. Reading is the default, as everywhere else — the vessel's own
+ *  details are reference material you look up, not just settings you configure.
+ *  Turning on edit mode swaps the same tab for the full editor, so there is one
+ *  place the boat lives rather than a hidden mode behind a button. */
+function renderHelp(){
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";
+  const boat = (DOC && DOC.vessel && DOC.vessel.name) || "your boat";
+
+  box.innerHTML = `
+    <div class="up-sec">What this is</div>
+    <div class="hp">A maintenance log for ${esc(boat)}. It works with no signal —
+      at the yard, at the dock, out on the water — and catches up with the server
+      whenever you have a connection.</div>
+
+    <div class="up-sec">Reading it</div>
+    <div class="hp">
+      <p><b>Focus</b> is the working view: what's on the go, what's next, what's
+      stuck and why.</p>
+      <p><b>All Work</b> is everything, oldest first, grouped by year. The coloured
+      chips under the tabs filter by system — tap one, tap it again to clear.</p>
+      <p><b>Boat</b> is the vessel's own details. <b>Voyages</b> is trips.
+      <b>Updates</b> is what's changed in the log.</p>
+      <p>Tap any job to open it.</p>
+    </div>
+
+    <div class="up-sec">Changing things</div>
+    <div class="hp">
+      <p>Press <b>Edit</b>, top right. The header turns amber so you can tell at a
+      glance, and a row of buttons appears. Press <b>Done editing</b> to go back.</p>
+      <p><b>+ New job</b> adds one. Open a job while editing and you can change its
+      title, category, priority, dates, and every line in it.</p>
+      <p>The round button on the left of each line cycles it:
+      <b>note → task to do → task done</b>.</p>
+      <p><b>Boat details</b> is where the vessel's information, the categories and
+      the passwords live.</p>
+      <p>One job can be <b>pinned to the top of Focus as the plan</b> — a goal, a
+      numbered list of what has to happen, and what is holding it up. Open the job
+      while editing, tick the box under "Focus tab", then mark its lines as
+      <b>goal</b>, <b>step</b> or <b>bottleneck</b>.</p>
+      <p><b>Undo</b> goes back through what you've changed since you opened the app.</p>
+    </div>
+
+    <div class="up-sec">A job is a job, not a step</div>
+    <div class="hp">"Replace the raw water pump" is a job. Taking the old one off is
+      a task inside it. A job stays open until the part is back on the boat and
+      working — that's what keeps the log honest about what's actually done.
+      <p>Every line should be a fact about the boat, a decision and why you made
+      it, or something to do. Nothing else. A log written that way is still useful
+      in five years.</p></div>
+
+    <div class="up-sec">Backups</div>
+    <div class="hp"><b>Export</b>, on the Updates tab, saves the whole log as a
+      file. Do it now and then and keep it somewhere else — a computer, a cloud
+      drive, an email to yourself.
+      <p>The log is on your device and on the server. That covers a lot, but not
+      "I deleted it by accident three weeks ago". The export does.</p></div>
+
+    <div class="up-sec">Passwords</div>
+    <div class="hp">There are two. The <b>full</b> one changes the log; the
+      <b>read-only</b> one just looks. Hand out the read-only one — someone using
+      it can't alter anything, and that's enforced by the server rather than by the
+      app being polite about it.
+      <p>Both are under Boat details while editing. There is no password reset;
+      the recovery code issued at setup is the way back in.</p></div>
+
+    <div class="up-sec">Sharing and other devices</div>
+    <div class="hp">Any device: open this same address, type a password, and add it
+      to your home screen. Install <i>first</i>, then sign in from the icon —
+      iOS keeps the installed app's login separate from Safari's.
+      <p>Sync isn't instant. It catches up when the app opens or comes back to the
+      front. If two devices are edited apart, the second one to send is told and
+      you choose which wins — nothing is silently thrown away.</p></div>
+
+    <div class="up-sec">When something looks wrong</div>
+    <div class="hp">
+      <p><b>Changes not appearing elsewhere?</b> Updates tab, Sync now.</p>
+      <p><b>"not yet synced" stuck on?</b> You're offline. It'll send itself.</p>
+      <p><b>Want to start clean on this device?</b> Updates tab, Sign out. The log
+      stays on the server.</p>
+    </div>`;
+
+  document.getElementById("meta").innerHTML = "How this works";
+}
+
+function renderBoat(){
+  if (EDIT && !readOnly()) return renderManage();
+
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";
+  const v = (DOC && DOC.vessel) || {};
+
+  const row = (label, val) => val
+    ? `<div class="bt-row"><span class="bt-l">${esc(label)}</span><span class="bt-v">${esc(val)}</span></div>`
+    : "";
+
+  const counts = {
+    entries: (DOC.entries || []).length,
+    open: (DOC.entries || []).filter(e => e.status === "active").length,
+    tasks: (DOC.entries || []).reduce((n, e) =>
+      n + (e.items || []).filter(i => i.type === "task" && !i.done).length, 0),
+    voyages: (DOC.voyages || []).length,
+    systems: (DOC.systems || []).length,
+  };
+
+  const bySystem = [...(DOC.systems || [])]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map(sy => ({ sy, n: (DOC.entries || []).filter(e => e.system === sy.id).length }))
+    .filter(x => x.n);
+
+  box.innerHTML = `
+    <div class="bt-head">
+      <img class="bt-icon" src="${esc(v.icon || "icon-192.png")}" alt="">
+      <div>
+        <div class="bt-name">${esc(v.name || "This boat")}</div>
+        <div class="bt-sub">${esc([v.make, v.model, v.year].filter(Boolean).join(" · "))}</div>
+      </div>
+    </div>
+
+    <div class="up-sec">Details</div>
+    <div class="bt-table">
+      ${row("Name", v.name)}${row("Make", v.make)}${row("Model", v.model)}
+      ${row("Year", v.year)}${row("Length", v.length)}${row("LOA", v.loa)}
+      ${row("Hull type", v.hullType)}
+      ${row("Home port", v.homePort)}${row("Berth", v.berth)}
+      ${row("Currently", v.currentLocation)}
+      ${!v.make && !v.model && !v.homePort
+        ? `<div class="bt-empty">Nothing filled in yet. Turn on editing to add the
+             boat's make, model, year and home port.</div>` : ""}
+    </div>
+
+    <div class="up-sec">The log at a glance</div>
+    <div class="bt-stats">
+      <div><b>${counts.entries}</b><span>jobs</span></div>
+      <div><b>${counts.open}</b><span>still open</span></div>
+      <div><b>${counts.tasks}</b><span>tasks to do</span></div>
+      <div><b>${counts.voyages}</b><span>voyage${counts.voyages===1?"":"s"}</span></div>
+    </div>
+
+    <div class="up-sec">Systems</div>
+    <div class="bt-sys">
+      ${bySystem.map(x => `<span class="bt-chip">
+          <span class="dot" style="background:${esc(x.sy.color || "#94A3B8")}"></span>
+          ${esc(x.sy.name)} <span class="ct">${x.n}</span></span>`).join("")
+        || `<div class="bt-empty">No categories in use yet.</div>`}
+    </div>
+
+    <div class="up-intro" style="margin-top:16px">${readOnly()
+      ? "You are viewing a read-only share, so none of this can be changed here."
+      : "To change any of this, turn on editing — press and hold the version badge " +
+        "next to the title, or double-click it."}</div>`;
+
+  document.getElementById("meta").innerHTML =
+    `${esc(v.name || "Boat")} &ensp;·&ensp; ${counts.entries} jobs &ensp;·&ensp; ` +
+    `<span class="amber">${counts.tasks} tasks to do</span>`;
+}
+
 function renderManage(){
   const box = document.getElementById("log-content");
   const bar = document.getElementById("sysbar");
@@ -2532,6 +2795,9 @@ function renderManage(){
       <input class="ed-in" data-vact="${k}" value="${esc(v[k]||"")}"></label>`;
 
   box.innerHTML = `
+    <div class="up-intro" style="margin-bottom:14px">Editing <strong>${
+      esc((DOC.vessel && DOC.vessel.name) || "this boat")}</strong>. Turn editing off
+      to go back to reading — press and hold the version badge, or double-click it.</div>
     <div class="up-sec">The vessel</div>
     <div class="mg-icon">
       <img id="icon-preview" src="${esc(v.icon || "icon-192.png")}" alt="">
@@ -2544,10 +2810,20 @@ function renderManage(){
           add it again</strong> — the phone keeps the icon it saved at the time.</div>
       </div>
     </div>
-    ${field("name","Name")}${field("make","Make")}${field("model","Model")}${field("year","Year")}
+    ${field("name","Name")}${field("year","Year")}${field("length","Length")}
+    ${field("make","Make")}${field("model","Model")}
+    <div class="mg-icon-note" style="margin:-4px 0 10px">The header strip is built
+      from those five, in that order. Write your own below and it is left alone.</div>
+    ${field("loa","LOA")}${field("hullType","Hull type")}
+    <div class="mg-icon-note" style="margin:-4px 0 10px">LOA is the real
+      measurement — kept out of the header, which uses the nominal length the
+      builder put on the model.</div>
     ${field("homePort","Home port")}${field("berth","Berth")}${field("currentLocation","Currently")}
     <div class="up-sec">How it is labelled</div>
     ${field("logTitle","Log title")}${field("headerLabel","Header strip")}
+    ${(DOC.vessel && DOC.vessel.headerLabelCustom)
+      ? `<div class="ed-add" style="margin:-4px 0 10px"><button data-mact="hdr-auto">Build it from the details again</button></div>`
+      : ""}
     ${field("footerLabel","Footer")}${field("pageTitle","Browser tab")}${field("appShortName","Home screen name")}
     ${readOnly() ? "" : `
     <div class="up-sec">Passwords</div>
@@ -2602,7 +2878,13 @@ function renderManage(){
 document.addEventListener("input", function(ev){
   const el = ev.target.closest && ev.target.closest("[data-mact],[data-vact]");
   if (!el || !DOC) return;
-  if (el.dataset.vact) return mutate(() => { DOC.vessel[el.dataset.vact] = el.value; }, { rerender:false });
+  if (el.dataset.vact) return mutate(() => {
+    const k = el.dataset.vact;
+    DOC.vessel[k] = el.value;
+    // Typing in the strip itself claims it; typing anything else refreshes it.
+    if (k === "headerLabel") DOC.vessel.headerLabelCustom = true;
+    else refreshHeaderLabel();
+  }, { rerender:false });
   const row = el.closest(".mg-row"); if (!row) return;
   if (row.dataset.sys){
     const s = DOC.systems.find(x => x.id === row.dataset.sys); if (!s) return;
@@ -2768,6 +3050,13 @@ document.addEventListener("click", function(ev){
     return;
   }
 
+  if (act === "hdr-auto"){
+    mutate(() => { delete DOC.vessel.headerLabelCustom;
+                   DOC.vessel.headerLabel = composeHeaderLabel(DOC.vessel); }, { rerender:false });
+    renderBoat();
+    setEditStatus("Header strip built from the boat's details");
+    return;
+  }
   if (act === "icon-pick"){
     const f = document.getElementById("icon-file");
     if (f) f.click();
@@ -2975,6 +3264,29 @@ function applyPayload(p){
 // ═══════════════════════════════════════════════════════
 let DOC = null;
 
+/** The header strip, in one settled order: name, year, length, maker, model.
+ *
+ *  Auto-composed so nobody has to hand-type it, but only while it has not been
+ *  hand-edited — the moment someone writes their own, theirs is kept. Otherwise
+ *  filling in the year would silently overwrite a line they had chosen.
+ */
+function composeHeaderLabel(v){
+  const len = v.length ? String(v.length).trim() : "";
+  return [v.name, v.year, len, v.make, v.model]
+    .map(x => (x || "").toString().trim()).filter(Boolean).join(" · ").toUpperCase();
+}
+
+function refreshHeaderLabel(){
+  const v = DOC && DOC.vessel;
+  if (!v || v.headerLabelCustom) return;
+  const next = composeHeaderLabel(v);
+  if (next && next !== v.headerLabel){
+    v.headerLabel = next;
+    const el = document.querySelector(".vessel-lbl");
+    if (el) el.textContent = next;
+  }
+}
+
 function applyDocument(d){
   DOC = d;
 
@@ -3013,6 +3325,7 @@ function applyDocument(d){
   // Log" tells the owner nothing about whose log they are opening. The name is
   // the only thing cached, it never leaves the device, and it is already on the
   // home-screen icon.
+  if (!v.headerLabelCustom && composeHeaderLabel(v)) v.headerLabel = composeHeaderLabel(v);
   try { if (v.name) localStorage.setItem("cs2_vessel", v.name); } catch {}
   if (v.name) setChromeForBoat(v.appShortName || v.name);
   applyVesselIcon(v.icon);
@@ -3075,9 +3388,12 @@ function applyDocument(d){
 (function wireEditBar(){
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
   on("eb-add",    () => addEntry());
-  on("eb-manage", () => { S.filter = "manage";
-                          document.querySelectorAll(".tab").forEach(t => t.classList.remove("on"));
-                          renderManage(); });
+  on("eb-manage", () => {
+    S.filter = "boat";
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.f === "boat"));
+    renderBoat();
+    syncTabStrip();
+  });
   on("eb-undo",   () => undo());
   on("eb-export", () => exportDocument());
   on("eb-import", () => { const f = document.getElementById("eb-file"); if (f) f.click(); });
@@ -3100,16 +3416,10 @@ function applyDocument(d){
     if (file.files && file.files[0]) importDocument(file.files[0]);
     file.value = "";                     // so re-picking the same file fires again
   });
-  // Long-press / double-click the version badge toggles editing. Tap still
-  // opens the revision history, which is what the badge has always done.
-  const vb = document.getElementById("ver-badge");
-  if (vb){
-    vb.addEventListener("dblclick", ev => { ev.preventDefault(); toggleEdit(); });
-    let t = null;
-    vb.addEventListener("touchstart", () => { t = setTimeout(toggleEdit, 600); }, {passive:true});
-    ["touchend","touchmove","touchcancel"].forEach(e =>
-      vb.addEventListener(e, () => clearTimeout(t), {passive:true}));
-  }
+  // The badge does ONE thing now — open the revision history. It used to also
+  // toggle editing on a long press, which on an iPad just brought up the text
+  // selection loupe, and nothing on screen said the badge had a second meaning.
+  on("edit-toggle", () => toggleEdit());
 })();
 
 async function startApp(payload){
