@@ -80,6 +80,20 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .cp-hint{margin-top:10px;padding-top:8px;border-top:1px solid #14425F;
  font-size:11.5px;color:#6E93B0;line-height:1.55}
 .cpath-empty{border-style:dashed}
+/* A step that names the job doing the work. Small, so the step still reads as a
+   sentence rather than as a row of metadata. */
+.cp-job{margin-left:8px;background:#0B2135;border:1px solid #24567A;color:#7FA8C8;
+ border-radius:5px;padding:1px 7px;font-size:10px;font-weight:600;cursor:pointer;
+ font-family:ui-monospace,SFMono-Regular,Menlo,monospace;vertical-align:1px}
+.cp-job:hover{background:#12324B;color:#E4F2FF}
+.cp-drift{margin-left:7px;font-size:10.5px;color:#FBBF24;font-style:italic}
+.cp-plain{margin-top:8px;font-size:11.5px;color:#7FA8C8;line-height:1.55}
+.planed .ed-row{margin-bottom:9px}
+.pe-step,.pe-note{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+.pe-stepmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.pe-job{background:#0B1A28;border:1px solid #1D3D57;color:#8FB4CE;border-radius:5px;
+ padding:4px 6px;font-size:11px;font-family:inherit;max-width:100%}
+.pe-note{align-items:center}
 .cpath .goal{font-size:12px;color:#8FB4CE;font-style:italic;margin-bottom:9px}
 .cpath ol{margin:0;padding-left:20px}
 .cpath li{font-size:13px;color:#C8DCF0;margin-bottom:5px;line-height:1.5}
@@ -554,7 +568,48 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
+
+/** The APP's history — which is not the log's history, and never was.
+ *
+ *  Until 1.4.0 this only existed in git and in GitHub releases, so the app could
+ *  tell you which version you were running and nothing whatsoever about what had
+ *  changed in it. The Updates tab showed a revision list, but that is the LOG's
+ *  history — the boat's — and conflating the two is the mistake this whole file
+ *  keeps trying not to make.
+ *
+ *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
+const APP_CHANGELOG = [
+  ["1.4.0", "14 Aug 2026", "The plan is no longer a job",
+   "The critical path moved out of the job list into its own place, so it stops "
+ + "counting toward the job and task totals and stops sitting in a category. Its "
+ + "steps can now point at the jobs that do the work: the step links to the job, "
+ + "shows whether it is open or complete, and says so when the two disagree. Tick "
+ + "a job as part of the plan from the job itself. Editor text boxes grew to fit "
+ + "their contents instead of clipping. Existing logs convert themselves on open."],
+
+  ["1.3.0", "14 Aug 2026", "Reordering, and a way into the plan",
+   "Jobs can be moved up and down within their year with arrows — the sort key's "
+ + "day is often a stand-in rather than a record, so the order inside a month was "
+ + "always somebody's choice. Arrows and not dragging, because dragging on a "
+ + "touchscreen fights text selection. The plan gained an Edit button; before "
+ + "this it could be seen but not reached."],
+
+  ["1.2.0", "14 Aug 2026", "Editing where the thing is",
+   "The edit toolbar was emptied into the places the things already live: New job "
+ + "to the top of the list, boat details to the Boat tab, Restore beside Export on "
+ + "Updates. Only Undo stayed, and the bar only appears when it has something to "
+ + "say."],
+
+  ["1.1.0", "14 Aug 2026", "Sync, sharing and sign out",
+   "Syncing across devices, a read-only password that the server enforces rather "
+ + "than the interface hiding, a sign-out button, the Boat and Help tabs, and "
+ + "recording a revision from inside the app."],
+
+  ["1.0.0", "14 Aug 2026", "First release",
+   "The log as a generic app: any vessel, its own categories, editable in the "
+ + "browser, encrypted, installable, and working with no signal."],
+];
 const APP_REPO = "Chriscc1234/boat-maintenance-log";   // enables the update check
 
 // Put the boat's name on the lock screen if this device has seen it before.
@@ -627,6 +682,7 @@ const S = {
   sysFilter: "all",
   customVoyages: [],   // category filter; parent tags include their children
   revOpen: {},         // Updates tab: which revision rows are expanded
+  appOpen: {},         // Updates tab: which APP changelog rows are expanded
   noteOpen: {},        // ...and which note sections
   sysOpen: null,       // category bar: null = decide by measurement, true/false = user's choice
 };
@@ -715,6 +771,7 @@ function renderLog() {
   }
 
   document.getElementById("log-content").innerHTML = html;
+  sizeTextareas();
   const all = allEntries();
   const ac = all.filter(e=>e.st==="active").length;
   document.getElementById("meta").innerHTML = `${all.length} entries &ensp;·&ensp; <span class="amber">${ac} active project${ac!==1?"s":""}</span> &ensp;·&ensp; ${REV_DATE}`;
@@ -824,6 +881,46 @@ const PRI_META = {
   later:   {label:"Postponed",        color:"#64748B"},
 };
 
+/** Editor textareas ship at one row and clip whatever does not fit, so a long
+ *  step or bullet showed its first line and hid the rest. Grown to fit on every
+ *  render and as you type. This was already true of the job editor; the plan
+ *  editor, whose lines are sentences, is where it became obvious. */
+function autosize(el){
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight + 2) + "px";
+}
+function sizeTextareas(){ document.querySelectorAll("textarea.ed-text").forEach(autosize); }
+document.addEventListener("input", ev => {
+  if (ev.target && ev.target.matches && ev.target.matches("textarea.ed-text")) autosize(ev.target);
+});
+
+let PLAN_EDITING = false;
+const blankPlan = () => ({ heading: CP_HEADING, goal: "", steps: [], bottleneck: "", notes: [] });
+
+/** One step of the plan.
+ *
+ *  A step MAY name the job that does the work. That link is the point of the
+ *  whole change: the steps were free text shadowing real jobs, so ticking a step
+ *  did nothing to the job and finishing the job did nothing to the step, and the
+ *  two agreed only because somebody kept them in step by hand.
+ *
+ *  The tick still belongs to the step — several steps span two jobs, and a job
+ *  being complete does not always finish the step it feeds. So the job's status
+ *  is SHOWN rather than obeyed, and when the two disagree the step says so.
+ *  Visible disagreement is the useful behaviour; silently overwriting one from
+ *  the other is not. */
+function planStepHTML(s){
+  const job = s.entryId ? findEntry(s.entryId) : null;
+  const jobDone = job && job.status === "complete";
+  const disagrees = job && jobDone !== !!s.done;
+  return `<li class="${s.done ? "cp-done" : ""}">${esc(s.text)}`
+       + (job ? `<button class="cp-job" data-jump="${esc(job.id)}"
+              title="${esc(job.title)}">${esc(job.id)} · ${
+              jobDone ? "done" : "open"}</button>` : "")
+       + (disagrees ? `<span class="cp-drift">job is ${jobDone ? "complete" : "still open"}</span>` : "")
+       + `</li>`;
+}
+
 function renderFocus(){
   const box = document.getElementById("log-content");
   const bar = document.getElementById("sysbar");
@@ -832,57 +929,33 @@ function renderFocus(){
   const all = allEntries().filter(e => e.st === "active");
   let h = "";
 
-  // Critical path pinned at the top. Identified by role when the document says
-  // so, and only by the old title/prefix sniffing as a fallback \u2014 that sniffing
-  // renders nothing at all for a boat whose entry is not called "critical path",
-  // and breaks on this boat the moment a bullet is reworded.
-  const cpDoc = DOC && (DOC.entries || []).find(e => e.role === "critical-path");
-  const cp = cpDoc ? all.find(e => e.id === cpDoc.id)
-                   : all.find(e => e.title.toLowerCase().includes("critical path"));
-  if (cp){
-    const role = r => cpDoc && (cpDoc.items || []).filter(i => i.role === r);
-    const goalItem = cpDoc ? (role("goal")[0] || null) : null;
-    const noteItem = cpDoc ? (role("bottleneck")[0] || null) : null;
-
-    const goal = goalItem ? goalItem.text
-               : (cp.b.find(b => b.toLowerCase().startsWith("goal")) || "");
-    const steps = cpDoc
-      ? role("step").map(i => ({ done: !!i.done, text: i.text.replace(/^\d+\.\s*/, "") }))
-      : cp.b.filter(b => /^[\u2610\u2611]\s*\d/.test(b)).map(b => ({
-          done: b.charAt(0) === "\u2611",
-          text: b.replace(/^[\u2610\u2611]\s*\d+\.\s*/, "")
-        }));
-    const note = noteItem ? noteItem.text
-               : cp.b.find(b => b.toLowerCase().startsWith("current bottleneck"));
-    // The block is built from `cp`, which may have been found by role OR by the
-    // old title sniffing. Route in on cp.id either way — a plan you can see but
-    // cannot reach is the whole complaint, and it is worse in the sniffed case
-    // because nothing is pinned to find.
-    const canEditCp = EDIT && DOC && !readOnly() && findEntry(cp.id);
+  // The plan, pinned at the top. It is `doc.plan` — NOT a job, because it is a
+  // view over jobs. Anything still carrying role:"critical-path" was converted
+  // by migratePlan() before this ran.
+  const plan = DOC && DOC.plan;
+  const canEditPlan = EDIT && DOC && !readOnly();
+  const hasPlan = plan && (plan.goal || (plan.steps||[]).length || plan.bottleneck
+                           || (plan.notes||[]).length);
+  if (canEditPlan && PLAN_EDITING){
+    h += planEditor(plan || blankPlan());
+  } else if (hasPlan){
     h += `<div class="cpath"><h3>${esc(CP_HEADING)}${
-           canEditCp ? `<button class="cp-edit" data-editcp="${esc(cp.id)}">Edit the plan</button>` : ""}</h3>`
-       + (goal ? `<div class="goal">${esc(goal)}</div>` : "")
-       + `<ol>${steps.map(s=>`<li class="${s.done?"cp-done":""}">${esc(s.text)}</li>`).join("")}</ol>`
-       + (note ? `<div class="cp-note">${esc(note)}</div>` : "")
-       + (canEditCp ? `<div class="cp-hint">${cpDoc
-           ? `The plan is job <b>${esc(cp.id)}</b>. Open it to change the heading, or
-              to mark a line as the <b>goal</b>, a numbered <b>step</b>, or the
-              <b>bottleneck</b>.`
-           : `This is showing because job <b>${esc(cp.id)}</b> is <i>titled</i> like a
-              critical path, not because it is pinned — so its lines are being read
-              by their wording. Open it and tick the pin to set the parts properly.`
-         }</div>` : "")
+           canEditPlan ? `<button class="cp-edit" data-planedit="1">Edit the plan</button>` : ""}</h3>`
+       + (plan.goal ? `<div class="goal">${esc(plan.goal)}</div>` : "")
+       + `<ol>${(plan.steps||[]).map(s => planStepHTML(s)).join("")}</ol>`
+       + (plan.bottleneck ? `<div class="cp-note">${esc(plan.bottleneck)}</div>` : "")
+       + (plan.notes||[]).map(n => `<div class="cp-plain">${esc(n)}</div>`).join("")
        + `</div>`;
-  } else if (EDIT && DOC && !readOnly()){
-    // Without this, an unpinned log gives edit mode nothing to act on here and
-    // no clue that pinning is even possible — the feature is invisible until
-    // somebody happens to open a job and read the checkbox labels.
+  } else if (canEditPlan){
+    // Without this, edit mode on a log with no plan gives no clue the feature is
+    // even there.
     h += `<div class="cpath cpath-empty"><h3>${esc(CP_HEADING)}</h3>
-      <div class="cp-hint">No job is pinned as the plan yet. Open one on
-      <b>All Work</b> and tick <b>“Pin this to the top of Focus as the plan”</b>;
-      its lines can then be marked as the goal, the numbered steps, and what is
-      holding it up.</div></div>`;
+      <div class="cp-hint">No plan yet. A plan is the short list of what has to
+      happen before the boat can do the thing you are working towards, and it
+      sits here above everything else.
+      <button class="cp-edit" data-planedit="1">Write one</button></div></div>`;
   }
+
 
   for (const key of ["now","next","blocked","later"]){
     const items = all.filter(e => e.pri === key);
@@ -914,6 +987,7 @@ function renderFocus(){
   // needs to be edited anyway. Offering it from Focus still beats making
   // someone change tab first to find the button.
   box.innerHTML = addJobRow() + h;
+  sizeTextareas();
 
   const c = {};
   ["now","next","blocked","later"].forEach(k => c[k] = all.filter(e=>e.pri===k).length);
@@ -935,15 +1009,129 @@ function jumpToEntry(id){
   if (el && el.scrollIntoView) el.scrollIntoView({behavior:"smooth", block:"center"});
 }
 
-// tapping a focus card jumps to that entry in All Work
+/** The plan editor, rendered in place at the top of Focus. In place rather than
+ *  on some other tab because the plan is not a job and has nowhere else to live —
+ *  and because editing it while looking at it is the point. */
+function planEditor(p){
+  const jobOpts = id => `<option value="">— no job —</option>` +
+    [...DOC.entries]
+      .sort((a,b) => String(a.sortKey).localeCompare(String(b.sortKey)))
+      .map(e => `<option value="${esc(e.id)}"${e.id===id?" selected":""}>${
+        esc(e.id)} · ${esc(e.title.slice(0,44))}${e.status==="complete"?" ✓":""}</option>`).join("");
+
+  const steps = (p.steps || []).map((s, i) => `
+    <div class="pe-step" data-i="${i}">
+      <button class="ed-chk${s.done?"":" off"}" data-pact="step-done" title="done?">${
+        s.done ? "☑" : "☐"}</button>
+      <div class="pe-stepmain">
+        <textarea class="ed-text" data-pact="step-text" rows="1">${esc(s.text)}</textarea>
+        <select class="pe-job" data-pact="step-job">${jobOpts(s.entryId)}</select>
+      </div>
+      <div class="ed-itembtns">
+        <button data-pact="step-up" title="move up"${i===0?" disabled":""}>↑</button>
+        <button data-pact="step-down" title="move down"${i===p.steps.length-1?" disabled":""}>↓</button>
+        <button data-pact="step-del" title="delete" class="danger">×</button>
+      </div>
+    </div>`).join("");
+
+  const notes = (p.notes || []).map((n, i) => `
+    <div class="pe-note" data-i="${i}">
+      <textarea class="ed-text" data-pact="note-text" rows="1">${esc(n)}</textarea>
+      <button data-pact="note-del" title="delete" class="danger">×</button>
+    </div>`).join("");
+
+  return `<div class="cpath planed">
+    <h3>${esc(CP_HEADING)}<button class="cp-edit" data-planedit="0">Done</button></h3>
+    <label class="ed-row"><span>Heading</span>
+      <input class="ed-in" data-pact="heading" value="${esc(p.heading || "")}"></label>
+    <label class="ed-row"><span>Goal</span>
+      <input class="ed-in" data-pact="goal" value="${esc(p.goal || "")}"
+             placeholder="what all of this is for"></label>
+
+    <div class="ed-sec">Steps — what has to happen, in order</div>
+    <div class="pe-steps">${steps || '<div class="ed-empty">No steps yet.</div>'}</div>
+    <div class="ed-add"><button data-pact="step-add">+ Step</button></div>
+    <div class="cp-hint">Point a step at the job that does the work and it becomes
+      a link, showing whether that job is open or complete. The tick stays yours —
+      a step can span two jobs — but if the two disagree the step says so.</div>
+
+    <div class="ed-sec">Bottleneck</div>
+    <label class="ed-row">
+      <input class="ed-in" data-pact="bottleneck" value="${esc(p.bottleneck || "")}"
+             placeholder="what is actually holding this up"></label>
+
+    <div class="ed-sec">Notes</div>
+    <div class="pe-notes">${notes || '<div class="ed-empty">None.</div>'}</div>
+    <div class="ed-add">
+      <button data-pact="note-add">+ Note</button>
+      <button data-pact="plan-del" class="danger">Delete the plan</button>
+    </div>
+  </div>`;
+}
+
+/** Plan edits. Kept apart from the entry editor's delegation because the plan is
+ *  not an entry — sharing that handler would mean every branch of it asking
+ *  which of the two it was looking at. */
+function planAct(el, ev){
+  if (!DOC || readOnly()) return;
+  const act = el.dataset.pact;
+  const P = () => (DOC.plan = DOC.plan || blankPlan());
+  const idx = () => { const w = el.closest("[data-i]"); return w ? +w.dataset.i : -1; };
+  const typing = ev && ev.type === "input";
+
+  // Text fields do NOT re-render — rebuilding mid-keystroke loses the caret.
+  if (act === "heading")    return mutate(() => { P().heading = el.value; CP_HEADING = el.value; }, {rerender:false});
+  if (act === "goal")       return mutate(() => { P().goal = el.value; }, {rerender:false});
+  if (act === "bottleneck") return mutate(() => { P().bottleneck = el.value; }, {rerender:false});
+  if (act === "step-text")  return mutate(() => { P().steps[idx()].text = el.value; }, {rerender:false});
+  if (act === "note-text")  return mutate(() => { P().notes[idx()] = el.value; }, {rerender:false});
+  if (typing) return;                       // everything below is a click
+
+  if (act === "step-job")   return mutate(() => { P().steps[idx()].entryId = el.value || null; }, {rerender:false});
+  if (act === "step-done")  return mutate(() => { const s = P().steps[idx()]; s.done = !s.done; });
+  if (act === "step-add")   return mutate(() => { P().steps.push({ text:"", done:false, entryId:null }); });
+  if (act === "step-del")   return mutate(() => { P().steps.splice(idx(), 1); });
+  if (act === "note-add")   return mutate(() => { (P().notes = P().notes || []).push(""); });
+  if (act === "note-del")   return mutate(() => { P().notes.splice(idx(), 1); });
+  if (act === "step-up" || act === "step-down"){
+    const i = idx(), j = act === "step-up" ? i - 1 : i + 1;
+    const st = P().steps;
+    if (j < 0 || j >= st.length) return;
+    return mutate(() => { const t = st[i]; st[i] = st[j]; st[j] = t; });
+  }
+  if (act === "plan-del"){
+    if (!confirm("Delete the plan?\n\nThe jobs it points at are not touched. This can be undone."))
+      return;
+    mutate(() => { delete DOC.plan; });
+    PLAN_EDITING = false;
+    renderFocus();
+    return setEditStatus("Plan deleted");
+  }
+}
+
 document.addEventListener("click", function(ev){
-  const card = ev.target.closest && ev.target.closest(".fcard");
-  if (card) return jumpToEntry(card.dataset.jump);
-  // The plan is a job like any other, but it is the ONE job you cannot find by
-  // looking — nothing in the pinned block says which entry it comes from, so
-  // editing it meant already knowing. This is the way in.
-  const cpe = ev.target.closest && ev.target.closest("[data-editcp]");
-  if (cpe){ ev.stopPropagation(); jumpToEntry(cpe.dataset.editcp); }
+  const pe = ev.target.closest && ev.target.closest("[data-planedit]");
+  if (pe){
+    PLAN_EDITING = pe.dataset.planedit === "1";
+    if (PLAN_EDITING && !DOC.plan) mutate(() => { DOC.plan = blankPlan(); }, {rerender:false});
+    return renderFocus();
+  }
+  const pa = ev.target.closest && ev.target.closest("[data-pact]");
+  if (pa && pa.tagName !== "SELECT") return planAct(pa, ev);
+});
+document.addEventListener("input",  ev => {
+  const pa = ev.target.closest && ev.target.closest("[data-pact]");
+  if (pa) planAct(pa, ev);
+});
+document.addEventListener("change", ev => {
+  const pa = ev.target.closest && ev.target.closest("[data-pact]");
+  if (pa && pa.tagName === "SELECT") planAct(pa, ev);
+});
+
+// Tapping a focus card — or the job chip on a plan step — opens that job.
+document.addEventListener("click", function(ev){
+  const t = ev.target.closest && ev.target.closest(".fcard, .cp-job");
+  if (t) jumpToEntry(t.dataset.jump);
 });
 
 // ═══════════════════════════════════════════════════════
@@ -1119,7 +1307,21 @@ function renderUpdates(){
       <button class="upd-btn" id="signout-btn">Sign out</button></div>
     <div class="up-sec">This app</div>
     <div class="up-intro">Version <strong>${esc(APP_VERSION)}</strong> — the app itself,
-      which is separate from the log's revision above. <span id="app-upd"></span></div>
+      which is separate from the log's revision below. <span id="app-upd"></span></div>
+    ${APP_CHANGELOG.map((r, i) => {
+      const running = r[0] === APP_VERSION;
+      const open = S.appOpen[r[0]] ?? (i === 0);
+      return `<div class="rev${running ? " cur" : ""}${open ? " open" : ""}">
+        <button class="rev-hd" data-appc="${esc(r[0])}">
+          <span class="rev-v">${esc(r[0])}</span>
+          <span class="rev-d">${esc(r[1])}</span>
+          ${running ? `<span class="rev-now">running</span>` : ""}
+          <span class="rev-h">${esc(r[2])}</span>
+          <span class="rev-chev">▼</span>
+        </button>
+        <div class="rev-t">${esc(r[3])}</div>
+      </div>`;
+    }).join("")}
     <div class="up-sec">Revision history</div>
     ${(!readOnly() && pendingCount()) ? `<div class="up-pending">
       <strong>${pendingCount()} change${pendingCount()===1?"":"s"}</strong> since
@@ -1304,6 +1506,13 @@ document.addEventListener("click", function(e){
 
 // Collapse/expand, delegated so it survives re-render
 document.addEventListener("click", function(e){
+  const ac = e.target.closest && e.target.closest("[data-appc]");
+  if (ac){
+    const box = ac.parentElement;
+    S.appOpen[ac.dataset.appc] = !box.classList.contains("open");
+    box.classList.toggle("open");
+    return;
+  }
   const rv = e.target.closest && e.target.closest("[data-rev]");
   if (rv){
     const k = rv.dataset.rev;
@@ -1570,6 +1779,41 @@ function validateDocument(doc) {
         `"${a.id}" (${a.sortKey}). The app sorts on read, so this is cosmetic.`);
       break;
     }
+  }
+
+  // ── plan ────────────────────────────────────────────────────────────────
+  // Optional and top level. The plan is not a job — it is a view over jobs — so
+  // it does not live in `entries`, where it was inflating the job count, sitting
+  // in somebody's category, and carrying a sortKey and a date that meant
+  // nothing. Documents written before this carry an entry with
+  // role:"critical-path" instead; the app converts those on open.
+  if (doc.plan != null){
+    const p = doc.plan;
+    if (typeof p !== "object" || Array.isArray(p)) E("plan is not an object");
+    else {
+      if (p.heading != null && typeof p.heading !== "string") E("plan.heading is not a string");
+      if (p.goal != null && typeof p.goal !== "string") E("plan.goal is not a string");
+      if (p.bottleneck != null && typeof p.bottleneck !== "string") E("plan.bottleneck is not a string");
+      if (p.notes != null && !Array.isArray(p.notes)) E("plan.notes is not an array");
+      else (p.notes || []).forEach((n, i) => {
+        if (typeof n !== "string") E(`plan.notes[${i}] is not a string`);
+      });
+      if (!Array.isArray(p.steps)) E("plan.steps is missing or not an array");
+      else p.steps.forEach((s, i) => {
+        const at = `plan.steps[${i}]`;
+        if (s === null || typeof s !== "object") return E(`${at} is not an object`);
+        if (typeof s.text !== "string") E(`${at}.text is missing or not a string`);
+        if (typeof s.done !== "boolean")
+          E(`${at}.done is ${JSON.stringify(s.done)}, expected true or false`);
+        // A step may name the job that does the work. Optional — plenty of steps
+        // are not a single job — but a name that points nowhere is a dead link.
+        if (s.entryId != null && !ids.has(s.entryId))
+          E(`${at}.entryId "${s.entryId}" is not an entry in this log`);
+      });
+    }
+    if (criticalPaths)
+      E(`the document has a plan AND ${criticalPaths} entr${criticalPaths>1?"ies":"y"} ` +
+        `with role "critical-path" — one or the other, not both`);
   }
 
   // ── voyages ─────────────────────────────────────────────────────────────
@@ -2014,6 +2258,15 @@ async function afterOpen(){
     await loadSyncConfig();
     if (SYNC) pullRemote({ quiet: true });
   } catch (err) { console.warn("sync:", err && err.message); }
+  // The plan stopped being a job on this open. Say so and push it, rather than
+  // leaving a converted document sitting only on this device — the next device
+  // would convert its own copy and the two would race.
+  if (PLAN_MIGRATED && !readOnly()){
+    PLAN_MIGRATED = false;
+    saveLocal();
+    if (SYNC) queuePush();
+    setEditStatus("The plan is no longer filed as a job — it moved to the top of Focus");
+  }
   updateEditBar();
 }
 
@@ -2593,10 +2846,15 @@ function entryEditor(e){
     DOC.priorities.map(p =>
       `<option value="${esc(p.id)}"${p.id===e.priority?" selected":""}>${esc(p.label)}</option>`).join("");
 
-  const isCp = e.role === "critical-path";
-  const roleOpts = it => ["", "goal", "step", "bottleneck", "after-launch"].map(r =>
-    `<option value="${r}"${(it.role || "") === r ? " selected" : ""}>${
-      r === "" ? "plain line" : r === "after-launch" ? "after launch" : r}</option>`).join("");
+  // A job is a job. The plan moved out of `entries` and into `doc.plan`, so
+  // there is no per-line goal/step/bottleneck marking here any more — that
+  // belongs to the plan editor on the Focus tab.
+  //
+  // What DOES stay is reaching the plan from the job, because that is the
+  // natural direction: you are looking at the work and you decide it gates the
+  // launch. It now means "make this job a step" rather than "make this job the
+  // whole plan", which is the thing it should have meant all along.
+  const planStep = ((DOC.plan && DOC.plan.steps) || []).find(s => s.entryId === e.id);
 
   const items = (e.items || []).map((it, i) => `
     <div class="ed-item" data-i="${i}">
@@ -2604,7 +2862,6 @@ function entryEditor(e){
         it.type==="task" ? (it.done ? "☑" : "☐") : "·"}</button>
       <div class="ed-itemmain">
         <textarea class="ed-text" data-act="item-text" rows="1">${esc(it.text)}</textarea>
-        ${isCp ? `<select class="ed-role" data-act="item-role">${roleOpts(it)}</select>` : ""}
       </div>
       <div class="ed-itembtns">
         <button data-act="item-up" title="move up"${i===0?" disabled":""}>↑</button>
@@ -2632,18 +2889,16 @@ function entryEditor(e){
              placeholder="why this is blocked — shown on the Focus card"></label>
     <div class="ed-sec">Focus tab</div>
     <div class="ed-pin">
-      <label><input type="checkbox" data-act="pin-cp"${isCp ? " checked" : ""}>
-        <span>Pin this to the top of Focus as the plan</span></label>
-      ${isCp ? `
-        <label class="ed-row" style="margin-top:8px"><span>Heading</span>
-          <input class="ed-in" data-act="cp-heading"
-                 value="${esc((DOC.settings && DOC.settings.criticalPathHeading) || "Critical Path")}"></label>
-        <div class="ed-pin-note">Each line below can be marked. <b>goal</b> shows under
-          the heading, <b>step</b> lines become the numbered list, <b>bottleneck</b> is
-          the note at the bottom. Everything else stays a plain line on the entry.</div>`
-        : `<div class="ed-pin-note">One job can be pinned. It becomes the plan at the
-            top of the Focus tab — a goal, a numbered list of what has to happen, and
-            what is holding it up.</div>`}
+      <label><input type="checkbox" data-act="plan-step"${planStep ? " checked" : ""}>
+        <span>This job is a step in the plan</span></label>
+      <div class="ed-pin-note">${planStep
+        ? `It is step <b>${((DOC.plan.steps||[]).indexOf(planStep))+1}</b> of the plan at
+           the top of Focus, and it reads
+           “${esc(planStep.text || e.title)}”. Reword it, reorder it or tick it off
+           up there — a step's wording is the plan's, not the job's.`
+        : `Adds it to the plan at the top of Focus, as a step linked back to this
+           job. The plan is the short list of what has to happen before the boat
+           can do the thing you are working towards; everything else is just work.`}</div>
     </div>
 
     <div class="ed-sec">Tasks and notes</div>
@@ -2672,11 +2927,7 @@ document.addEventListener("input", function(ev){
     mutate(d => { e.items[i].text = el.value; }, { rerender: false });
     return;
   }
-  if (act === "cp-heading"){
-    mutate(d => { d.settings = d.settings || {}; d.settings.criticalPathHeading = el.value;
-                  CP_HEADING = el.value; }, { rerender: false });
-    return;
-  }
+  // plan-step is a checkbox: it fires "change", handled below, not "input".
   if (["title","sortKey","year","dateLabel","waitingOn"].includes(act)){
     mutate(d => { e[act] = act === "waitingOn" ? (el.value || null) : el.value; }, { rerender: false });
   }
@@ -2691,26 +2942,20 @@ document.addEventListener("change", function(ev){
   if (act === "system")   mutate(() => { e.system = el.value; });
   if (act === "priority") mutate(() => { e.priority = el.value || null; });
   if (act === "status")   mutate(() => { e.status = el.value; });
-
-  if (act === "item-role"){
-    const i = +el.closest(".ed-item").dataset.i;
-    mutate(() => { e.items[i].role = el.value || null; });
-  }
-  if (act === "pin-cp"){
-    mutate(() => {
-      // Only one entry can be the plan, so pinning this unpins whatever held it.
-      // Two would render two pinned blocks and the validator refuses the document.
-      for (const x of DOC.entries) if (x.role === "critical-path") x.role = null;
+  if (act === "plan-step"){
+    mutate(d => {
+      d.plan = d.plan || blankPlan();
+      d.plan.steps = d.plan.steps || [];
       if (el.checked){
-        e.role = "critical-path";
-        // A plan with no goal is just a job. Seed one from the title so the
-        // Focus block has something to show before anything is typed.
-        if (!(e.items || []).some(i => i.role === "goal"))
-          (e.items = e.items || []).unshift({ type:"note", text:e.title, role:"goal" });
+        // Seeded from the title, then owned by the plan. A step describes the
+        // gate ("shafts back in and aligned"); the title describes the work.
+        // They start the same and are free to diverge.
+        d.plan.steps.push({ text: e.title, done: e.status === "complete", entryId: e.id });
       } else {
-        for (const it of (e.items || [])) it.role = null;
+        d.plan.steps = d.plan.steps.filter(s => s.entryId !== e.id);
       }
     });
+    setEditStatus(el.checked ? "Added to the plan" : "Removed from the plan");
   }
 });
 
@@ -2840,6 +3085,9 @@ function renderHelp(){
       cloud drive, an email to yourself.
       <p>The log is on your device and on the server. That covers a lot, but not
       "I deleted it by accident three weeks ago". The export does.</p>
+      <p>The exported file is <b>not encrypted</b> — that is what makes it a real
+      backup, readable by anything — so keep it somewhere you would keep the
+      password.</p>
       <p><b>Restore from a backup</b> is next to it, and puts one back. It replaces
       the whole log, checks the file first, tells you how many entries it is about
       to swap in, and Undo reverses it.</p></div>
@@ -2856,9 +3104,35 @@ function renderHelp(){
     <div class="hp">Any device: open this same address, type a password, and add it
       to your home screen. Install <i>first</i>, then sign in from the icon —
       iOS keeps the installed app's login separate from Safari's.
+      <p><b>iPhone / iPad:</b> it has to be Safari; iOS does not let other browsers
+      install a web app. Share button, then <b>Add to Home Screen</b> — it is
+      already named for the boat. <b>Android:</b> Chrome, menu, <b>Install app</b>.</p>
+      <p>Do it once with a good connection. After that it opens like any other app
+      and works with no signal at all.</p>
       <p>Sync isn't instant. It catches up when the app opens or comes back to the
       front. If two devices are edited apart, the second one to send is told and
       you choose which wins — nothing is silently thrown away.</p></div>
+
+    <div class="up-sec">Editing the log on a computer, or with an AI</div>
+    <div class="hp">The exported file is plain JSON, and the app ships a document
+      called <code>DATA-FORMAT.md</code> that describes it completely — written so
+      that a person, or an AI assistant, can read and edit it knowing nothing else
+      about this app.
+      <p>So you can hand the export to an AI, ask it to add or reorganise jobs, and
+      import the result. Anything invalid is refused on import, and it names the
+      job at fault before changing anything.</p></div>
+
+    <div class="up-sec">What this app will not do</div>
+    <div class="hp">Worth being straight about, so none of it is a surprise.
+      <p><b>There is no password reset.</b> The log is properly encrypted, which
+      means nobody can recover it for you — not this app, not whoever hosts it. The
+      recovery code issued at setup is the whole recovery story. Print it and keep
+      it with the boat's papers; a photo on the phone that holds the log is not a
+      backup.</p>
+      <p><b>Sync is not live.</b> It catches up when the app opens or returns to the
+      front, not while you are looking at it.</p>
+      <p><b>Two people editing at once are not merged.</b> The second to send is
+      told the log changed and picks which version wins.</p></div>
 
     <div class="up-sec">When something looks wrong</div>
     <div class="hp">
@@ -3448,6 +3722,7 @@ function applyPayload(p){
 // instead of them, so a payload without DOC still renders exactly as before.
 // ═══════════════════════════════════════════════════════
 let DOC = null;
+let PLAN_MIGRATED = false;
 
 /** The header strip, in one settled order: name, year, length, maker, model.
  *
@@ -3472,8 +3747,57 @@ function refreshHeaderLabel(){
   }
 }
 
+/** Lift a plan out of `entries` and into `doc.plan`.
+ *
+ *  The plan used to be an ordinary entry carrying role:"critical-path". That
+ *  made it a job, which it is not — it is a view OVER jobs. As a job it counted
+ *  toward the job total and the tasks-to-do number, sat inside somebody's
+ *  category (Yard Work, here), and carried a sortKey and a date that described
+ *  nothing: no work happened on 20 June.
+ *
+ *  Returns true if it changed anything, so the caller can save and say so.
+ *  Idempotent — a document that already has `plan` is left alone. */
+function migratePlan(d){
+  if (!d || d.plan || !Array.isArray(d.entries)) return false;
+  const i = d.entries.findIndex(e => e && e.role === "critical-path");
+  if (i < 0) return false;
+  const e = d.entries[i];
+  const items = e.items || [];
+  const first = r => (items.find(x => x.role === r) || {}).text || "";
+
+  d.plan = {
+    heading: (d.settings && d.settings.criticalPathHeading) || e.title || "Critical Path",
+    goal: first("goal"),
+    steps: items.filter(x => x.role === "step").map(x => ({
+      // The numbering lived in the text because there was nowhere else for it.
+      // It renders from an <ol> now, so a stored "3." would show as "3. 3.".
+      text: String(x.text || "").replace(/^\s*\d+\.\s*/, ""),
+      done: !!x.done,
+      // Left null deliberately. Which job does the work is a judgement — several
+      // of these steps span two jobs and one has no job at all — and guessing it
+      // would be inventing a link the log never claimed.
+      entryId: null,
+    })),
+    bottleneck: first("bottleneck"),
+    // after-launch and unmarked lines both rendered as plain notes, and the
+    // Focus block dropped them entirely, so they were only visible by opening
+    // the job. They are kept, and now shown.
+    notes: items.filter(x => x.role == null || x.role === "after-launch")
+                .map(x => String(x.text || "")).filter(Boolean),
+  };
+  d.entries.splice(i, 1);
+  if (d.settings) delete d.settings.criticalPathHeading;
+  return true;
+}
+
 function applyDocument(d){
   DOC = d;
+
+  // Run here rather than at each load site. There are six of them — import,
+  // sync pull, local restore, payload, conflict resolution, first run — and the
+  // last time setup was duplicated across paths like that, three of them forgot
+  // a different part of it. One choke point, and it is idempotent.
+  if (migratePlan(d)) PLAN_MIGRATED = true;
 
   // Categories: rebuild the three lookups the renderers already use, so this is
   // a data swap and not a rewrite of every call site.
@@ -3523,7 +3847,9 @@ function applyDocument(d){
   const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
   if (meta && v.appShortName) meta.setAttribute("content", v.appShortName);
 
-  if (d.settings && d.settings.criticalPathHeading) CP_HEADING = d.settings.criticalPathHeading;
+  CP_HEADING = (d.plan && d.plan.heading)
+            || (d.settings && d.settings.criticalPathHeading)
+            || "Critical Path";
 
   // ── One source of truth ────────────────────────────────────────────────
   // The renderers read BASE/VOYAGES/REVISIONS, so those are rebuilt FROM the
@@ -3913,7 +4239,11 @@ function blankDocument(v){
       appShortName: v.name,
       appDescription: "Maintenance log and voyage record for " + v.name + ".",
     },
-    settings: { defaultTab: "focus", theme: "dark", criticalPathHeading: "Critical Path" },
+    settings: { defaultTab: "focus", theme: "dark" },
+    // No plan on a brand new log. It is the one thing that cannot be seeded
+    // usefully — a plan of somebody else's guessing is worse than an empty
+    // block that says what a plan is for.
+    plan: { heading: "Critical Path", goal: "", steps: [], bottleneck: "", notes: [] },
     systems,
     priorities: SEED_PRIORITIES.map(([id,label,color], i) => ({ id, label, color, order:i })),
     entries: [{

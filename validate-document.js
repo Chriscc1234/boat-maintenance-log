@@ -148,6 +148,41 @@ function validateDocument(doc) {
     }
   }
 
+  // ── plan ────────────────────────────────────────────────────────────────
+  // Optional and top level. The plan is not a job — it is a view over jobs — so
+  // it does not live in `entries`, where it was inflating the job count, sitting
+  // in somebody's category, and carrying a sortKey and a date that meant
+  // nothing. Documents written before this carry an entry with
+  // role:"critical-path" instead; the app converts those on open.
+  if (doc.plan != null){
+    const p = doc.plan;
+    if (typeof p !== "object" || Array.isArray(p)) E("plan is not an object");
+    else {
+      if (p.heading != null && typeof p.heading !== "string") E("plan.heading is not a string");
+      if (p.goal != null && typeof p.goal !== "string") E("plan.goal is not a string");
+      if (p.bottleneck != null && typeof p.bottleneck !== "string") E("plan.bottleneck is not a string");
+      if (p.notes != null && !Array.isArray(p.notes)) E("plan.notes is not an array");
+      else (p.notes || []).forEach((n, i) => {
+        if (typeof n !== "string") E(`plan.notes[${i}] is not a string`);
+      });
+      if (!Array.isArray(p.steps)) E("plan.steps is missing or not an array");
+      else p.steps.forEach((s, i) => {
+        const at = `plan.steps[${i}]`;
+        if (s === null || typeof s !== "object") return E(`${at} is not an object`);
+        if (typeof s.text !== "string") E(`${at}.text is missing or not a string`);
+        if (typeof s.done !== "boolean")
+          E(`${at}.done is ${JSON.stringify(s.done)}, expected true or false`);
+        // A step may name the job that does the work. Optional — plenty of steps
+        // are not a single job — but a name that points nowhere is a dead link.
+        if (s.entryId != null && !ids.has(s.entryId))
+          E(`${at}.entryId "${s.entryId}" is not an entry in this log`);
+      });
+    }
+    if (criticalPaths)
+      E(`the document has a plan AND ${criticalPaths} entr${criticalPaths>1?"ies":"y"} ` +
+        `with role "critical-path" — one or the other, not both`);
+  }
+
   // ── voyages ─────────────────────────────────────────────────────────────
   const vids = new Set();
   doc.voyages.forEach((v, i) => {

@@ -43,15 +43,16 @@ rejected with the file half-understood.
   "systems":    [ ... ],
   "priorities": [ ... ],
   "entries":    [ ... ],
+  "plan":       { ... },
   "voyages":    [ ... ],
   "revisions":  [ ... ],
   "notes":      "markdown string"
 }
 ```
 
-Every key is required. `schemaVersion` must be `1`; the app uses it to decide
-whether a document needs migrating before it can be read, so never change it by
-hand.
+Every key is required except `plan`, which may be absent. `schemaVersion` must be
+`1`; the app uses it to decide whether a document needs migrating before it can
+be read, so never change it by hand.
 
 ---
 
@@ -226,7 +227,7 @@ This is the bulk of the file.
 | `sortKey` | orders the log. `YYYY-MM-DD`, with an optional letter suffix (`2026-07-20b`) to break ties. |
 | `year` | the year heading it files under |
 | `dateLabel` | the human date, free text — `"Nov 2024 — ongoing"`, `"Jun 12, 2026"` |
-| `role` | `"critical-path"` on at most one entry, otherwise `null` |
+| `role` | **legacy — leave `null`.** See `plan` below |
 | `items` | the body — see below |
 
 ### An entry is a job, not a step
@@ -253,21 +254,73 @@ checkbox; the app counts open tasks from it.
 not replies to a conversation, not analysis out loud. If a bullet only makes
 sense to someone who was in the discussion, it does not belong.
 
-### `role` on items, and the critical path
+### `role` — legacy
 
-`role` is normally `null`. It matters on the one entry with
-`"role": "critical-path"`, which the app pins to the top of the Focus tab:
+`role` on an entry, and on its items, was how the plan used to be stored: one
+entry carried `"role": "critical-path"` and its lines were marked `goal`, `step`
+and `bottleneck`.
 
-| item role | shown as |
+**That is retired.** The plan is `plan`, below. An entry with the old role is
+converted by the app the first time it opens the document, and the entry is
+removed from `entries`. Leave `role` as `null` on everything you write.
+
+---
+
+## `plan` — the short list of what has to happen
+
+Optional. Rendered at the top of the Focus tab, above everything else.
+
+```json
+"plan": {
+  "heading": "Critical Path to Splash",
+  "goal": "Vessel in the water by end of summer 2026.",
+  "steps": [
+    { "text": "Through-hulls in and bedded.", "done": true,  "entryId": "e006" },
+    { "text": "Shafts straightened and aligned.", "done": false, "entryId": "e022" },
+    { "text": "Bottom paint finished.", "done": false, "entryId": null }
+  ],
+  "bottleneck": "The shop press. Steps 2-4 all wait on it.",
+  "notes": [ "After launch: engines proven under load. Not a gate." ]
+}
+```
+
+**The plan is not a job, so it is not an entry.** It is a view over jobs. Keeping
+it in `entries` made it count toward the job total and the open-task total, put
+it inside somebody's category, and gave it a `sortKey` and a date describing
+nothing.
+
+| field | meaning |
 |---|---|
-| `"goal"` | the objective line under the heading |
-| `"step"` | the numbered gate list — always `task` items |
-| `"bottleneck"` | the callout at the bottom |
-| `"after-launch"` | a plain note; things explicitly *not* gating |
-| `null` | a plain note |
+| `heading` | the title of the block. Free text |
+| `goal` | one line: what all of it is for |
+| `steps` | ordered. Numbered on screen, so **do not number the text** |
+| `bottleneck` | what is actually holding it up. Shown as a callout |
+| `notes` | plain lines under the block — context, and things explicitly *not* gating |
 
-If no entry has `"role": "critical-path"`, the Focus tab simply has no pinned
-block. That is fine and is the normal state for a new log.
+Each step is `{ text, done, entryId }`:
+
+- **`text`** — the gate, in the plan's own words. It starts as the job's title
+  when added from the job, and is then free to differ: a step describes the gate
+  ("shafts back in and aligned"), a title describes the work.
+- **`done`** — required boolean. **The step's own tick**, not the job's.
+- **`entryId`** — optional, an `entries[].id`. The job that does the work.
+
+**`entryId` is the point of the whole structure.** Without it a step is free text
+shadowing a job, so ticking the step does nothing to the job and finishing the
+job does nothing to the step, and the two agree only for as long as someone
+keeps them in step by hand.
+
+With it, the step links to the job and shows whether that job is open or
+complete. The step's own tick still wins — a step can span two jobs, and a job
+finishing does not always clear the gate — but **when the two disagree the app
+says so on screen.** That visible disagreement is the useful behaviour; silently
+overwriting one from the other is not.
+
+`entryId` may be `null`. Plenty of steps are not one job.
+
+**If you are editing by hand:** an `entryId` that names no entry is an error, not
+a warning. Deleting a job that a step points at will fail validation until the
+step is repointed or cleared.
 
 ---
 
