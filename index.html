@@ -47,18 +47,28 @@ a{color:#0EA5E9}
        dismiss before you can scroll again.
      · nothing is destroyed without a way back — Undo catches the delete, which
        is the same answer Mail and Gmail give.
+     · and it lives in the ORDINARY list, not behind an edit mode. That is the
+       one this shipped wrong in 1.5.0: Mail and Gmail let you swipe a row the
+       moment you can see it, and iOS's edit mode is for reordering and
+       multi-select, never a gate on the gesture. A swipe you have to switch a
+       mode on to reach is slower than the button it was meant to beat.
    touch-action:pan-y is what makes it possible: it hands the horizontal axis to
    the page and keeps vertical scrolling native, so the list still scrolls
    exactly as it did. */
+/* The swipe layers get their OWN box rather than filling .entry, because .entry
+   also holds the expanded body — an absolute inset:0 background ran the whole
+   height of an open job and painted COMPLETE and DELETE down the side of its
+   notes. The row is what slides; the body underneath it does not move. */
+.sw-row{position:relative;overflow:hidden}
 .sw-bg{position:absolute;inset:0;display:flex;justify-content:space-between;
- align-items:stretch;border-radius:0 8px 8px 0;overflow:hidden}
+ align-items:stretch;overflow:hidden}
 .sw-act{display:flex;align-items:center;padding:0 18px;font-size:12px;font-weight:700;
  letter-spacing:.4px;color:#fff;opacity:.55;transition:opacity .12s}
 .sw-act.armed{opacity:1}
 .sw-lead{background:#15803D}
 .sw-trail{background:#B91C1C;margin-left:auto}
 .sw-fg{position:relative;background:#0C1F30;will-change:transform}
-.editing .sw-fg{touch-action:pan-y}
+.sw-fg{touch-action:pan-y}
 .sw-fg.settling{transition:transform .18s cubic-bezier(.22,.61,.36,1)}
 /* ── Selection: content yes, controls no ─────────────────────────────────────
    This is a web page, so on a touchscreen every element is selectable text by
@@ -628,7 +638,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.5.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -640,9 +650,20 @@ const APP_VERSION = "1.5.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.5.1", "14 Aug 2026", "Swipe works without turning edit mode on",
+   "The row swipe shipped locked behind the Edit button, so swiping a job in the "
+ + "ordinary list did nothing at all and there was no sign it was a thing you "
+ + "could do. Wrong on Apple’s own terms: Mail and Gmail let you swipe a row "
+ + "the moment you can see it, and edit mode is for reordering, not for gating a "
+ + "shortcut. It now works in All Work, Active and Completed whenever you have "
+ + "write access, with Undo reachable straight after. The reorder arrows and the "
+ + "inline editors stay behind Edit, where they belong. Swiping and letting go "
+ + "short no longer opens the job by accident, and Help now says the gesture "
+ + "exists."],
+
   ["1.5.0", "14 Aug 2026", "Swipe a job, and steps that span jobs",
    "Swipe a job row right to complete or reopen it, left to delete it — the "
- + "iOS/Gmail pattern, in edit mode. A full swipe commits and a short one springs "
+ + "iOS/Gmail pattern. A full swipe commits and a short one springs "
  + "back, vertical scrolling is untouched, and delete is undoable. Plan steps can "
  + "now name SEVERAL jobs, because a step like \u201call the through-hulls in\u201d "
  + "is more than one job; the step counts as done only when every job behind it "
@@ -802,7 +823,12 @@ function renderLog() {
   const years = [...new Set(entries.map(e=>e.yr))].sort();
   let html = addJobRow();
 
-  const canOrder = EDIT && DOC && !readOnly();
+  // Two different permissions, deliberately. Reordering is an editing act and
+  // stays behind the Edit button; swiping a row is an accelerator for something
+  // you can already do, so it is available whenever you can write at all.
+  const canWrite = !!DOC && !readOnly();
+  const canOrder = EDIT && canWrite;
+  const canSwipe = canWrite;
 
   for (const yr of years) {
     const ye = entries.filter(e=>e.yr===yr);
@@ -815,11 +841,12 @@ function renderLog() {
       const sc = SYS_COLORS[e.sys] || "#94A3B8";
 
       html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
-        ${canOrder ? `<div class="sw-bg">
+        <div class="sw-row">
+        ${canSwipe ? `<div class="sw-bg">
           <div class="sw-act sw-lead">${isA ? "COMPLETE" : "REOPEN"}</div>
           <div class="sw-act sw-trail">DELETE</div>
         </div>` : ""}
-        <div class="sw-fg"${canOrder ? ` data-swipe="${esc(e.id)}"` : ""}>
+        <div class="sw-fg"${canSwipe ? ` data-swipe="${esc(e.id)}"` : ""}>
         ${canOrder ? `<div class="ord">
           <button data-ord="up" data-id="${esc(e.id)}" title="move up"${idx===0?" disabled":""}>▲</button>
           <button data-ord="down" data-id="${esc(e.id)}" title="move down"${idx===ye.length-1?" disabled":""}>▼</button>
@@ -835,6 +862,7 @@ function renderLog() {
           </div>
           <span class="chev" style="${isOpen?"transform:rotate(180deg)":""}">▼</span>
         </button>
+        </div>
         </div>
         <div class="entry-body${isOpen?" open":""}" id="body-${esc(e.id)}">
           ${EDIT && DOC && isOpen && findEntry(e.id)
@@ -881,7 +909,7 @@ document.getElementById("log-content").addEventListener("click", function(e) {
  */
 (function wireSwipe(){
   const COMMIT = 0.38, CLAIM = 10;
-  let fg = null, id = null, x0 = 0, y0 = 0, live = false, dx = 0;
+  let fg = null, id = null, x0 = 0, y0 = 0, live = false, dx = 0, swallow = false;
 
   const armed = () => Math.abs(dx) >= fg.offsetWidth * COMMIT;
   const paint = () => {
@@ -899,7 +927,11 @@ document.getElementById("log-content").addEventListener("click", function(e) {
   };
 
   document.addEventListener("pointerdown", ev => {
-    if (!EDIT || !DOC || readOnly()) return;
+    // Whatever the last gesture armed, its click has been and gone by now — a
+    // swallow left over from one that never produced a click must not eat this
+    // tap. Clearing here rather than on a timer keeps it exact.
+    swallow = false;
+    if (!DOC || readOnly()) return;
     // Not on the reorder arrows, and not on a text selection the user is making.
     if (ev.target.closest("[data-ord]")) return;
     const el = ev.target.closest("[data-swipe]");
@@ -932,6 +964,7 @@ document.getElementById("log-content").addEventListener("click", function(e) {
     fg = null; id = null;
     if (!live) return;
     live = false;
+    swallow = true;
     if (!commit){ fg = el; settle(); fg = null; return; }
 
     const e = findEntry(jid);
@@ -954,6 +987,19 @@ document.getElementById("log-content").addEventListener("click", function(e) {
   };
   document.addEventListener("pointerup", finish);
   document.addEventListener("pointercancel", finish);
+
+  // A swipe that springs back still ends in a click on whatever was under the
+  // finger, and in the ordinary list that is the row header — so an abandoned
+  // swipe would open the job it just declined to touch. Swallow the click that
+  // closes a gesture. Only one, and only when the gesture was actually claimed,
+  // so plain taps are untouched. (A COMMITTED swipe re-renders and detaches the
+  // element, so its click lands nowhere; this is for the ones that spring back.)
+  document.addEventListener("click", ev => {
+    if (!swallow) return;
+    swallow = false;
+    ev.stopPropagation();
+    ev.preventDefault();
+  }, true);
 })();
 
 /** Move a job one place up or down.
@@ -3019,9 +3065,15 @@ function updateEditBar(){
   // greyed-out Undo — pure chrome above a list already fighting for vertical
   // space on a phone. It appears the moment there is something to undo or
   // report, which is the only time it has anything to say.
+  //
+  // It is no longer tied to edit mode, because swiping is not either: a row
+  // deleted with a swipe in the ordinary list has to leave its Undo somewhere
+  // the user can reach without first hunting for the Edit button. "Not yet
+  // synced" is still edit-mode-only — that is a state report, not something
+  // that just happened, and it would otherwise sit there permanently.
   const st = document.getElementById("edit-status");
   bar.classList.toggle("on",
-    !!(EDIT && (UNDO.length || dirty || (st && st.textContent))));
+    !!(UNDO.length || (st && st.textContent) || (EDIT && dirty)));
   document.body.classList.toggle("editing", EDIT);
 }
 
@@ -3250,6 +3302,19 @@ function renderHelp(){
       <p><b>Boat</b> is the vessel's own details. <b>Voyages</b> is trips.
       <b>Updates</b> is what's changed in the log.</p>
       <p>Tap any job to open it.</p>
+    </div>
+
+    <div class="up-sec">Swiping a job</div>
+    <div class="hp">In <b>All Work</b>, <b>Active</b> and <b>Completed</b>, a job
+      row can be swiped, the way a mail app works. No need to turn on editing.
+      <p><b>Swipe right</b> to mark it complete — or to reopen it if it already
+      is. <b>Swipe left</b> to delete it.</p>
+      <p>You have to carry the row about a third of the way across. Let go short
+      of that and it springs back and nothing happens, which is deliberate: a
+      half-hearted swipe should never do anything. Scrolling up and down is
+      unaffected.</p>
+      <p>Both actions are undoable, and both are also in the job itself, so the
+      swipe is a shortcut rather than the only way.</p>
     </div>
 
     <div class="up-sec">Changing things</div>
