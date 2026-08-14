@@ -38,6 +38,54 @@ a{color:#0EA5E9}
 .log-panel{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 .ver-badge{display:inline-block;font:700 11px/1 monospace;letter-spacing:2px;color:#B8860B;border:1px solid #B8860B;border-radius:3px;padding:3px 7px;margin-left:10px;vertical-align:middle;cursor:pointer}
 .ver-badge:hover{background:#B8860B;color:#fff}
+/* ── Swipe actions on a row (iOS pattern) ───────────────────────────────────
+   Apple's HIG rules that this follows, because they exist for good reasons:
+     · a swipe is an ACCELERATOR, never the only way to do something. Both of
+       these actions are also in the job editor, two taps away.
+     · trailing edge (swipe left) carries the destructive action, and it is red.
+     · full swipe commits; a partial swipe springs back. No half-open drawer to
+       dismiss before you can scroll again.
+     · nothing is destroyed without a way back — Undo catches the delete, which
+       is the same answer Mail and Gmail give.
+   touch-action:pan-y is what makes it possible: it hands the horizontal axis to
+   the page and keeps vertical scrolling native, so the list still scrolls
+   exactly as it did. */
+.sw-bg{position:absolute;inset:0;display:flex;justify-content:space-between;
+ align-items:stretch;border-radius:0 8px 8px 0;overflow:hidden}
+.sw-act{display:flex;align-items:center;padding:0 18px;font-size:12px;font-weight:700;
+ letter-spacing:.4px;color:#fff;opacity:.55;transition:opacity .12s}
+.sw-act.armed{opacity:1}
+.sw-lead{background:#15803D}
+.sw-trail{background:#B91C1C;margin-left:auto}
+.sw-fg{position:relative;background:#0C1F30;will-change:transform}
+.editing .sw-fg{touch-action:pan-y}
+.sw-fg.settling{transition:transform .18s cubic-bezier(.22,.61,.36,1)}
+/* ── Selection: content yes, controls no ─────────────────────────────────────
+   This is a web page, so on a touchscreen every element is selectable text by
+   default — including the buttons. That is why pressing and holding a control
+   used to raise the selection loupe instead of doing anything, and it is the
+   real reason a long-press gesture could never be bound to the version badge.
+
+   The fix is not to disable selection. Copying a part number, a torque figure
+   or a hose size out of a job at the parts counter is a thing this log is FOR.
+   So: anything that is a CONTROL stops being text, and everything that is
+   CONTENT stays exactly as selectable as it is now.
+
+   Worth being precise about what this does and does not buy, because the
+   premise is easy to get wrong: on iOS a *swipe* has never selected text —
+   selection needs a long-press or a double-tap. So horizontal swipe gestures
+   were always available and still are. What was genuinely blocked was
+   LONG-PRESS, and only on elements that are selectable. This unblocks it on
+   controls, where it belongs, and nowhere else. */
+.tab,.syschip,.sysmore,.ver-badge,.edit-toggle,.editbar button,.upd-btn,.ord button,.cp-edit,
+.cp-job,.addjob,.ed-chk,.ed-itembtns button,.ed-add button,.rev-hd,.entry-hdr,
+.nsec-hd,.yr-div,.fcard,.bt-chip{
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* Feedback on tap is kept — removing it makes a control feel broken on a phone
+   — but toned down from the default grey block flash. */
+.tab,.syschip,.sysmore,.ver-badge,.edit-toggle,.editbar button,.upd-btn,.ord button,.cp-edit,
+.cp-job,.addjob,.ed-chk,.ed-itembtns button,.ed-add button,.rev-hd,.entry-hdr{
+  -webkit-tap-highlight-color:rgba(56,189,248,.18)}
 .vessel-lbl{font:10px/1 monospace;letter-spacing:4px;color:#507490;margin-bottom:5px}
 h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bottom:4px}
 .meta{font-size:12px;color:#507490;margin-bottom:16px}
@@ -91,6 +139,12 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .planed .ed-row{margin-bottom:9px}
 .pe-step,.pe-note{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
 .pe-stepmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.pe-jobs{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.pe-jobchip{display:inline-flex;align-items:center;gap:5px;background:#0B2135;
+ border:1px solid #24567A;color:#8FB4CE;border-radius:5px;padding:3px 5px 3px 8px;
+ font-size:10.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.pe-jobchip button{background:none;border:none;color:#FCA5A5;cursor:pointer;
+ font-size:14px;line-height:1;padding:0 3px;min-width:24px;min-height:24px}
 .pe-job{background:#0B1A28;border:1px solid #1D3D57;color:#8FB4CE;border-radius:5px;
  padding:4px 6px;font-size:11px;font-family:inherit;max-width:100%}
 .pe-note{align-items:center}
@@ -382,10 +436,16 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .ord{position:absolute;right:14px;top:50%;transform:translateY(-50%);
  display:flex;flex-direction:column;gap:3px;z-index:2}
 .ord button{background:#12324B;border:1px solid #24567A;color:#A8C6E0;border-radius:4px;
- width:27px;height:19px;font-size:9px;line-height:1;padding:0;cursor:pointer}
+ width:34px;height:26px;font-size:10px;line-height:1;padding:0;cursor:pointer;
+ /* The visible control is 34x26; the TOUCH target is padded out to Apple's 44pt
+    minimum with a pseudo-element, so the button stays small without being a
+    thing you have to aim at on a boat. */
+ position:relative}
+.ord button::after{content:"";position:absolute;left:50%;top:50%;
+ width:44px;height:44px;transform:translate(-50%,-50%)}
 .ord button:hover:not(:disabled){background:#1B4568;color:#E4F2FF}
 .ord button:disabled{opacity:.28;cursor:default}
-.editing .entry-hdr{padding-right:57px}
+.editing .entry-hdr{padding-right:66px}
 .entry-hdr{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;width:100%;background:none;border:none;text-align:left;color:#C8DCF0}
 .entry-hdr:hover{background:rgba(255,255,255,.02)}
 .edot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -568,7 +628,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -580,6 +640,15 @@ const APP_VERSION = "1.4.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.5.0", "14 Aug 2026", "Swipe a job, and steps that span jobs",
+   "Swipe a job row right to complete or reopen it, left to delete it — the "
+ + "iOS/Gmail pattern, in edit mode. A full swipe commits and a short one springs "
+ + "back, vertical scrolling is untouched, and delete is undoable. Plan steps can "
+ + "now name SEVERAL jobs, because a step like \u201call the through-hulls in\u201d "
+ + "is more than one job; the step counts as done only when every job behind it "
+ + "is. Controls stopped being selectable text, so pressing and holding one no "
+ + "longer raises the text loupe. Tap targets follow Apple\u2019s 44pt minimum."],
+
   ["1.4.0", "14 Aug 2026", "The plan is no longer a job",
    "The critical path moved out of the job list into its own place, so it stops "
  + "counting toward the job and task totals and stops sitting in a category. Its "
@@ -746,6 +815,11 @@ function renderLog() {
       const sc = SYS_COLORS[e.sys] || "#94A3B8";
 
       html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
+        ${canOrder ? `<div class="sw-bg">
+          <div class="sw-act sw-lead">${isA ? "COMPLETE" : "REOPEN"}</div>
+          <div class="sw-act sw-trail">DELETE</div>
+        </div>` : ""}
+        <div class="sw-fg"${canOrder ? ` data-swipe="${esc(e.id)}"` : ""}>
         ${canOrder ? `<div class="ord">
           <button data-ord="up" data-id="${esc(e.id)}" title="move up"${idx===0?" disabled":""}>▲</button>
           <button data-ord="down" data-id="${esc(e.id)}" title="move down"${idx===ye.length-1?" disabled":""}>▼</button>
@@ -761,6 +835,7 @@ function renderLog() {
           </div>
           <span class="chev" style="${isOpen?"transform:rotate(180deg)":""}">▼</span>
         </button>
+        </div>
         <div class="entry-body${isOpen?" open":""}" id="body-${esc(e.id)}">
           ${EDIT && DOC && isOpen && findEntry(e.id)
             ? entryEditor(findEntry(e.id))
@@ -789,6 +864,97 @@ document.getElementById("log-content").addEventListener("click", function(e) {
   const hdr = e.target.closest(".entry-hdr");
   if (hdr) { const id=hdr.dataset.id; S.expanded[id]=!S.expanded[id]; renderLog(); return; }
 });
+
+/** Swipe a job row: right to toggle complete, left to delete.
+ *
+ *  Pointer events rather than touch events, so a trackpad drag works the same as
+ *  a finger and there is one code path instead of two.
+ *
+ *  The gesture is only claimed once the movement is clearly horizontal — 10px
+ *  across AND more across than down. Until then the browser owns it, so a
+ *  vertical flick scrolls the list exactly as it always did. That test is the
+ *  whole trick; without it a swipe implementation eats the scroll.
+ *
+ *  Committing needs 38% of the row's width. Below that it springs back, which is
+ *  the iOS behaviour and means a hesitant swipe never does anything. Delete is
+ *  undoable — the row goes, the edit bar says so, and Undo is right there.
+ */
+(function wireSwipe(){
+  const COMMIT = 0.38, CLAIM = 10;
+  let fg = null, id = null, x0 = 0, y0 = 0, live = false, dx = 0;
+
+  const armed = () => Math.abs(dx) >= fg.offsetWidth * COMMIT;
+  const paint = () => {
+    fg.style.transform = `translateX(${dx}px)`;
+    const bg = fg.previousElementSibling;
+    if (!bg || !bg.classList.contains("sw-bg")) return;
+    const lead = bg.querySelector(".sw-lead"), trail = bg.querySelector(".sw-trail");
+    if (lead)  lead.classList.toggle("armed",  dx > 0 && armed());
+    if (trail) trail.classList.toggle("armed", dx < 0 && armed());
+  };
+  const settle = () => {
+    fg.classList.add("settling");
+    fg.style.transform = "";
+    setTimeout(() => fg && fg.classList.remove("settling"), 200);
+  };
+
+  document.addEventListener("pointerdown", ev => {
+    if (!EDIT || !DOC || readOnly()) return;
+    // Not on the reorder arrows, and not on a text selection the user is making.
+    if (ev.target.closest("[data-ord]")) return;
+    const el = ev.target.closest("[data-swipe]");
+    if (!el) return;
+    fg = el; id = el.dataset.swipe; x0 = ev.clientX; y0 = ev.clientY; live = false; dx = 0;
+  });
+
+  document.addEventListener("pointermove", ev => {
+    if (!fg) return;
+    const ax = ev.clientX - x0, ay = ev.clientY - y0;
+    if (!live){
+      if (Math.abs(ax) < CLAIM || Math.abs(ax) <= Math.abs(ay)) {
+        // Vertical, or not yet decided. Let go entirely if it is clearly a scroll.
+        if (Math.abs(ay) > CLAIM) fg = null;
+        return;
+      }
+      live = true;
+      fg.setPointerCapture(ev.pointerId);
+      fg.classList.remove("settling");
+    }
+    dx = ax;
+    paint();
+  });
+
+  const finish = ev => {
+    if (!fg) return;
+    const el = fg, commit = live && armed(), right = dx > 0;
+    if (live) { try { el.releasePointerCapture(ev.pointerId); } catch {} }
+    const jid = id;
+    fg = null; id = null;
+    if (!live) return;
+    live = false;
+    if (!commit){ fg = el; settle(); fg = null; return; }
+
+    const e = findEntry(jid);
+    if (!e){ el.style.transform = ""; return; }
+    if (right){
+      const nowComplete = e.status !== "complete";
+      mutate(() => { e.status = nowComplete ? "complete" : "active"; });
+      setEditStatus(`${e.id} marked ${nowComplete ? "complete" : "active"}`);
+    } else {
+      const title = e.title;
+      mutate(d => {
+        d.entries = d.entries.filter(x => x.id !== jid);
+        // A plan step pointing at a job that no longer exists is a dead link, and
+        // the validator rejects it. Unlink rather than refuse the delete.
+        for (const st of ((d.plan && d.plan.steps) || []))
+          st.entryIds = (st.entryIds || []).filter(x => x !== jid);
+      });
+      setEditStatus(`Deleted ${jid} — ${title.slice(0, 40)}. Undo to bring it back`);
+    }
+  };
+  document.addEventListener("pointerup", finish);
+  document.addEventListener("pointercancel", finish);
+})();
 
 /** Move a job one place up or down.
  *
@@ -910,14 +1076,20 @@ const blankPlan = () => ({ heading: CP_HEADING, goal: "", steps: [], bottleneck:
  *  Visible disagreement is the useful behaviour; silently overwriting one from
  *  the other is not. */
 function planStepHTML(s){
-  const job = s.entryId ? findEntry(s.entryId) : null;
-  const jobDone = job && job.status === "complete";
-  const disagrees = job && jobDone !== !!s.done;
-  return `<li class="${s.done ? "cp-done" : ""}">${esc(s.text)}`
-       + (job ? `<button class="cp-job" data-jump="${esc(job.id)}"
-              title="${esc(job.title)}">${esc(job.id)} · ${
-              jobDone ? "done" : "open"}</button>` : "")
-       + (disagrees ? `<span class="cp-drift">job is ${jobDone ? "complete" : "still open"}</span>` : "")
+  const jobs = (s.entryIds || []).map(findEntry).filter(Boolean);
+  const chips = jobs.map(j => `<button class="cp-job" data-jump="${esc(j.id)}"
+        title="${esc(j.title)}">${esc(j.id)} · ${j.status === "complete" ? "done" : "open"}</button>`).join("");
+  // With several jobs behind one step, "the job disagrees" needs a rule. ALL of
+  // them have to be complete before the step could honestly be ticked, so that
+  // is what is compared — a step ticked with two of three jobs still open is
+  // exactly the drift worth showing.
+  const allDone = jobs.length && jobs.every(j => j.status === "complete");
+  const drift = jobs.length && allDone !== !!s.done;
+  const openN = jobs.filter(j => j.status !== "complete").length;
+  return `<li class="${s.done ? "cp-done" : ""}">${esc(s.text)}${chips}`
+       + (drift ? `<span class="cp-drift">${allDone
+            ? "both jobs are complete" : openN === jobs.length && jobs.length === 1
+            ? "job is still open" : openN + " of " + jobs.length + " still open"}</span>` : "")
        + `</li>`;
 }
 
@@ -1013,10 +1185,13 @@ function jumpToEntry(id){
  *  on some other tab because the plan is not a job and has nowhere else to live —
  *  and because editing it while looking at it is the point. */
 function planEditor(p){
-  const jobOpts = id => `<option value="">— no job —</option>` +
+  // A picker that ADDS, rather than a select that holds one value — a step can
+  // span several jobs and often does.
+  const jobOpts = already => `<option value="">+ link a job…</option>` +
     [...DOC.entries]
+      .filter(e => !already.includes(e.id))
       .sort((a,b) => String(a.sortKey).localeCompare(String(b.sortKey)))
-      .map(e => `<option value="${esc(e.id)}"${e.id===id?" selected":""}>${
+      .map(e => `<option value="${esc(e.id)}">${
         esc(e.id)} · ${esc(e.title.slice(0,44))}${e.status==="complete"?" ✓":""}</option>`).join("");
 
   const steps = (p.steps || []).map((s, i) => `
@@ -1025,7 +1200,12 @@ function planEditor(p){
         s.done ? "☑" : "☐"}</button>
       <div class="pe-stepmain">
         <textarea class="ed-text" data-pact="step-text" rows="1">${esc(s.text)}</textarea>
-        <select class="pe-job" data-pact="step-job">${jobOpts(s.entryId)}</select>
+        <div class="pe-jobs">${(s.entryIds||[]).map(jid => {
+          const j = findEntry(jid);
+          return `<span class="pe-jobchip">${esc(jid)}${j ? " · " + esc(j.title.slice(0,26)) : " (missing)"}
+            <button data-pact="step-unlink" data-jid="${esc(jid)}" title="unlink">×</button></span>`;
+        }).join("")}
+        <select class="pe-job" data-pact="step-link">${jobOpts(s.entryIds||[])}</select></div>
       </div>
       <div class="ed-itembtns">
         <button data-pact="step-up" title="move up"${i===0?" disabled":""}>↑</button>
@@ -1087,9 +1267,19 @@ function planAct(el, ev){
   if (act === "note-text")  return mutate(() => { P().notes[idx()] = el.value; }, {rerender:false});
   if (typing) return;                       // everything below is a click
 
-  if (act === "step-job")   return mutate(() => { P().steps[idx()].entryId = el.value || null; }, {rerender:false});
+  if (act === "step-link"){
+    const jid = el.value; el.value = "";
+    if (!jid) return;
+    return mutate(() => { const st = P().steps[idx()];
+      st.entryIds = st.entryIds || []; if (!st.entryIds.includes(jid)) st.entryIds.push(jid); });
+  }
+  if (act === "step-unlink"){
+    const jid = el.dataset.jid;
+    return mutate(() => { const st = P().steps[idx()];
+      st.entryIds = (st.entryIds || []).filter(x => x !== jid); });
+  }
   if (act === "step-done")  return mutate(() => { const s = P().steps[idx()]; s.done = !s.done; });
-  if (act === "step-add")   return mutate(() => { P().steps.push({ text:"", done:false, entryId:null }); });
+  if (act === "step-add")   return mutate(() => { P().steps.push({ text:"", done:false, entryIds:[] }); });
   if (act === "step-del")   return mutate(() => { P().steps.splice(idx(), 1); });
   if (act === "note-add")   return mutate(() => { (P().notes = P().notes || []).push(""); });
   if (act === "note-del")   return mutate(() => { P().notes.splice(idx(), 1); });
@@ -1308,20 +1498,6 @@ function renderUpdates(){
     <div class="up-sec">This app</div>
     <div class="up-intro">Version <strong>${esc(APP_VERSION)}</strong> — the app itself,
       which is separate from the log's revision below. <span id="app-upd"></span></div>
-    ${APP_CHANGELOG.map((r, i) => {
-      const running = r[0] === APP_VERSION;
-      const open = S.appOpen[r[0]] ?? (i === 0);
-      return `<div class="rev${running ? " cur" : ""}${open ? " open" : ""}">
-        <button class="rev-hd" data-appc="${esc(r[0])}">
-          <span class="rev-v">${esc(r[0])}</span>
-          <span class="rev-d">${esc(r[1])}</span>
-          ${running ? `<span class="rev-now">running</span>` : ""}
-          <span class="rev-h">${esc(r[2])}</span>
-          <span class="rev-chev">▼</span>
-        </button>
-        <div class="rev-t">${esc(r[3])}</div>
-      </div>`;
-    }).join("")}
     <div class="up-sec">Revision history</div>
     ${(!readOnly() && pendingCount()) ? `<div class="up-pending">
       <strong>${pendingCount()} change${pendingCount()===1?"":"s"}</strong> since
@@ -1350,6 +1526,29 @@ function renderUpdates(){
       <div class="rev-t">${esc(r[2])}</div>
     </div>`;
   });
+
+  // The app's own changelog goes LAST. It is the developer's history, not the
+  // boat's — useful for "which version am I on when this broke", and irrelevant
+  // to somebody reading their log. The running VERSION stays up top, where it
+  // can be quoted; the detail sits below everything that is actually theirs.
+  h += `<div class="up-sec">App changelog</div>
+    <div class="up-intro">What has changed in the app itself. Nothing here touches
+    your log — the app updates on its own schedule and never renumbers your
+    history.</div>`
+    + APP_CHANGELOG.map((r, i) => {
+        const running = r[0] === APP_VERSION;
+        const open = S.appOpen[r[0]] ?? (i === 0);
+        return `<div class="rev${running ? " cur" : ""}${open ? " open" : ""}">
+          <button class="rev-hd" data-appc="${esc(r[0])}">
+            <span class="rev-v">${esc(r[0])}</span>
+            <span class="rev-d">${esc(r[1])}</span>
+            ${running ? `<span class="rev-now">running</span>` : ""}
+            <span class="rev-h">${esc(r[2])}</span>
+            <span class="rev-chev">▼</span>
+          </button>
+          <div class="rev-t">${esc(r[3])}</div>
+        </div>`;
+      }).join("");
 
   if (NOTES){
     const { preamble, sections } = noteSections(NOTES);
@@ -1805,10 +2004,23 @@ function validateDocument(doc) {
         if (typeof s.text !== "string") E(`${at}.text is missing or not a string`);
         if (typeof s.done !== "boolean")
           E(`${at}.done is ${JSON.stringify(s.done)}, expected true or false`);
-        // A step may name the job that does the work. Optional — plenty of steps
-        // are not a single job — but a name that points nowhere is a dead link.
-        if (s.entryId != null && !ids.has(s.entryId))
-          E(`${at}.entryId "${s.entryId}" is not an entry in this log`);
+        // A step may name the jobs that do the work. Optional — plenty of steps
+        // are not any one job — but a name that points nowhere is a dead link.
+        //
+        // An ARRAY, because a step routinely spans jobs: "all 8 through-hulls in"
+        // is two separate jobs on this boat. `entryId` (singular) was the first
+        // shape and is still read; the app rewrites it to `entryIds` on open.
+        if (s.entryIds != null && !Array.isArray(s.entryIds))
+          E(`${at}.entryIds is not an array`);
+        else for (const jid of (s.entryIds || [])){
+          if (typeof jid !== "string") E(`${at}.entryIds holds a non-string`);
+          else if (!ids.has(jid)) E(`${at}.entryIds names "${jid}", which is not an entry in this log`);
+        }
+        if (s.entryId != null){
+          if (!ids.has(s.entryId)) E(`${at}.entryId "${s.entryId}" is not an entry in this log`);
+          else if ((s.entryIds || []).length)
+            W(`${at} has both entryId and entryIds — entryId is the old single-job form and will be folded in`);
+        }
       });
     }
     if (criticalPaths)
@@ -2854,7 +3066,8 @@ function entryEditor(e){
   // natural direction: you are looking at the work and you decide it gates the
   // launch. It now means "make this job a step" rather than "make this job the
   // whole plan", which is the thing it should have meant all along.
-  const planStep = ((DOC.plan && DOC.plan.steps) || []).find(s => s.entryId === e.id);
+  const planStep = ((DOC.plan && DOC.plan.steps) || [])
+                     .find(s => (s.entryIds || []).includes(e.id));
 
   const items = (e.items || []).map((it, i) => `
     <div class="ed-item" data-i="${i}">
@@ -2950,9 +3163,12 @@ document.addEventListener("change", function(ev){
         // Seeded from the title, then owned by the plan. A step describes the
         // gate ("shafts back in and aligned"); the title describes the work.
         // They start the same and are free to diverge.
-        d.plan.steps.push({ text: e.title, done: e.status === "complete", entryId: e.id });
+        d.plan.steps.push({ text: e.title, done: e.status === "complete", entryIds: [e.id] });
       } else {
-        d.plan.steps = d.plan.steps.filter(s => s.entryId !== e.id);
+        // Drop the link. A step that ALSO names other jobs is not deleted for it —
+        // unticking here means "this job is not part of it", not "bin the step".
+        for (const st of d.plan.steps) st.entryIds = (st.entryIds||[]).filter(x => x !== e.id);
+        d.plan.steps = d.plan.steps.filter(st => (st.entryIds||[]).length || (st.text||"").trim());
       }
     });
     setEditStatus(el.checked ? "Added to the plan" : "Removed from the plan");
@@ -3773,10 +3989,10 @@ function migratePlan(d){
       // It renders from an <ol> now, so a stored "3." would show as "3. 3.".
       text: String(x.text || "").replace(/^\s*\d+\.\s*/, ""),
       done: !!x.done,
-      // Left null deliberately. Which job does the work is a judgement — several
-      // of these steps span two jobs and one has no job at all — and guessing it
+      // Left empty deliberately. Which jobs do the work is a judgement — several
+      // of these steps span two jobs and one has no job at all — and guessing
       // would be inventing a link the log never claimed.
-      entryId: null,
+      entryIds: [],
     })),
     bottleneck: first("bottleneck"),
     // after-launch and unmarked lines both rendered as plain notes, and the
@@ -3798,6 +4014,18 @@ function applyDocument(d){
   // last time setup was duplicated across paths like that, three of them forgot
   // a different part of it. One choke point, and it is idempotent.
   if (migratePlan(d)) PLAN_MIGRATED = true;
+  // A step used to hold ONE job. It routinely spans more — "all 8 through-hulls
+  // in" is two separate jobs on this boat — so the singular field folds into the
+  // list. Runs every time and is idempotent; documents written by an older copy
+  // of the app, or by hand from the first version of the spec, still open.
+  for (const st of ((d.plan && d.plan.steps) || [])){
+    if (!Array.isArray(st.entryIds)) st.entryIds = [];
+    if (st.entryId){
+      if (!st.entryIds.includes(st.entryId)) st.entryIds.push(st.entryId);
+      delete st.entryId;
+      PLAN_MIGRATED = true;
+    }
+  }
 
   // Categories: rebuild the three lookups the renderers already use, so this is
   // a data swap and not a rewrite of every call site.

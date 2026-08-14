@@ -275,9 +275,9 @@ Optional. Rendered at the top of the Focus tab, above everything else.
   "heading": "Critical Path to Splash",
   "goal": "Vessel in the water by end of summer 2026.",
   "steps": [
-    { "text": "Through-hulls in and bedded.", "done": true,  "entryId": "e006" },
-    { "text": "Shafts straightened and aligned.", "done": false, "entryId": "e022" },
-    { "text": "Bottom paint finished.", "done": false, "entryId": null }
+    { "text": "Through-hulls in and bedded.", "done": true,  "entryIds": ["e006", "e007"] },
+    { "text": "Shafts straightened and aligned.", "done": false, "entryIds": ["e022"] },
+    { "text": "Bottom paint finished.", "done": false, "entryIds": [] }
   ],
   "bottleneck": "The shop press. Steps 2-4 all wait on it.",
   "notes": [ "After launch: engines proven under load. Not a gate." ]
@@ -297,15 +297,16 @@ nothing.
 | `bottleneck` | what is actually holding it up. Shown as a callout |
 | `notes` | plain lines under the block — context, and things explicitly *not* gating |
 
-Each step is `{ text, done, entryId }`:
+Each step is `{ text, done, entryIds }`:
 
 - **`text`** — the gate, in the plan's own words. It starts as the job's title
   when added from the job, and is then free to differ: a step describes the gate
   ("shafts back in and aligned"), a title describes the work.
 - **`done`** — required boolean. **The step's own tick**, not the job's.
-- **`entryId`** — optional, an `entries[].id`. The job that does the work.
+- **`entryIds`** — an array of `entries[].id`. The jobs that do the work. May be
+  empty; plenty of steps are not any one job.
 
-**`entryId` is the point of the whole structure.** Without it a step is free text
+**`entryIds` is the point of the whole structure.** Without it a step is free text
 shadowing a job, so ticking the step does nothing to the job and finishing the
 job does nothing to the step, and the two agree only for as long as someone
 keeps them in step by hand.
@@ -316,11 +317,20 @@ finishing does not always clear the gate — but **when the two disagree the app
 says so on screen.** That visible disagreement is the useful behaviour; silently
 overwriting one from the other is not.
 
-`entryId` may be `null`. Plenty of steps are not one job.
+**An array, because a step routinely spans jobs.** "All 8 through-hulls in and
+bedded" is two separate jobs on this boat. When several jobs sit behind one step,
+the app treats the step as satisfied only when **all** of them are complete —
+a step ticked with two of three jobs still open is exactly the drift worth
+showing.
 
-**If you are editing by hand:** an `entryId` that names no entry is an error, not
-a warning. Deleting a job that a step points at will fail validation until the
-step is repointed or cleared.
+`entryId` (singular) was the first shape of this field. It is still read, and the
+app folds it into `entryIds` the next time it opens the document, but do not
+write it.
+
+**If you are editing by hand:** an id in `entryIds` that names no entry is an
+error, not a warning. Deleting a job that a step points at will fail validation
+until the step is repointed or cleared — the app does that unlinking for you when
+you delete a job from inside it.
 
 ---
 

@@ -172,10 +172,23 @@ function validateDocument(doc) {
         if (typeof s.text !== "string") E(`${at}.text is missing or not a string`);
         if (typeof s.done !== "boolean")
           E(`${at}.done is ${JSON.stringify(s.done)}, expected true or false`);
-        // A step may name the job that does the work. Optional — plenty of steps
-        // are not a single job — but a name that points nowhere is a dead link.
-        if (s.entryId != null && !ids.has(s.entryId))
-          E(`${at}.entryId "${s.entryId}" is not an entry in this log`);
+        // A step may name the jobs that do the work. Optional — plenty of steps
+        // are not any one job — but a name that points nowhere is a dead link.
+        //
+        // An ARRAY, because a step routinely spans jobs: "all 8 through-hulls in"
+        // is two separate jobs on this boat. `entryId` (singular) was the first
+        // shape and is still read; the app rewrites it to `entryIds` on open.
+        if (s.entryIds != null && !Array.isArray(s.entryIds))
+          E(`${at}.entryIds is not an array`);
+        else for (const jid of (s.entryIds || [])){
+          if (typeof jid !== "string") E(`${at}.entryIds holds a non-string`);
+          else if (!ids.has(jid)) E(`${at}.entryIds names "${jid}", which is not an entry in this log`);
+        }
+        if (s.entryId != null){
+          if (!ids.has(s.entryId)) E(`${at}.entryId "${s.entryId}" is not an entry in this log`);
+          else if ((s.entryIds || []).length)
+            W(`${at} has both entryId and entryIds — entryId is the old single-job form and will be folded in`);
+        }
       });
     }
     if (criticalPaths)
