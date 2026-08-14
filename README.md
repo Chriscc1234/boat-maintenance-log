@@ -5,35 +5,43 @@ with **no signal at all**, and belongs entirely to you.
 
 - Jobs, tasks, categories, voyages and boat details — all editable in the app
 - Works offline. It is built for a boatyard and a helm, where there is no wifi
-- Your log is stored **on your device**, not on anyone's server
+- Your log is stored **on your device**, and optionally kept in step across your
+  devices through a small sync service you host yourself
 - Optional password. If you use one, the log is properly encrypted and nobody —
   including whoever hosts it — can read it
+- A second, read-only password you can hand out
 - No account, no subscription, no tracking, nothing to sign up for
 
 ---
 
 ## Putting it online (about 5 minutes)
 
-You need somewhere to put the files. Netlify's free plan is enough and needs no
-card.
+You need somewhere to put the files. Any static host works.
 
-1. Go to **https://app.netlify.com/drop**
-2. Drag the **`app` folder itself** onto the page — the folder, not the files
-   inside it
-3. Netlify gives you a web address. **Sign up when it offers**, or the address is
-   temporary and you will lose it
-4. Open that address on your phone
+**Simplest — no sync.** Drag the **`app` folder itself** onto
+https://app.netlify.com/drop, sign up when it offers so the address is permanent,
+and open that address on your phone. The log lives on the device; Export is how
+you move it or back it up.
 
-That is it. There is nothing to configure and no database to set up.
+**With sync across your devices.** Deploy to Cloudflare Pages instead, which can
+also run the small sync API included in this repo under `cf/`. `cf/README.md` has
+the steps — about ten minutes, free tier, no card. Then the log lives online,
+every device shares it, and edits made without signal are sent when there is a
+connection.
 
 ### Put it on your home screen
 
+**Install first, then sign in from the icon.** iOS keeps an installed web app's
+storage separate from Safari's, so signing in first and installing afterwards can
+leave the icon still asking for a password.
+
 **iPhone / iPad:** open the address in **Safari** (it must be Safari — iOS does
 not let other browsers do this). Tap the Share button, then **Add to Home
-Screen**.
+Screen** — it is already named for the boat. Then open the new icon and sign in
+there.
 
 **Android:** open it in Chrome, tap the menu, then **Install app** or **Add to
-Home screen**.
+Home screen**, and sign in from the installed app.
 
 Do this once while you have a good connection. After that it opens like any
 other app and works with no signal.
@@ -146,13 +154,9 @@ telling you which entry is at fault. Nothing is changed until a file passes.
 
 ## Updates
 
-If you dragged the folder onto Netlify, updating means downloading the newest
-version and dragging it again. **Your log is not touched by this** — it lives on
-your device, not in the folder you dragged.
-
-If you would rather it update itself, connect Netlify to this repository instead
-of dragging a folder: Netlify then redeploys whenever a new version is released,
-and every device picks it up next time it opens with signal.
+If you dragged a folder onto a host, updating means downloading the newest
+version and deploying it again. **Your log is not touched by this** — it lives on
+your device and in your own storage, never in the folder you deployed.
 
 The Updates tab shows which version of the app you are running.
 
@@ -162,11 +166,13 @@ The Updates tab shows which version of the app you are running.
 
 Worth being straight about, so nothing comes as a surprise:
 
-- **It does not sync between devices.** Edit on the phone and the tablet, and you
-  have two different logs. Export and Import is the way to move a log across
+- **Without the sync service, it does not sync.** Edit on the phone and the
+  tablet and you have two different logs; Export and Import is how a log moves
 - **There is no password reset.** The recovery code is the whole recovery story
-- **There is no server, so there is nothing to log in to.** Anyone with the web
-  address gets the lock screen, or the log itself if you chose no password
+- **Sync is not live.** It catches up when the app opens or comes back to the
+  foreground, not while you are looking at it
+- **Two people editing at once are not merged.** The second one to send is told
+  the log changed and chooses which version wins
 
 ---
 
@@ -176,7 +182,10 @@ Static PWA, no build step, no dependencies, no framework. One HTML file, a
 service worker, a manifest and three icons.
 
 Encryption is AES-256-GCM. A random data key encrypts the log; that key is
-wrapped twice, once by PBKDF2-HMAC-SHA256 of your password at 310,000 iterations
-and once by the recovery code, so changing the password rewraps rather than
-re-encrypts. The log lives in IndexedDB, encrypted at rest. The password and the
-recovery code are never stored or transmitted.
+wrapped by PBKDF2-HMAC-SHA256 at 310,000 iterations of each thing that may open
+it — the full password, the read-only password, the recovery code — so changing a
+password rewraps rather than re-encrypts. The log lives in IndexedDB, encrypted
+at rest, and the sync service only ever holds the same ciphertext. Read-only
+access works because only the full password unwraps the key the server requires
+for a write, so it is refused server-side rather than hidden in the interface.
+Passwords and recovery codes are never stored or transmitted.

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060F1A">
@@ -27,7 +27,15 @@ body{background:#060F1A;color:#C8DCF0;font-family:-apple-system,'Helvetica Neue'
 a{color:#0EA5E9}
 
 /* ── Header ───────────────────────────────── */
-.hdr{background:#091827;border-bottom:1px solid #163148;padding:20px 24px 0;flex-shrink:0}
+/* status-bar-style black-translucent puts the web view UNDER the iOS status
+   bar, so on a home-screen install the top of this was behind the clock and the
+   vessel line was simply not there. env() needs viewport-fit=cover to report
+   anything, which the viewport meta now sets. */
+.hdr{background:#091827;border-bottom:1px solid #163148;flex-shrink:0;
+ padding:calc(20px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) 0
+         calc(24px + env(safe-area-inset-left))}
+#lock,#setup,#kit{padding-top:calc(24px + env(safe-area-inset-top))}
+.log-panel{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 .ver-badge{display:inline-block;font:700 11px/1 monospace;letter-spacing:2px;color:#B8860B;border:1px solid #B8860B;border-radius:3px;padding:3px 7px;margin-left:10px;vertical-align:middle;cursor:pointer}
 .ver-badge:hover{background:#B8860B;color:#fff}
 .vessel-lbl{font:10px/1 monospace;letter-spacing:4px;color:#507490;margin-bottom:5px}
@@ -146,6 +154,10 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .lockbox input{width:100%;box-sizing:border-box;background:#0C1F30;border:1px solid #1D3D57;
  border-radius:8px;padding:13px 14px;font-size:16px;color:#E4F2FF;text-align:center;outline:none}
 .lockbox input:focus{border-color:#0EA5E9}
+.lockbox select{width:100%;box-sizing:border-box;background:#0C1F30;border:1px solid #1D3D57;
+ border-radius:8px;padding:13px 14px;font-size:16px;color:#E4F2FF;text-align:center;
+ outline:none;margin-bottom:10px;-webkit-appearance:none;appearance:none}
+.lockbox select.hide{display:none}
 .lockbox button{width:100%;margin-top:10px;background:#0EA5E9;border:none;border-radius:8px;
  padding:13px;font-size:15px;font-weight:600;color:#04121C;cursor:pointer}
 .lockbox button:disabled{opacity:.5;cursor:default}
@@ -261,6 +273,20 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .mg-icon button{background:#0B2135;border:1px solid #24567A;color:#A8C6E0;border-radius:6px;
  padding:5px 11px;font-size:11.5px;font-weight:600;cursor:pointer;margin:0 5px 5px 0}
 .mg-icon-note{font-size:11px;color:#507490;line-height:1.5}
+.mg-sync{font-size:11.5px;color:#8FB4CE;margin-bottom:10px}
+.mg-sync>div{display:flex;gap:8px;align-items:baseline;padding:3px 0}
+.mg-sync span:first-child{color:#507490;min-width:56px;flex-shrink:0}
+.mg-sync code{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:#A8C6E0;
+ word-break:break-all}
+.sync-status{font-size:11.5px;color:#6E93B0}
+.sync-status.ok{color:#34D399}
+.sync-status.warn{color:#FBBF24}
+.sync-status.bad{color:#FCA5A5;font-weight:600}
+.up-pending{background:#1C1503;border:1px solid #3F2D06;border-radius:8px;
+ padding:11px 13px;margin:0 0 14px;font-size:12.5px;color:#FBBF24;line-height:1.5}
+.up-pending strong{color:#FDE047}
+.up-pending button{margin-left:8px}
+.up-pending-detail{margin-top:7px;font-size:11.5px;color:#A8886A;line-height:1.5}
 .tab.on{color:#E4F2FF;border-bottom-color:#0EA5E9}
 
 /* ── Layout ───────────────────────────────── */
@@ -350,8 +376,9 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
   <div class="lockbox">
     <img src="icon-192.png" alt="">
     <h1 id="lock-title">Maintenance Log</h1>
-    <div class="sub">Private maintenance log.<br>Enter the passphrase to continue.</div>
-    <input type="password" id="lock-pw" placeholder="Passphrase" autocomplete="current-password"
+    <div class="sub" id="lock-sub">Private maintenance log.<br>Enter the password to continue.</div>
+    <select id="lock-boat" class="hide"></select>
+    <input type="password" id="lock-pw" placeholder="Password" autocomplete="current-password"
            autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
     <button id="lock-go">Unlock</button>
     <div class="lockerr" id="lock-err"></div>
@@ -385,6 +412,16 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
       </div>
       <input type="text" id="su-port" placeholder="Home port" autocomplete="off">
 
+      <div class="su-sec">What sort of boat?</div>
+      <label class="su-opt"><input type="radio" name="kind" value="power" checked>
+        <span><strong>Power</strong><br>Starts with engines, running gear, fuel and
+        the usual systems.</span></label>
+      <label class="su-opt"><input type="radio" name="kind" value="sail">
+        <span><strong>Sail</strong><br>Starts with rig, sails, keel and an auxiliary
+        instead.</span></label>
+      <div class="mg-icon-note" style="margin:-2px 0 4px">Only decides the starting
+        categories. Rename, add and delete them freely afterwards.</div>
+
       <div class="su-sec">Who can read this log?</div>
       <label class="su-opt"><input type="radio" name="prot" value="password" checked>
         <span><strong>Password</strong><br>Encrypted. Anyone with the address sees
@@ -402,6 +439,19 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
       </div>
       <button id="setup-go">Create the log</button>
       <div class="lockerr" id="setup-err"></div>
+    </form>
+    <div class="su-sec">Already have a log?</div>
+    <div class="mg-icon-note">If this boat's log is already online — on another
+      phone, or set up for you by someone else — join it instead of starting a
+      new one. You will need its log id and the password.</div>
+    <button class="linkbtn" id="setup-join" style="width:auto">Join an existing log</button>
+    <form id="setup-join-form" class="hide" onsubmit="return false">
+      <input type="text" id="sj-url" placeholder="Server address" autocomplete="off">
+      <input type="text" id="sj-id" placeholder="Log id" autocomplete="off">
+      <input type="text" id="sj-key" placeholder="Write key — leave empty for read-only" autocomplete="off">
+      <input type="password" id="sj-pw" placeholder="Password" autocomplete="current-password">
+      <button id="sj-go">Join it</button>
+      <div class="lockerr" id="sj-err"></div>
     </form>
   </div>
 </div>
@@ -888,12 +938,27 @@ function renderUpdates(){
       encrypted</strong>, so keep it somewhere you would keep the passphrase.
       <code>DATA-FORMAT.md</code> in the app's repository describes the file, so a
       person or an AI can edit it and hand it back.</div>` : ""}
+    ${readOnly() ? `<div class="up-intro" style="color:#FBBF24">You are viewing a
+      <strong>read-only share</strong> of this log. It updates when the owner
+      changes it. You cannot edit it, and the server will not accept changes
+      from this device.</div>` : ""}
+    <div class="up-sec">This device</div>
+    <div class="up-intro">Signed in to <strong>${esc((DOC && DOC.vessel && DOC.vessel.name) || "this log")}</strong>${
+      readOnly() ? " (read-only)" : ""}.${SYNC ? "" : " Not synced — this device holds the only copy."}
+      <button class="upd-btn" id="signout-btn">Sign out</button></div>
     <div class="up-sec">This app</div>
     <div class="up-intro">Version <strong>${esc(APP_VERSION)}</strong> — the app itself,
       which is separate from the log's revision above. <span id="app-upd"></span></div>
     <div class="up-sec">Revision history</div>
-    <div class="up-intro">The Systems Manual and the printed cabinet log share this
-    version number. If they don't match, one of them is out of date.${
+    ${(!readOnly() && pendingCount()) ? `<div class="up-pending">
+      <strong>${pendingCount()} change${pendingCount()===1?"":"s"}</strong> since
+      ${esc(VERSION)}, not yet written up.
+      <button class="upd-btn" id="rev-btn">Record a revision</button>
+      <div class="up-pending-detail">${esc(draftRevisionText())}</div>
+    </div>` : ""}
+    <div class="up-intro">What has changed in this log, newest first. This number
+    is the <strong>log's</strong> version and has nothing to do with the app's —
+    the app updates on its own and never renumbers your history.${
       collapsible ? " Tap a row for the full entry." : ""}</div>`;
 
   REVISIONS.forEach((r, i) => {
@@ -1058,6 +1123,8 @@ document.addEventListener("visibilitychange", function(){
 document.addEventListener("click", function(e){
   if (e.target && e.target.id === "upd-btn") checkForUpdate(false);
   if (e.target && e.target.id === "exp-btn") exportDocument();
+  if (e.target && e.target.id === "signout-btn") signOut();
+  if (e.target && e.target.id === "rev-btn") recordRevision();
 });
 
 // Collapse/expand, delegated so it survives re-render
@@ -1424,6 +1491,22 @@ async function kdf(secret, salt, iterations){
     base, { name:"AES-GCM", length:256 }, false, ["wrapKey","unwrapKey"]);
 }
 
+/** Same derivation, but usable on raw bytes. kdf() produces a key with
+ *  wrapKey/unwrapKey usages, which cannot encrypt a string. */
+async function kdfEnc(secret, salt, iterations){
+  const base = await crypto.subtle.importKey("raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name:"PBKDF2", salt, iterations, hash:"SHA-256" },
+    base, { name:"AES-GCM", length:256 }, false, ["encrypt","decrypt"]);
+}
+
+async function unwrapWriteKey(rec, writePass, iterations){
+  const kek = await kdfEnc(writePass, b64ToBytes(rec.salt), iterations);
+  const pt  = await crypto.subtle.decrypt(
+    { name:"AES-GCM", iv: b64ToBytes(rec.iv) }, kek, b64ToBytes(rec.ct));
+  return new TextDecoder().decode(pt);
+}
+
 async function wrapDataKey(dk, secret, iterations){
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv   = crypto.getRandomValues(new Uint8Array(12));
@@ -1487,6 +1570,45 @@ async function unlockKeyring(secret, which){
 
 // Re-wrap only. The data key is untouched, so this is instant however large the
 // log is, and every device that already holds the data key stays working.
+/** Two passwords per log: one that can change it, one that can only read it.
+ *
+ *  Both must reach the data key or neither could decrypt anything. The
+ *  difference is the WRITE KEY: only the write password unwraps it, and without
+ *  it the server refuses the write. So read-only is enforced by Cloudflare, not
+ *  by the app being polite about hiding buttons. */
+async function setAccessPasswords(writePass, readPass, writeKey){
+  if (!DATA_KEY) throw new Error("unlock first");
+  const kr = KEYRING || {};
+  kr.v = KEYRING_VERSION;
+  kr.iterations = kr.iterations || KDF_ITERATIONS;
+  kr.protection = "password";
+  kr.byPassphrase = await wrapDataKey(DATA_KEY, writePass, kr.iterations);
+
+  if (readPass){
+    kr.byReadPassphrase = await wrapDataKey(DATA_KEY, readPass, kr.iterations);
+  } else {
+    delete kr.byReadPassphrase;
+  }
+
+  // The write key is wrapped by the WRITE password only. That single asymmetry
+  // is the whole read/write distinction.
+  if (writeKey){
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv   = crypto.getRandomValues(new Uint8Array(12));
+    const kek  = await kdfEnc(writePass, salt, kr.iterations);
+    const ct   = new Uint8Array(await crypto.subtle.encrypt(
+      { name:"AES-GCM", iv }, kek, new TextEncoder().encode(writeKey)));
+    kr.writeKeyWrapped = { salt: bytesToB64(salt), iv: bytesToB64(iv), ct: bytesToB64(ct) };
+  } else {
+    delete kr.writeKeyWrapped;
+  }
+
+  delete kr.plainKey;
+  await idbPut(KEYRING_KEY, kr);
+  KEYRING = kr;
+  return kr;
+}
+
 async function setPassphrase(newPassphrase){
   if (!DATA_KEY) throw new Error("unlock first");
   const kr = KEYRING || {};
@@ -1499,6 +1621,9 @@ async function setPassphrase(newPassphrase){
   delete kr.plainKey;
   await idbPut(KEYRING_KEY, kr);
   KEYRING = kr;
+  // The online copy holds the wrapped keys too. Not updating it would leave
+  // every other device unlocking with a password this one no longer accepts.
+  publishKeyring();
   return code;
 }
 
@@ -1532,8 +1657,10 @@ function saveLocal(){
     try {
       const body = DATA_KEY ? { enc: await encryptLocal(DOC) } : { doc: DOC };
       await idbPut(DOC_KEY, { ...body, savedAt: new Date().toISOString(),
+                              remoteRev: REMOTE_REV,
                               baseRevision: DOC.document && DOC.document.revision });
       setEditStatus("Saved");
+      queuePush();          // no-op when syncing is off
     } catch (err) {
       // A failed save is the one error the user must not miss — it means the
       // edit exists only in this tab and dies with it.
@@ -1546,11 +1673,292 @@ async function readLocalDocument(){
   const rec = await idbGet(DOC_KEY);
   if (!rec) return null;
   if (rec.enc){
-    if (!DATA_KEY) return null;             // locked; nothing to read yet
+    if (!DATA_KEY){
+      // Loud on purpose. This device HAS a saved log it cannot currently read,
+      // and showing the published copy instead without a word is what made the
+      // remembered-device bug look like data loss.
+      console.warn("a local document exists but the data key is not available; " +
+                   "it is intact and will reappear once the keyring is unlocked");
+      return null;
+    }
     return decryptLocal(rec.enc);
   }
   return rec.doc || null;                   // written before encryption at rest
 }
+
+// ═══════════════════════════════════════════════════════
+// SYNC — the log lives online, this device keeps a working copy
+//
+// Online is the source of truth. Every device pulls from it and pushes to it,
+// so there is one log rather than one per device.
+//
+// But the boat has no signal at the yard or the helm, which is exactly where
+// work gets recorded. So this is a WRITE-THROUGH CACHE, not an online-only app:
+// edits land locally first and are pushed when there is a connection. From the
+// outside it behaves as "everything lives online"; in a boatyard it still works.
+//
+// The server never sees plaintext. It stores the same ciphertext the local copy
+// holds, encrypted with the same data key, so syncing widens what can be read
+// by exactly nobody.
+//
+// Conflicts are surfaced, never merged. Every push says which revision it was
+// based on; if the server has moved on the push is refused and the user picks.
+// Two devices editing offline is a real situation and silently choosing a
+// winner is how someone loses an afternoon's work.
+// ═══════════════════════════════════════════════════════
+let SYNC = null;          // { url, logId, writeKey } from the keyring
+let REMOTE_REV = 0;       // the server revision this device's copy is based on
+let PUSH_PENDING = false; // an edit is waiting for a connection
+let PUSH_TIMER = null;
+let SYNCING = false;
+
+const syncUrl = path => SYNC.url.replace(/\/+$/, "") + path;
+
+// A share with no write key. The Worker enforces this on its own — it is not a
+// promise the app makes and cannot be undone by poking at the page.
+const readOnly = () => !!SYNC && !SYNC.writeKey;
+
+/** Publish the WRAPPED keys so a device that has never seen this log can join
+ *  it with the passphrase. They are the data key sealed by PBKDF2; without the
+ *  passphrase or the recovery code they are noise. */
+async function publishKeyring(){
+  if (!SYNC || !SYNC.writeKey) return;
+  const kr = KEYRING || await idbGet(KEYRING_KEY);
+  if (!kr) return;
+  // Everything a device needs to open this log, and nothing that could open it
+  // without a password. Missing a field here is silent: the log still syncs,
+  // but the password that was left out simply stops working on any other
+  // device — which is how the read password appeared to be wrong.
+  const share = { v: kr.v, iterations: kr.iterations, protection: kr.protection,
+                  byPassphrase: kr.byPassphrase,
+                  byReadPassphrase: kr.byReadPassphrase,
+                  writeKeyWrapped: kr.writeKeyWrapped,
+                  byRecovery: kr.byRecovery };
+  if (kr.protection === "none") share.plainKey = kr.plainKey;
+  try {
+    await fetch(syncUrl("/keyring/" + SYNC.logId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SYNC.writeKey },
+      body: JSON.stringify(share),
+    });
+  } catch {}
+}
+
+/** Open a log with EITHER password. Tries the write password first, falls back
+ *  to the read password. Which one worked decides whether this device can
+ *  change anything — and if it was the read password there is no write key on
+ *  the device at all, so the server would refuse it regardless. */
+async function openWithPassword(cfg, password){
+  const base = cfg.url.replace(/\/+$/, "");
+  const res = await fetch(base + "/keyring/" + cfg.logId, { cache:"no-store" });
+  if (!res.ok) throw new Error(res.status === 404
+    ? "that log is not on this server" : "server said " + res.status);
+  const share = await res.json();
+  const iters = share.iterations || KDF_ITERATIONS;
+
+  let mode = null;
+  DATA_KEY = null;
+  if (share.byPassphrase){
+    try { DATA_KEY = await unwrapDataKey(share.byPassphrase, password, iters); mode = "write"; }
+    catch {}
+  }
+  if (!DATA_KEY && share.byReadPassphrase){
+    try { DATA_KEY = await unwrapDataKey(share.byReadPassphrase, password, iters); mode = "read"; }
+    catch {}
+  }
+  if (!DATA_KEY) throw new Error("that password does not open this log");
+
+  const conf = { url: cfg.url, logId: cfg.logId };
+  if (mode === "write" && share.writeKeyWrapped){
+    try { conf.writeKey = await unwrapWriteKey(share.writeKeyWrapped, password, iters); }
+    catch { /* readable but not writable; treated as read-only */ }
+  }
+
+  const kr = { v: share.v || KEYRING_VERSION, iterations: iters,
+               protection: share.protection, byPassphrase: share.byPassphrase,
+               byReadPassphrase: share.byReadPassphrase, byRecovery: share.byRecovery,
+               writeKeyWrapped: share.writeKeyWrapped, plainKey: share.plainKey,
+               sync: conf };
+  await idbPut(KEYRING_KEY, kr);
+  KEYRING = kr; SYNC = conf;
+  return { mode: conf.writeKey ? "write" : "read" };
+}
+
+/** Join a log this device has never seen: fetch the wrapped keys, unwrap with
+ *  the passphrase, and store them locally so the device works offline after. */
+async function joinWithPassphrase(cfg, passphrase){
+  const res = await fetch(cfg.url.replace(/\/+$/, "") + "/keyring/" + cfg.logId, { cache:"no-store" });
+  if (!res.ok) throw new Error(res.status === 404
+    ? "no log with that id on that server" : "server said " + res.status);
+  const share = await res.json();
+  const kr = { v: share.v || KEYRING_VERSION, iterations: share.iterations || KDF_ITERATIONS,
+               protection: share.protection, byPassphrase: share.byPassphrase,
+               byRecovery: share.byRecovery, plainKey: share.plainKey, sync: cfg };
+  await idbPut(KEYRING_KEY, kr);
+  KEYRING = kr; SYNC = cfg; DATA_KEY = null;
+  await unlockKeyring(passphrase, "passphrase");   // throws on a wrong passphrase
+  return kr;
+}
+
+function setSyncStatus(msg, kind){
+  const el = document.getElementById("sync-status");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.className = "sync-status" + (kind ? " " + kind : "");
+}
+
+/** Everything that must happen once a document is open, whichever way we got
+ *  here. There are three routes in — the local fast path, a remembered device,
+ *  and typing the password — and each one having its own copy of this is why
+ *  sync silently failed to load on two of them, twice. */
+async function afterOpen(){
+  document.getElementById("lock").classList.add("hide");
+  load(); renderSysBar();
+  if (S.filter === "focus") renderFocus(); else renderCurrent();
+  syncTabStrip();
+  const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+  try {
+    await loadSyncConfig();
+    if (SYNC) pullRemote({ quiet: true });
+  } catch (err) { console.warn("sync:", err && err.message); }
+  updateEditBar();
+}
+
+async function loadSyncConfig(){
+  const kr = KEYRING || await idbGet(KEYRING_KEY);
+  SYNC = (kr && kr.sync) || null;
+  const rec = await idbGet(DOC_KEY);
+  REMOTE_REV = (rec && rec.remoteRev) || 0;
+  return SYNC;
+}
+
+async function saveSyncConfig(cfg){
+  const kr = KEYRING || (await idbGet(KEYRING_KEY)) || {};
+  kr.sync = cfg;
+  await idbPut(KEYRING_KEY, kr);
+  KEYRING = kr; SYNC = cfg;
+}
+
+/** Fresh identity for a log the server has never seen. */
+function newSyncIdentity(url){
+  const rand = n => {
+    const b = crypto.getRandomValues(new Uint8Array(n));
+    return btoa(String.fromCharCode(...b)).replace(/[+/=]/g, "").slice(0, n * 4 / 3 | 0);
+  };
+  return { url, logId: rand(18), writeKey: rand(32) };
+}
+
+async function pullRemote(opts){
+  if (!SYNC || !DATA_KEY) return { state: "off" };
+  const quiet = opts && opts.quiet;
+  try {
+    const res = await fetch(syncUrl("/log/" + SYNC.logId), { cache: "no-store" });
+    if (res.status === 404) return { state: "absent" };
+    if (!res.ok) throw new Error("server said " + res.status);
+    const { rev, updatedAt, blob } = await res.json();
+
+    if (rev === REMOTE_REV && !PUSH_PENDING){
+      if (!quiet) setSyncStatus("Up to date", "ok");
+      return { state: "same", rev };
+    }
+    // A newer server copy on top of unpushed local edits is the conflict case,
+    // and it is decided by the user rather than by whichever ran last.
+    if (PUSH_PENDING && rev !== REMOTE_REV)
+      return { state: "conflict", rev, updatedAt, blob };
+
+    const doc = await decryptLocal(JSON.parse(atob(blob)));
+    const { errors } = validateDocument(doc);
+    if (errors.length) throw new Error("server copy is not a valid document: " + errors[0]);
+
+    DOC = doc; applyDocument(doc); REMOTE_REV = rev;
+    await idbPut(DOC_KEY, { enc: await encryptLocal(DOC), savedAt: new Date().toISOString(),
+                            remoteRev: rev, baseRevision: DOC.document && DOC.document.revision });
+    renderCurrent(); updateEditBar();
+    setSyncStatus("Updated from the server", "ok");
+    return { state: "pulled", rev };
+  } catch (err) {
+    if (!quiet) setSyncStatus("Offline — showing this device's copy", "warn");
+    return { state: "offline", error: err.message };
+  }
+}
+
+async function pushRemote(opts){
+  if (!SYNC || !DATA_KEY || !DOC) return { state: "off" };
+  if (readOnly()){ setSyncStatus("Read-only share — changes stay on this device", "warn");
+                   return { state: "readonly" }; }
+  if (SYNCING) return { state: "busy" };
+  SYNCING = true;
+  try {
+    const blob = btoa(JSON.stringify(await encryptLocal(DOC)));
+    const res = await fetch(syncUrl("/log/" + SYNC.logId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SYNC.writeKey },
+      body: JSON.stringify({ blob, baseRev: (opts && opts.force) ? undefined : REMOTE_REV,
+                             label: (DOC.vessel && DOC.vessel.name) || null }),
+    });
+
+    if (res.status === 409){
+      const server = await res.json();
+      PUSH_PENDING = true;
+      setSyncStatus("Conflict — this log changed elsewhere", "bad");
+      showConflict(server);
+      return { state: "conflict", server };
+    }
+    if (res.status === 403){
+      setSyncStatus("This device's write key does not match the log on the server", "bad");
+      return { state: "denied" };
+    }
+    if (!res.ok) throw new Error("server said " + res.status);
+
+    const { rev } = await res.json();
+    REMOTE_REV = rev; PUSH_PENDING = false;
+    const rec = (await idbGet(DOC_KEY)) || {};
+    await idbPut(DOC_KEY, { ...rec, remoteRev: rev });
+    setSyncStatus("Saved online", "ok");
+    updateEditBar();
+    return { state: "pushed", rev };
+  } catch (err) {
+    // Offline is normal here, not an error. Keep the edit and try again later.
+    PUSH_PENDING = true;
+    setSyncStatus("Saved on this device — will sync when there is a connection", "warn");
+    updateEditBar();
+    return { state: "queued", error: err.message };
+  } finally { SYNCING = false; }
+}
+
+/** Called after every local save. Debounced, and harmless when sync is off. */
+function queuePush(){
+  if (!SYNC) return;
+  PUSH_PENDING = true;
+  updateEditBar();
+  clearTimeout(PUSH_TIMER);
+  PUSH_TIMER = setTimeout(() => pushRemote(), 1200);
+}
+
+function showConflict(server){
+  const when = t => { try { return new Date(t).toLocaleString(); } catch { return t; } };
+  const msg =
+    "This log was changed on another device.\n\n" +
+    "  On the server : revision " + server.rev + ", " + when(server.updatedAt) + "\n" +
+    "  On this device: unsent changes\n\n" +
+    "OK    — keep THIS device's version and overwrite the server\n" +
+    "Cancel — discard this device's unsent changes and take the server's\n\n" +
+    "Export a backup first if you are unsure; nothing is lost until you choose.";
+  if (confirm(msg)){
+    pushRemote({ force: true });
+  } else {
+    REMOTE_REV = server.rev - 1;   // force the next pull to apply
+    PUSH_PENDING = false;
+    pullRemote();
+  }
+}
+
+// Retry whenever the machine looks like it has a connection again.
+window.addEventListener("online", () => { if (PUSH_PENDING) pushRemote(); else pullRemote({quiet:true}); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !SYNC) return;
+  if (PUSH_PENDING) pushRemote(); else pullRemote({ quiet: true });
+});
 
 // ═══════════════════════════════════════════════════════
 // MUTATION — every edit goes through here
@@ -1560,14 +1968,118 @@ const UNDO_LIMIT = 30;
 
 function snapshot(){ return JSON.parse(JSON.stringify(DOC)); }
 
+// ── Tracking what changed since the last revision ─────────────────────────
+// The bookkeeping half of a revision can be automated: which entries were
+// added, edited or removed, and whether the categories or the boat's details
+// moved. The half that MATTERS cannot — "anti-siphon corrected, the hose
+// routing is the provision" is not derivable from a diff. So the app drafts
+// the facts and asks a person for the sentence.
+function docIndex(d){
+  const e = {};
+  for (const x of (d.entries || []))
+    e[x.id] = [x.title, x.status, x.priority, x.system, x.sortKey,
+               (x.items || []).map(i => (i.done ? "1" : "0") + i.text).join("\u0001")].join("\u0002");
+  return {
+    entries: e,
+    systems: (d.systems || []).map(x => x.id + ":" + x.name + ":" + x.color).join(","),
+    priorities: (d.priorities || []).map(x => x.id + ":" + x.label + ":" + x.color).join(","),
+    vessel: JSON.stringify(d.vessel || {}),
+    voyages: (d.voyages || []).length,
+  };
+}
+
+function notePending(before, after){
+  DOC.document = DOC.document || {};
+  const p = DOC.document.pending || { added: [], edited: [], removed: [], other: [] };
+  const seen = new Set([...Object.keys(before.entries), ...Object.keys(after.entries)]);
+  for (const id of seen){
+    const b = before.entries[id], a = after.entries[id];
+    if (b === undefined && a !== undefined){
+      if (!p.added.includes(id)) p.added.push(id);
+    } else if (b !== undefined && a === undefined){
+      if (!p.removed.includes(id)) p.removed.push(id);
+      // an entry added then deleted in the same stretch is not a change
+      const i = p.added.indexOf(id); if (i >= 0) p.added.splice(i, 1);
+    } else if (b !== a){
+      if (!p.added.includes(id) && !p.edited.includes(id)) p.edited.push(id);
+    }
+  }
+  const mark = k => { if (!p.other.includes(k)) p.other.push(k); };
+  if (before.systems !== after.systems)       mark("categories");
+  if (before.priorities !== after.priorities) mark("priorities");
+  if (before.vessel !== after.vessel)         mark("boat details");
+  if (before.voyages !== after.voyages)       mark("voyages");
+  DOC.document.pending = p;
+}
+
+function pendingCount(){
+  const p = (DOC && DOC.document && DOC.document.pending) || null;
+  if (!p) return 0;
+  return p.added.length + p.edited.length + p.removed.length + p.other.length;
+}
+
+/** The factual half, written out. Deliberately plain: it says what moved, and
+ *  leaves the reason to whoever types the headline. */
+function draftRevisionText(){
+  const p = (DOC.document && DOC.document.pending) || { added:[], edited:[], removed:[], other:[] };
+  const title = id => {
+    const e = DOC.entries.find(x => x.id === id);
+    return e ? `${id} (${e.title})` : id;
+  };
+  const bits = [];
+  if (p.added.length)   bits.push(`Added: ${p.added.map(title).join(", ")}.`);
+  if (p.edited.length)  bits.push(`Changed: ${p.edited.map(title).join(", ")}.`);
+  if (p.removed.length) bits.push(`Removed: ${p.removed.join(", ")}.`);
+  if (p.other.length)   bits.push(`Also updated: ${p.other.join(", ")}.`);
+  return bits.join(" ");
+}
+
+function nextRevision(current){
+  const m = /^v?(\d+)\.(\d+)$/.exec(String(current || "v1.0").trim());
+  if (!m) return "v1.1";
+  return "v" + m[1] + "." + (parseInt(m[2], 10) + 1);
+}
+
+async function recordRevision(){
+  if (!DOC) return;
+  if (!pendingCount()) return setEditStatus("Nothing has changed since the last revision");
+  const draft = draftRevisionText();
+  const headline = prompt(
+    "One line: what changed, and why.\n\n" +
+    "This is the part nothing can work out on its own, and it is what makes the\n" +
+    "history worth reading in five years.\n\n" +
+    "The details below are recorded automatically:\n\n" + draft, "");
+  if (headline === null) return setEditStatus("Cancelled");
+  if (!headline.trim()) return setEditStatus("A revision needs a line saying what changed", true);
+
+  const ver = nextRevision(DOC.document.revision);
+  const date = new Date().toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
+  mutate(() => {
+    DOC.document.revision = ver;
+    DOC.document.revisionDate = date;
+    DOC.revisions.unshift({ version: ver, date,
+      text: headline.trim() + (draft ? "\n\n" + draft : ""),
+      headline: headline.trim() });
+    delete DOC.document.pending;
+  }, { norecord: true });
+  setEditStatus("Recorded " + ver);
+}
+
 function mutate(fn, opts){
   if (!DOC) return;
   UNDO.push(snapshot());
   if (UNDO.length > UNDO_LIMIT) UNDO.shift();
+  const beforeIdx = docIndex(DOC);
   fn(DOC);
+  // Skip when the mutation IS the revision being recorded, or it would
+  // immediately mark itself as an unrecorded change.
+  if (!(opts && opts.norecord)) notePending(beforeIdx, docIndex(DOC));
   DOC.document = DOC.document || {};
   DOC.document.updatedAt = new Date().toISOString();
   applyDocument(DOC);              // rebuild BASE/VOYAGES/lookups from the document
+  // The badge is drawn once at open, so a revision bump left it showing the old
+  // number until the next reload — the one moment it most needs to be right.
+  const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
   saveLocal();
   if (!opts || opts.rerender !== false) renderCurrent();
   updateEditBar();
@@ -1614,6 +2126,7 @@ function exportDocument(){
     // Revoked on a delay: Safari has been known to cancel the download if the
     // object URL disappears in the same tick as the click.
     setTimeout(() => URL.revokeObjectURL(url), 10000);
+    EXPORTED_THIS_SESSION = true;
     say(`Exported ${DOC.entries.length} entries as ${a.download}`);
   } catch (err) {
     say("Export failed: " + err.message);
@@ -1635,6 +2148,34 @@ function exportDocument(){
 // ═══════════════════════════════════════════════════════
 const ICON_PX = 512;
 
+/** Name the app for a boat, using only its label.
+ *
+ *  This has to work BEFORE anything is unlocked. Someone picks their boat and
+ *  taps Add to Home Screen without ever logging in, and iOS reads the name from
+ *  apple-mobile-web-app-title (falling back to <title>) at that moment. If we
+ *  wait for the document to load, the icon on their phone says "Log". */
+function setChromeForBoat(label){
+  if (!label) return;
+  const nice = String(label).trim();
+  document.title = nice + " · Maintenance Log";
+  const m = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (m) m.setAttribute("content", nice + " Log");
+  const t = document.getElementById("lock-title");
+  if (t) t.textContent = nice;
+  try {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    fetch("manifest.json").then(r => r.json()).then(mf => {
+      mf.name = nice + " — Maintenance Log";
+      mf.short_name = nice + " Log";
+      mf.description = "Maintenance log and voyage record for " + nice + ".";
+      const url = URL.createObjectURL(new Blob([JSON.stringify(mf)],
+        { type:"application/manifest+json" }));
+      link.setAttribute("href", url);
+    }).catch(() => {});
+  } catch {}
+}
+
 function applyVesselIcon(dataUrl){
   const targets = [
     ["#lock img", "src"],
@@ -1645,7 +2186,6 @@ function applyVesselIcon(dataUrl){
     const el = document.querySelector(sel);
     if (el && dataUrl) el.setAttribute(attr, dataUrl);
   }
-  if (!dataUrl) return;
   // Rewrite the manifest so an install started from here picks the icon up.
   // iOS bakes the icon in at "Add to Home Screen" and never revisits it, so an
   // ALREADY-installed app keeps the old one until it is removed and re-added.
@@ -1654,7 +2194,15 @@ function applyVesselIcon(dataUrl){
     const link = document.querySelector('link[rel="manifest"]');
     if (!link) return;
     fetch("manifest.json").then(r => r.json()).then(m => {
-      m.icons = [{ src: dataUrl, sizes: `${ICON_PX}x${ICON_PX}`, type: "image/png", purpose: "any" }];
+      const v = (DOC && DOC.vessel) || {};
+      // What iOS pre-fills in the Add to Home Screen sheet comes from here and
+      // from <title>, so both carry the boat rather than "Maintenance Log".
+      if (v.appName)      m.name = v.appName;
+      if (v.appShortName) m.short_name = v.appShortName;
+      else if (v.name)    m.short_name = v.name;
+      if (v.appDescription) m.description = v.appDescription;
+      if (dataUrl)
+        m.icons = [{ src: dataUrl, sizes: `${ICON_PX}x${ICON_PX}`, type: "image/png", purpose: "any" }];
       const url = URL.createObjectURL(new Blob([JSON.stringify(m)], { type:"application/manifest+json" }));
       link.setAttribute("href", url);
     }).catch(() => {});
@@ -1780,16 +2328,25 @@ function setEditStatus(msg, bad){
 function updateEditBar(){
   const bar = document.getElementById("editbar");
   if (!bar) return;
+  if (readOnly()) EDIT = false;
   bar.classList.toggle("on", EDIT);
   const u = document.getElementById("eb-undo");
   if (u) u.disabled = !UNDO.length;
   const d = document.getElementById("eb-dirty");
-  if (d) d.style.display = LOCAL_EDITS ? "" : "none";
+  if (d){
+    // With syncing on, "local edits" means UNSENT — a much more useful thing to
+    // show than "differs from the published copy", which is always true.
+    d.style.display = (SYNC ? PUSH_PENDING : LOCAL_EDITS) ? "" : "none";
+    d.textContent = SYNC ? "\u25CF not yet synced" : "\u25CF local edits";
+  }
   document.body.classList.toggle("editing", EDIT);
 }
 
 function toggleEdit(){
   if (!DOC){ return setEditStatus("This log predates the editable format", true); }
+  if (readOnly()){
+    return setEditStatus("This is a read-only share of someone else's log", true);
+  }
   EDIT = !EDIT;
   updateEditBar();
   renderCurrent();
@@ -1992,6 +2549,43 @@ function renderManage(){
     <div class="up-sec">How it is labelled</div>
     ${field("logTitle","Log title")}${field("headerLabel","Header strip")}
     ${field("footerLabel","Footer")}${field("pageTitle","Browser tab")}${field("appShortName","Home screen name")}
+    ${readOnly() ? "" : `
+    <div class="up-sec">Passwords</div>
+    <div class="up-intro">Two passwords open this log. The <strong>full</strong> one
+      can change it; the <strong>read-only</strong> one can only look. Give out the
+      read-only one. Changing either takes effect on every device the next time it
+      syncs.</div>
+    <div class="mg-pw">
+      <label class="ed-row"><span>Full access password</span>
+        <input class="ed-in" type="password" id="pw-write" placeholder="leave blank to keep the current one"></label>
+      <label class="ed-row"><span>Read-only password</span>
+        <input class="ed-in" type="password" id="pw-read" placeholder="${
+          (KEYRING && KEYRING.byReadPassphrase) ? "set — type to replace" : "not set"}"></label>
+      <div class="ed-add">
+        <button data-mact="pw-save">Save passwords</button>
+        ${(KEYRING && KEYRING.byReadPassphrase)
+          ? `<button data-mact="pw-drop-read" class="danger">Remove read-only access</button>` : ""}
+      </div>
+    </div>`}
+    <div class="up-sec">Syncing</div>
+    <div class="up-intro">${SYNC
+      ? `This log lives online and every device you set up shares it. Edits made
+         without a connection are kept here and sent when there is one.`
+      : `This log lives only on this device. Turn syncing on to keep it online and
+         share it across your phone, tablet and computer.`}</div>
+    ${SYNC ? `
+      <div class="mg-sync">
+        <div><span>Server</span><code>${esc(SYNC.url)}</code></div>
+        <div><span>Log id</span><code>${esc(SYNC.logId)}</code></div>
+        <div><span>State</span><span class="sync-status" id="sync-status"></span></div>
+      </div>
+      <div class="ed-add">
+        <button data-mact="sync-now">Sync now</button>
+        <button data-mact="sync-kit">Details for another device</button>
+        <button data-mact="sync-share">Share read-only</button>
+        <button data-mact="sync-off" class="danger">Stop syncing</button>
+      </div>`
+      : `<div class="ed-add"><button data-mact="sync-on">Turn on syncing</button></div>`}
     <div class="up-sec">Categories</div>
     <div class="up-intro">The number is how many jobs use it. A category still in
       use cannot be deleted — move those jobs first. Nesting is one level deep.</div>
@@ -2034,6 +2628,145 @@ document.addEventListener("click", function(ev){
   const btn = ev.target.closest && ev.target.closest("button[data-mact]");
   if (!btn || !DOC) return;
   const act = btn.dataset.mact;
+
+  if (act === "pw-save"){
+    const w = document.getElementById("pw-write").value;
+    const r = document.getElementById("pw-read").value;
+    if (!w && !r) return setEditStatus("Nothing to change — both boxes are empty");
+    if (w && w.length < 6) return setEditStatus("The full-access password needs at least 6 characters", true);
+    if (r && r.length < 6) return setEditStatus("The read-only password needs at least 6 characters", true);
+    (async () => {
+      // Changing the FULL password rewraps the write key, so it has to be known.
+      // Without it this device would keep working and every other one would
+      // quietly lose the ability to write.
+      const wk = SYNC && SYNC.writeKey;
+      if (w && !wk) return setEditStatus("This device has no write key, so the full password cannot be changed here", true);
+      const current = w || prompt("Confirm the CURRENT full-access password:");
+      if (!current) return setEditStatus("Cancelled");
+      try {
+        const keepRead = r || null;
+        await setAccessPasswords(current, keepRead, wk);
+        await publishKeyring();
+        setEditStatus(w && r ? "Both passwords updated" : w ? "Full-access password updated"
+                                                           : "Read-only password updated");
+        renderManage();
+      } catch (err) { setEditStatus("Could not change them: " + err.message, true); }
+    })();
+    return;
+  }
+  if (act === "pw-drop-read"){
+    if (!confirm("Remove read-only access?\n\nAnyone using the read-only password will\nstop being able to open this log.")) return;
+    (async () => {
+      const cur = prompt("Confirm the full-access password:");
+      if (!cur) return setEditStatus("Cancelled");
+      try {
+        await setAccessPasswords(cur, null, SYNC && SYNC.writeKey);
+        await publishKeyring();
+        setEditStatus("Read-only access removed");
+        renderManage();
+      } catch (err) { setEditStatus("Could not remove it: " + err.message, true); }
+    })();
+    return;
+  }
+
+  if (act === "sync-on"){
+    const url = prompt(
+      "Address of the sync service.\n\n" +
+      "If this app is hosted on Cloudflare Pages the default below is right and\n" +
+      "you can just press OK. Change it only to join a log kept somewhere else.",
+      (SYNC && SYNC.url) || (location.origin + "/api"));
+    if (!url) return;
+    const join = confirm(
+      "Is this a log that already exists online?\n\n" +
+      "OK     — yes, join an existing log (you will need its id and write key)\n" +
+      "Cancel — no, put THIS device's log online as a new one");
+    (async () => {
+      let cfg;
+      if (join){
+        const logId = prompt("Log id:");
+        if (!logId) return;
+        const writeKey = prompt(
+          "Write key.\n\n" +
+          "Leave this EMPTY for read-only — you will see the log and every update\n" +
+          "to it, but cannot change it. Paste the key for full access.", "");
+        if (writeKey === null) return;
+        const pass = prompt("Password for that log:");
+        if (!pass) return;
+        cfg = { url: url.trim(), logId: logId.trim() };
+        if (writeKey.trim()) cfg.writeKey = writeKey.trim();
+        try {
+          await joinWithPassphrase(cfg, pass);
+        } catch (err) {
+          setEditStatus("Could not join: " + err.message, true);
+          return;
+        }
+        await saveSyncConfig(cfg);
+        REMOTE_REV = 0;
+        const r = await pullRemote();
+        if (r.state === "absent") setEditStatus("That server has no log with that id", true);
+        else if (r.state === "offline") setEditStatus("Could not reach that server", true);
+        else setEditStatus(readOnly()
+          ? "Joined, read-only — you will see updates but cannot make them"
+          : "Joined — this device now shares that log");
+        EDIT = false; updateEditBar(); renderCurrent();
+      } else {
+        cfg = newSyncIdentity(url.trim());
+        await saveSyncConfig(cfg);
+        REMOTE_REV = 0;
+        const r = await pushRemote();
+        if (r.state === "pushed"){
+          await publishKeyring();     // so another device can join with the password
+          setEditStatus("Syncing on — this log is now online");
+          showSyncKit();
+        } else {
+          setEditStatus("Could not reach that server — syncing is on but nothing is sent yet", true);
+        }
+      }
+      renderManage();
+    })();
+    return;
+  }
+  if (act === "sync-now"){ (async () => {
+      setSyncStatus("Checking\u2026");
+      if (PUSH_PENDING) await pushRemote(); else await pullRemote();
+    })(); return; }
+  if (act === "sync-kit"){ showSyncKit(); return; }
+  if (act === "sync-share"){
+    // Deliberately WITHOUT the write key. That is the whole mechanism: the
+    // Worker refuses writes from anyone who cannot present it.
+    const text = [
+      "READ-ONLY ACCESS — " + ((DOC && DOC.vessel && DOC.vessel.name) || "boat log"),
+      "=".repeat(48), "",
+      "Open the app, go to Boat & categories, turn on syncing,",
+      "and choose to join an existing log. Then enter:",
+      "",
+      "  Server:    " + SYNC.url,
+      "  Log id:    " + SYNC.logId,
+      "  Write key: LEAVE EMPTY",
+      "  Password:  (ask whoever sent you this)",
+      "",
+      "-".repeat(48),
+      "You will see the log and every update to it. You cannot",
+      "change it — that is enforced by the server, not by the app.",
+    ].join("\n");
+    const name = ((DOC && DOC.vessel && DOC.vessel.name) || "boat-log")
+      .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+    const blob = new Blob([text], { type:"text/plain" });
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u; a.download = name + "-read-only.txt";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 10000);
+    setEditStatus("Read-only details saved — they still need the password");
+    return;
+  }
+  if (act === "sync-off"){
+    if (!confirm("Stop syncing?\n\nThe copy already on the server stays there, and this\n" +
+                 "device keeps its own copy. They will drift apart from now on.")) return;
+    (async () => { await saveSyncConfig(null); SYNC = null; renderManage();
+                   setEditStatus("Syncing off"); })();
+    return;
+  }
 
   if (act === "icon-pick"){
     const f = document.getElementById("icon-file");
@@ -2092,6 +2825,53 @@ document.addEventListener("click", function(ev){
 });
 
 // ═══════════════════════════════════════════════════════
+// SIGN OUT — hand this device back
+//
+// Wipes the keys, the working copy and the remembered unlock from THIS device.
+// The log on the server is untouched; signing back in pulls it down again.
+//
+// The danger is a log that is not synced, where the copy on this device is the
+// only copy in existence — signing out then is deletion, not logging out. That
+// case is refused outright unless a backup has been taken in this session.
+// ═══════════════════════════════════════════════════════
+let EXPORTED_THIS_SESSION = false;
+
+async function signOut(){
+  const unsent = SYNC && PUSH_PENDING;
+  const localOnly = !SYNC;
+
+  if (localOnly && !EXPORTED_THIS_SESSION){
+    alert(
+      "This log is not synced to a server, so the copy on this device is the " +
+      "only one there is.\n\n" +
+      "Signing out would delete it.\n\n" +
+      "Press Export first, then sign out.");
+    return;
+  }
+  if (unsent && !confirm(
+      "There are changes on this device that have NOT reached the server yet.\n\n" +
+      "Signing out now loses them.\n\n" +
+      "OK to sign out anyway, Cancel to stay and let them sync.")) return;
+  if (!confirm(
+      "Sign out of " + ((DOC && DOC.vessel && DOC.vessel.name) || "this log") + "?\n\n" +
+      "This device forgets the log and the password. The log itself stays on the " +
+      "server and you can sign back in any time.")) return;
+
+  try {
+    await idbDel(DOC_KEY);
+    await idbDel(KEYRING_KEY);
+  } catch {}
+  try {
+    localStorage.removeItem(KEY_STORE);
+    localStorage.removeItem(KEY_STORE + "_dk");
+    localStorage.removeItem("cs2_vessel");
+  } catch {}
+  DATA_KEY = null; KEYRING = null; SYNC = null; DOC = null;
+  LOCAL_EDITS = false; PUSH_PENDING = false; UNDO.length = 0;
+  location.reload();
+}
+
+// ═══════════════════════════════════════════════════════
 // VERSION / REVISION HISTORY
 // The history used to be dumped into an alert(). With 31 rows, one of them
 // over 1000 characters, that was an unreadable system dialog on iOS. It now
@@ -2140,6 +2920,19 @@ async function deriveKey(passphrase, salt){
 let ENC_BLOB = null;                       // cached bytes of data.enc
 let CURRENT_KEY = null;                    // live AES key, so a refresh can re-decrypt
                                            // without asking for the passphrase again
+/** Is this actually the encrypted log, or the host's fallback page?
+ *
+ *  Cloudflare Pages answers a MISSING file with 200 and index.html rather than
+ *  404. So "the response was ok" is not evidence the file exists, and treating
+ *  it as such meant the app base64-decoded a page of HTML into noise and
+ *  reported "Incorrect passphrase" — telling the user their password was wrong
+ *  when the truth was that there was no log at that address at all. */
+function looksLikeBlob(text, contentType){
+  if (contentType && /text\/html/i.test(contentType)) return false;
+  const t = String(text).trim();
+  return t.length > 100 && /^[A-Za-z0-9+/=\s]+$/.test(t);
+}
+
 async function loadBlob(force){
   if (ENC_BLOB && !force) return ENC_BLOB;
   // force: skip the HTTP cache AND the service worker, so "check for updates"
@@ -2148,7 +2941,10 @@ async function loadBlob(force){
     ? await fetch("data.enc?t=" + Date.now(), {cache:"no-store"})
     : await fetch("data.enc", {cache:"no-cache"});
   if (!res.ok) throw new Error("data.enc unavailable");
-  ENC_BLOB = b64ToBytes(await res.text());
+  const text = await res.text();
+  if (!looksLikeBlob(text, res.headers.get("content-type")))
+    throw new Error("data.enc unavailable");
+  ENC_BLOB = b64ToBytes(text);
   return ENC_BLOB;
 }
 
@@ -2218,6 +3014,7 @@ function applyDocument(d){
   // the only thing cached, it never leaves the device, and it is already on the
   // home-screen icon.
   try { if (v.name) localStorage.setItem("cs2_vessel", v.name); } catch {}
+  if (v.name) setChromeForBoat(v.appShortName || v.name);
   applyVesselIcon(v.icon);
   if (v.pageTitle) document.title = v.pageTitle;
   set(".vessel-lbl", v.headerLabel);
@@ -2333,17 +3130,14 @@ async function startApp(payload){
       }
     }
   } catch (err) { console.warn("no local document:", err && err.message); }
-  updateEditBar();
+
+  // Online is the source of truth, so ask it — but only after the local copy is
+  // on screen. A device with no signal shows the log immediately and a device
+  // with signal catches up a moment later; neither waits on the network to read.
   // Set the version badge here, not in renderLog() — Focus is the default tab
   // and renderFocus() never touches it, so the badge sat blank until you
   // happened to open All Work or Completed.
-  const vb0 = document.getElementById("ver-badge");
-  if (vb0) vb0.textContent = VERSION;
-  document.getElementById("lock").classList.add("hide");
-  load();
-  renderSysBar();
-  renderFocus();
-  syncTabStrip();          // strip is only measurable once it is on screen
+  await afterOpen();       // hides the lock, renders, and starts syncing
 }
 
 async function attemptUnlock(passphrase, remember){
@@ -2366,9 +3160,7 @@ async function attemptUnlock(passphrase, remember){
           try { const raw = await crypto.subtle.exportKey("raw", DATA_KEY);
                 localStorage.setItem(KEY_STORE + "_dk", bytesToB64(new Uint8Array(raw))); } catch {}
         }
-        document.getElementById("lock").classList.add("hide");
-        updateEditBar(); load(); renderSysBar(); renderFocus(); syncTabStrip();
-        const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+        await afterOpen();
         return;
       }
       // Keyring opened but no local document: fall through to the published
@@ -2398,6 +3190,18 @@ async function attemptUnlock(passphrase, remember){
       PENDING_RECOVERY = recoveryCode;
     } else {
       await unlockKeyring(passphrase, "passphrase");
+    }
+    // Remembering has to cover the DATA key, not only the legacy data.enc key.
+    // Without this, a remembered device silently came back with DATA_KEY null:
+    // the encrypted local copy could not be read, readLocalDocument returned
+    // nothing, and the app quietly showed the last PUBLISHED log instead — so
+    // every edit made on that device looked lost. It was still on disk and still
+    // decryptable, which is the worst version of this bug, not the best.
+    if (remember && DATA_KEY){
+      try {
+        const raw = await crypto.subtle.exportKey("raw", DATA_KEY);
+        localStorage.setItem(KEY_STORE + "_dk", bytesToB64(new Uint8Array(raw)));
+      } catch {}
     }
   } catch (err){ console.warn("keyring:", err && err.message); }
 
@@ -2467,6 +3271,7 @@ async function attemptUnlock(passphrase, remember){
 // taken, because the moment it is needed is the moment the app cannot show it.
 // ═══════════════════════════════════════════════════════
 let PENDING_RECOVERY = null;
+let BOATS = null;          // what the server says it holds, for the picker
 
 function recoveryKitText(code){
   const v = (DOC && DOC.vessel) || {};
@@ -2504,6 +3309,37 @@ function downloadRecoveryKit(code){
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+function showSyncKit(){
+  if (!SYNC) return;
+  const text = [
+    "SYNC DETAILS — " + ((DOC && DOC.vessel && DOC.vessel.name) || "boat log"),
+    "=".repeat(48), "",
+    "Server:    " + SYNC.url,
+    "Log id:    " + SYNC.logId,
+    "Write key: " + SYNC.writeKey,
+    "",
+    "-".repeat(48),
+    "These three lines are what another phone, tablet or computer",
+    "needs to join this log. Open the app there, go to Boat &",
+    "categories, turn on syncing, and choose 'join an existing log'.",
+    "",
+    "The WRITE KEY lets a device change the log. Treat it like the",
+    "password. Anyone who has it can overwrite the log, though they",
+    "still cannot read it without the password.",
+    "",
+    "Keep this with the recovery kit.",
+  ].join("\n");
+  const name = ((DOC && DOC.vessel && DOC.vessel.name) || "boat-log")
+    .toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const blob = new Blob([text], { type:"text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name + "-sync-details.txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  setEditStatus("Sync details saved — keep them with the recovery kit");
+}
+
 function showRecoveryKit(code, opts){
   PENDING_RECOVERY = code;
   const wrap = document.getElementById("kit");
@@ -2538,13 +3374,28 @@ function showRecoveryKit(code, opts){
 // without a password, because demanding one to create the log it protects is
 // circular.
 // ═══════════════════════════════════════════════════════
-const SEED_SYSTEMS = [
+// Starting categories. Every one of these is editable, renameable and
+// deletable afterwards — they exist so a new log is not an empty page, not to
+// tell anyone how their boat is organised.
+const SEED_POWER = [
   ["Engines","#F87171"],["Port Engine","#F87171","Engines"],["Starboard Engine","#4ADE80","Engines"],
   ["Running Gear","#34D399"],["Steering","#818CF8"],["Fuel","#FB923C"],["Propane","#FB7185"],
   ["Generator","#FBBF24"],["Electrical","#FDE047"],["Electronics","#A78BFA"],["Plumbing","#38BDF8"],
   ["HVAC","#2DD4BF"],["Hull / Structure","#86EFAC"],["Cabin / Structure","#94A3B8"],
   ["Deck / Anchoring","#22D3EE"],["Yard Work","#C084FC"],
 ];
+// A sailboat is not a powerboat with fewer engines. Rig, sails and keel have no
+// equivalent above, and "Port Engine" is noise on a boat with one auxiliary.
+const SEED_SAIL = [
+  ["Rig & Spars","#38BDF8"],["Standing Rigging","#22D3EE","Rig & Spars"],
+  ["Running Rigging","#60A5FA","Rig & Spars"],
+  ["Sails","#E2E8F0"],["Auxiliary Engine","#F87171"],["Saildrive / Shaft","#34D399"],
+  ["Steering & Rudder","#818CF8"],["Keel & Ballast","#86EFAC"],["Fuel","#FB923C"],
+  ["Electrical","#FDE047"],["Electronics","#A78BFA"],["Plumbing","#38BDF8"],
+  ["Hull / Structure","#4ADE80"],["Cabin / Interior","#94A3B8"],
+  ["Deck & Ground Tackle","#2DD4BF"],["Yard Work","#C084FC"],
+];
+let SEED_SYSTEMS = SEED_POWER;
 const SEED_PRIORITIES = [
   ["now","Working on now","#34D399"],["next","Next up","#38BDF8"],
   ["blocked","Blocked / waiting","#FB923C"],["later","Postponed","#64748B"],
@@ -2613,9 +3464,66 @@ async function runSetup(v, passphrase){
   else setEditStatus("No password set — anyone who opens this address can read the log.", true);
 }
 
+(function initSetupJoin(){
+  const link = document.getElementById("setup-join");
+  const form = document.getElementById("setup-join-form");
+  const go   = document.getElementById("sj-go");
+  if (!link || !form || !go) return;
+  link.addEventListener("click", () => {
+    form.classList.toggle("hide");
+    if (!form.classList.contains("hide")){
+      const u = document.getElementById("sj-url");
+      if (!u.value) u.value = location.origin + "/api";
+      document.getElementById("sj-id").focus();
+    }
+  });
+  go.addEventListener("click", async () => {
+    const err = document.getElementById("sj-err");
+    const v = id => (document.getElementById(id).value || "").trim();
+    const url = v("sj-url"), logId = v("sj-id"), key = v("sj-key");
+    const pw = document.getElementById("sj-pw").value;
+    if (!url || !logId) return (err.textContent = "Server address and log id are both needed.");
+    if (!pw) return (err.textContent = "The log's password is needed to decrypt it.");
+    err.textContent = "Joining\u2026";
+    const cfg = { url, logId };
+    if (key) cfg.writeKey = key;
+    try {
+      await joinWithPassphrase(cfg, pw);
+    } catch (e) {
+      return (err.textContent = /Operation|decrypt/i.test(e.message)
+        ? "That password does not match this log." : "Could not join: " + e.message);
+    }
+    await saveSyncConfig(cfg);
+    REMOTE_REV = 0;
+    const r = await pullRemote();
+    if (r.state !== "pulled" && r.state !== "same")
+      return (err.textContent = "Joined, but could not fetch the log: " + r.state);
+    err.textContent = "";
+    document.getElementById("setup").classList.add("hide");
+    await afterOpen();
+  });
+})();
+
 (function initSetup(){
   const form = document.getElementById("setup-form");
   if (!form) return;
+
+  // Creating a log is the person who runs the hosting's job. Everyone else
+  // picks their boat and types a password, so the whole creation form is
+  // hidden unless it is asked for by URL: ?new. It is not a secret, just out
+  // of the way of people it would only confuse.
+  const wanted = /[?&]new\b/.test(location.search);
+  const wrap = document.getElementById("setup");
+  if (!wanted && wrap){
+    form.classList.add("hide");
+    const sec = wrap.querySelector(".lockbox h1");
+    if (sec) sec.textContent = "No log here yet";
+    const sub = wrap.querySelector(".lockbox .sub");
+    if (sub) sub.innerHTML = "Nothing has been set up at this address. If you were " +
+      "expecting a boat log, check with whoever sent you the link.";
+    const jl = document.getElementById("setup-join");
+    if (jl) jl.textContent = "I have a log to join";
+  }
   const pwWrap = document.getElementById("setup-pw-wrap");
   form.addEventListener("change", ev => {
     if (ev.target.name === "prot")
@@ -2635,6 +3543,8 @@ async function runSetup(v, passphrase){
         return (err.textContent = "The two passwords do not match.");
     }
     err.textContent = "";
+    const kind = form.querySelector('input[name="kind"]:checked');
+    SEED_SYSTEMS = (kind && kind.value === "sail") ? SEED_SAIL : SEED_POWER;
     try { await runSetup({ name, make: val("su-make"), model: val("su-model"),
                            year: val("su-year"), homePort: val("su-port") }, pw); }
     catch (e){ err.textContent = "Setup failed: " + e.message; }
@@ -2646,6 +3556,16 @@ async function tryRememberedKey(){
   const saved = localStorage.getItem(KEY_STORE);
   if (!saved) return false;
   try {
+    // Restore the data key FIRST. startApp reads the local document, and that
+    // read fails silently without it.
+    const dk = localStorage.getItem(KEY_STORE + "_dk");
+    if (dk && !DATA_KEY){
+      try {
+        DATA_KEY = await crypto.subtle.importKey("raw", b64ToBytes(dk),
+          { name:"AES-GCM" }, true, ["encrypt","decrypt"]);
+        KEYRING = await idbGet(KEYRING_KEY);
+      } catch {}
+    }
     const key = await crypto.subtle.importKey(
       "raw", b64ToBytes(saved), {name:"AES-GCM"}, true, ["decrypt"]);
     const payload = await decryptWith(key);
@@ -2668,9 +3588,26 @@ async function tryRememberedKey(){
     if (!pw.value) return;
     go.disabled = true; err.textContent = "Checking…";
     try {
-      await attemptUnlock(pw.value, rem.checked);
+      if (BOATS && BOATS.length){
+        const sel = document.getElementById("lock-boat");
+        const id = (sel && sel.value) || BOATS[0].id;
+        const r = await openWithPassword({ url: location.origin + "/api", logId: id }, pw.value);
+        REMOTE_REV = 0;
+        const pulled = await pullRemote();
+        if (pulled.state !== "pulled" && pulled.state !== "same")
+          throw new Error("could not fetch that log");
+        if (rem.checked && DATA_KEY){
+          try { const raw = await crypto.subtle.exportKey("raw", DATA_KEY);
+                localStorage.setItem(KEY_STORE + "_dk", bytesToB64(new Uint8Array(raw))); } catch {}
+        }
+        await afterOpen();
+        if (r.mode === "read") setEditStatus("Opened read-only — this password cannot make changes");
+      } else {
+        await attemptUnlock(pw.value, rem.checked);
+      }
     } catch(e){
-      err.textContent = "Incorrect passphrase.";
+      err.textContent = /password/i.test(e.message) ? "That password does not open this log."
+                                                    : "Incorrect password.";
       pw.value = ""; pw.focus();
     } finally {
       go.disabled = false;
@@ -2700,9 +3637,7 @@ async function tryRememberedKey(){
         const local = await readLocalDocument();
         if (local){
           DOC = local; applyDocument(local); LOCAL_EDITS = true;
-          document.getElementById("lock").classList.add("hide");
-          updateEditBar(); load(); renderSysBar(); renderFocus(); syncTabStrip();
-          const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+          await afterOpen();
           return;
         }
       }
@@ -2711,10 +3646,44 @@ async function tryRememberedKey(){
     // 2. Remembered device, then the passphrase prompt.
     if (await tryRememberedKey()) return;
 
-    // 3. Nothing here and nothing published — first run.
+    // 3. Ask the server what it has. On a deployment where someone else does
+    //    the hosting, "which boat, and what is the password" is the whole of
+    //    what a user should ever have to answer.
+    try {
+      const res = await fetch("/api/logs", { cache:"no-store" });
+      if (res.ok){
+        const { logs } = await res.json();
+        if (logs && logs.length){
+          BOATS = logs;
+          const sel = document.getElementById("lock-boat");
+          sel.innerHTML = logs.map(l =>
+            `<option value="${l.id}">${(l.label || l.id).replace(/[<>&]/g, "")}</option>`).join("");
+          // One boat is not a choice; do not make them pick from a list of one.
+          if (logs.length > 1) sel.classList.remove("hide");
+          document.getElementById("lock-sub").innerHTML = logs.length > 1
+            ? "Choose the boat and enter its password."
+            : "Enter the password for <strong>" +
+              (logs[0].label || "this log").replace(/[<>&]/g, "") + "</strong>.";
+          const t = document.getElementById("lock-title");
+          const nameFor = id => {
+            const b = logs.find(x => x.id === id) || logs[0];
+            if (b && b.label) setChromeForBoat(b.label);
+          };
+          nameFor(sel.value || logs[0].id);
+          sel.addEventListener("change", () => nameFor(sel.value));
+          pw.focus();
+          return;
+        }
+      }
+    } catch { /* offline, or no API — fall through */ }
+
+    // 4. Nothing local, nothing on the server: a published snapshot, or a
+    //    genuinely empty deployment.
     try {
       const res = await fetch("data.enc", { cache:"no-cache" });
       if (!res.ok) throw new Error("no data.enc");
+      if (!looksLikeBlob(await res.text(), res.headers.get("content-type")))
+        throw new Error("no data.enc");     // the host's fallback page, not a log
       pw.focus();
     } catch {
       const kr = await idbGet(KEYRING_KEY);

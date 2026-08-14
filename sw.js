@@ -6,7 +6,7 @@
 
 // Bumping this name is what makes every device drop its cached shell.
 // is what makes devices drop the old ones.
-const CACHE_NAME = "boatlog-v11";
+const CACHE_NAME = "boatlog-v12";
 const ASSETS = [
   "./",
   "./index.html",
