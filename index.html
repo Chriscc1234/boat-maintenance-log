@@ -1,0 +1,2773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#060F1A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Maintenance Log">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="robots" content="noindex, nofollow">
+<meta name="supported-color-schemes" content="dark">
+<title>Maintenance Log</title>
+<style>
+:root{color-scheme:dark;}
+html{-webkit-text-size-adjust:100%;}
+/* Lock the fixed dark theme so iOS light/dark setting cannot re-theme or invert the page */
+@media (prefers-color-scheme: light){
+  html,body{background:#060F1A !important;color:#C8DCF0 !important;}
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#060F1A;color:#C8DCF0;font-family:-apple-system,'Helvetica Neue',sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+a{color:#0EA5E9}
+
+/* ── Header ───────────────────────────────── */
+.hdr{background:#091827;border-bottom:1px solid #163148;padding:20px 24px 0;flex-shrink:0}
+.ver-badge{display:inline-block;font:700 11px/1 monospace;letter-spacing:2px;color:#B8860B;border:1px solid #B8860B;border-radius:3px;padding:3px 7px;margin-left:10px;vertical-align:middle;cursor:pointer}
+.ver-badge:hover{background:#B8860B;color:#fff}
+.vessel-lbl{font:10px/1 monospace;letter-spacing:4px;color:#507490;margin-bottom:5px}
+h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bottom:4px}
+.meta{font-size:12px;color:#507490;margin-bottom:16px}
+.amber{color:#F59E0B}
+/* Six tabs no longer fit a phone in portrait, so the strip scrolls sideways
+   on its own rather than dragging the whole page with it.
+   The .scrolls class is applied by JS only when the strip actually overflows —
+   see syncTabStrip(). touch-action:pan-x stops iOS splitting a slightly
+   diagonal swipe between both axes (panning the strip AND scrolling the page),
+   but it also blocks vertical scrolling that starts on the element, so it must
+   not be set on a strip that fits: on an iPad the six tabs do fit, and a
+   permanent pan-x would turn the tab bar into a dead zone. */
+.tabs{display:flex;border-bottom:1px solid #163148;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs.scrolls{touch-action:pan-x}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:none;cursor:pointer;padding:8px 20px;font-size:13px;font-weight:500;color:#507490;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;flex:0 0 auto;white-space:nowrap}
+.fgrp{margin-bottom:22px}
+.fhd{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.fhd .lbl{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+.fhd .rule{flex:1;height:1px;background:#12293D}
+.fhd .n{font-size:11px;color:#507490}
+.fcard{background:#0C1F30;border:1px solid #163148;border-radius:7px;padding:12px 14px;margin-bottom:7px;cursor:pointer;transition:border-color .12s}
+.fcard:hover{border-color:#26506F}
+.fcard.now{border-left:3px solid #34D399}
+.fcard.next{border-left:3px solid #38BDF8}
+.fcard.blocked{border-left:3px solid #FB923C;opacity:.82}
+.fcard.later{border-left:3px solid #64748B;opacity:.6}
+.fct{font-size:14px;font-weight:600;color:#E4F2FF;margin-bottom:3px}
+.fcm{font-size:11px;color:#6E93B0;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.fcw{color:#FB923C;font-style:italic}
+.fcn{font-size:12px;color:#8FB4CE;margin-top:7px;line-height:1.5}
+.fcn .box{color:#507490}
+.cpath{background:rgba(14,165,233,.07);border:1px solid #14425F;border-radius:8px;padding:14px 16px;margin-bottom:24px}
+.cpath h3{margin:0 0 4px;font-size:13px;color:#38BDF8;letter-spacing:1px;text-transform:uppercase}
+.cpath .goal{font-size:12px;color:#8FB4CE;font-style:italic;margin-bottom:9px}
+.cpath ol{margin:0;padding-left:20px}
+.cpath li{font-size:13px;color:#C8DCF0;margin-bottom:5px;line-height:1.5}
+.cpath li.cp-done{color:#4B6B84;text-decoration:line-through;text-decoration-color:#2E5470}
+.cp-note{margin-top:9px;padding-top:8px;border-top:1px solid #14425F;font-size:12px;color:#FB923C;font-style:italic}
+.voy{background:#0C1F30;border:1px solid #163148;border-left:3px solid #0EA5E9;border-radius:0 8px 8px 0;padding:16px 18px;margin-bottom:10px}
+.voy-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.voy-rt{font-size:15px;font-weight:600;color:#E4F2FF}
+.voy-dt{font-size:12px;color:#6E93B0}
+.voy-pp{font-size:12px;color:#8FB4CE;font-style:italic;margin-bottom:10px}
+.voy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:10px 0}
+.voy-f{background:rgba(0,0,0,.25);border:1px solid #12293D;border-radius:5px;padding:6px 9px}
+.voy-fl{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#507490;display:block}
+.voy-fv{font-size:13px;color:#C8DCF0}
+.voy-fv.empty{color:#3F5F78;font-style:italic}
+.voy-nt{margin:8px 0 0;padding-left:18px}
+.voy-nt li{font-size:13px;color:#A8C6E0;margin-bottom:4px;line-height:1.5}
+.voy-auto{margin-top:10px;padding-top:9px;border-top:1px dashed #163148;font-size:11px;color:#507490;font-style:italic}
+/* Updates tab — check-for-updates bar */
+.upd-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#0C1F30;border:1px solid #163148;border-radius:8px;padding:12px 16px;margin-bottom:20px}
+.upd-cur{font-size:12px;color:#8FB4CE}
+.upd-cur strong{font:700 12px/1 monospace;letter-spacing:1px;color:#38BDF8}
+.upd-cur span{color:#507490}
+.upd-btn{margin-left:auto;background:none;border:1px solid #1E4A6B;color:#8FB4CE;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font:inherit;font-size:12px}
+.upd-btn:hover{color:#E4F2FF;border-color:#38BDF8}
+.upd-btn:disabled{opacity:.45;cursor:default}
+.upd-status{flex:1 1 100%;font-size:12px;color:#6E93B0;min-height:0}
+.upd-status:empty{display:none}
+.upd-status.ok{color:#86EFAC}
+.upd-status.warn{color:#FDBA74}
+/* Updates tab — revision history + build-side notes */
+.up-sec{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#6E93B0;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid #163148}
+.up-sec:first-child{margin-top:0}
+.up-intro{font-size:12px;color:#8FB4CE;font-style:italic;margin:-4px 0 12px;line-height:1.55}
+.rev{background:#0C1F30;border:1px solid #163148;border-left:3px solid #B8860B;border-radius:0 8px 8px 0;margin-bottom:6px}
+.rev.cur{border-left-color:#0EA5E9;background:#0E2437}
+.rev-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;width:100%;background:none;border:0;text-align:left;padding:12px 16px;cursor:pointer;font:inherit}
+.rev-hd[disabled]{cursor:default}
+.rev-v{font:700 13px/1 monospace;letter-spacing:1px;color:#B8860B}
+.rev.cur .rev-v{color:#38BDF8}
+.rev-d{font-size:12px;color:#6E93B0;white-space:nowrap}
+.rev-now{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#38BDF8;border:1px solid #1E4A6B;border-radius:3px;padding:2px 6px}
+.rev-h{font-size:13px;color:#C8DCF0;flex:1 1 100%}
+@media(min-width:620px){.rev-h{flex:1 1 auto}}
+.rev-chev{color:#507490;font-size:9px;margin-left:auto;transition:transform .18s;flex-shrink:0}
+.rev.open .rev-chev{transform:rotate(180deg)}
+.rev-t{font-size:13px;color:#A8C6E0;line-height:1.6;padding:0 16px 13px;display:none}
+.rev.open .rev-t{display:block}
+.rev.open .rev-h{color:#8FB4CE}
+/* notes, collapsed by "## " section */
+.nsec{background:#0C1F30;border:1px solid #163148;border-radius:8px;margin-bottom:6px;overflow:hidden}
+.nsec-hd{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;text-align:left;padding:12px 16px;cursor:pointer;font:inherit}
+.nsec-t{font-size:13px;font-weight:600;color:#C8DCF0}
+.nsec.open .nsec-t{color:#E4F2FF}
+.nsec-b{display:none;border:0;border-top:1px solid #163148;border-radius:0;padding:4px 16px 14px}
+.nsec.open .nsec-b{display:block}
+.nt{background:#0C1F30;border:1px solid #163148;border-radius:8px;padding:4px 18px 16px}
+.nt h1,.nt h2{font-size:14px;color:#E4F2FF;margin:20px 0 8px;padding-bottom:5px;border-bottom:1px solid #163148}
+.nt h3{font-size:13px;color:#C8DCF0;margin:16px 0 6px}
+.nt p{font-size:13px;color:#A8C6E0;line-height:1.65;margin:0 0 9px}
+.nt ul,.nt ol{margin:0 0 10px;padding-left:20px}
+.nt li{font-size:13px;color:#A8C6E0;line-height:1.6;margin-bottom:4px}
+.nt code{font:12px/1.4 monospace;background:rgba(0,0,0,.35);border:1px solid #12293D;border-radius:3px;padding:1px 5px;color:#C8DCF0}
+.nt pre{background:rgba(0,0,0,.35);border:1px solid #12293D;border-radius:6px;padding:11px 13px;overflow-x:auto;margin:0 0 11px}
+.nt pre code{background:none;border:0;padding:0;font-size:11.5px;line-height:1.55;white-space:pre}
+.nt strong{color:#E4F2FF}
+.nt hr{border:0;border-top:1px solid #163148;margin:18px 0}
+.nt-tw{overflow-x:auto;margin:0 0 11px}
+.nt table{border-collapse:collapse;font-size:12px;min-width:100%}
+.nt th,.nt td{border:1px solid #163148;padding:6px 10px;text-align:left;color:#A8C6E0;vertical-align:top}
+.nt th{background:rgba(0,0,0,.25);color:#C8DCF0;font-weight:600;white-space:nowrap}
+
+#lock{position:fixed;inset:0;z-index:2000;background:#060F1A;display:flex;align-items:center;
+ justify-content:center;padding:24px}
+#lock.hide{display:none}
+.lockbox{width:100%;max-width:340px;text-align:center}
+.lockbox img{width:88px;height:88px;border-radius:20px;margin-bottom:20px}
+.lockbox h1{font-size:19px;font-weight:600;color:#E4F2FF;margin:0 0 6px;letter-spacing:.3px}
+.lockbox .sub{font-size:12px;color:#507490;margin-bottom:24px;line-height:1.5}
+.lockbox input{width:100%;box-sizing:border-box;background:#0C1F30;border:1px solid #1D3D57;
+ border-radius:8px;padding:13px 14px;font-size:16px;color:#E4F2FF;text-align:center;outline:none}
+.lockbox input:focus{border-color:#0EA5E9}
+.lockbox button{width:100%;margin-top:10px;background:#0EA5E9;border:none;border-radius:8px;
+ padding:13px;font-size:15px;font-weight:600;color:#04121C;cursor:pointer}
+.lockbox button:disabled{opacity:.5;cursor:default}
+.lockerr{color:#F87171;font-size:12px;margin-top:12px;min-height:16px}
+/* ── Setup, recovery and the kit ───────────── */
+#setup,#kit{position:fixed;inset:0;z-index:2100;background:#060F1A;display:flex;
+ align-items:center;justify-content:center;padding:24px;overflow-y:auto}
+#setup.hide,#kit.hide,#recovery.hide{display:none}
+.lockbox.wide{max-width:420px}
+#setup .lockbox{text-align:left}
+#setup .lockbox img,#setup .lockbox h1,#setup .lockbox .sub{display:block;
+ margin-left:auto;margin-right:auto;text-align:center}
+#setup .lockbox img{width:64px;height:64px;margin-bottom:14px}
+.lockbox input+input{margin-top:8px}
+.su-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+.su-grid input{margin-top:0!important}
+.su-sec{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#507490;
+ margin:20px 0 8px;text-align:left}
+.su-opt{display:flex;gap:9px;align-items:flex-start;text-align:left;font-size:12px;
+ color:#8FB4CE;line-height:1.45;background:#0A1B2A;border:1px solid #16324A;
+ border-radius:8px;padding:10px 12px;margin-bottom:7px;cursor:pointer}
+.su-opt input{width:auto!important;margin:2px 0 0!important;flex-shrink:0}
+.su-opt strong{color:#E4F2FF;font-weight:600}
+.su-warn{font-size:11.5px;color:#FBBF24;line-height:1.5;margin-top:10px;text-align:left;
+ background:#1C1503;border:1px solid #3F2D06;border-radius:8px;padding:9px 11px}
+.linkbtn{background:none!important;border:none!important;color:#6E93B0!important;
+ font-size:12px!important;font-weight:500!important;text-decoration:underline;
+ padding:10px 0 0!important;width:auto!important;cursor:pointer}
+.kit-code{font:600 19px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:2px;
+ color:#34D399;background:#06251A;border:1px solid #10553B;border-radius:8px;
+ padding:14px 8px;margin:4px 0 2px;word-break:break-all}
+.kit-btns{display:flex;gap:8px}
+.kit-btns button{background:#0B2135!important;color:#A8C6E0!important;
+ border:1px solid #24567A!important;font-size:13px!important}
+.lockrem{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;
+ font-size:12px;color:#6E93B0}
+.lockrem input{width:auto;margin:0}
+#offline-pill{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:999;
+ background:#7C2D12;color:#FED7AA;border:1px solid #9A3412;border-radius:20px;padding:6px 15px;
+ font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+#offline-pill.show{display:block}
+#update-pill{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:1000;
+ background:#0EA5E9;color:#04121C;border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;
+ cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+#update-pill.show{display:block}
+.sysbar{display:flex;flex-wrap:wrap;gap:5px;padding:10px 0 12px;border-top:1px solid #0F2438;margin-top:8px}
+.syschip{background:none;border:1px solid #163148;color:#6E93B0;border-radius:20px;padding:4px 11px;font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:5px}
+.syschip:hover{border-color:#26506F;color:#A8C6E0}
+.syschip.on{background:#0EA5E9;border-color:#0EA5E9;color:#04121C;font-weight:600}
+.syschip .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.syschip.child{margin-left:2px;font-size:10px;opacity:.85}
+.syschip .ct{opacity:.6;font-size:10px}
+/* Collapsed: the active chip and the toggle, one row. See syncSysBar(). */
+.sysbar.collapsed .syschip:not(.on){display:none}
+.sysmore{display:none;align-items:center;gap:5px;background:none;border:1px dashed #26506F;
+ color:#6E93B0;border-radius:20px;padding:4px 11px;font-size:11px;font-weight:600;
+ cursor:pointer;white-space:nowrap;transition:all .12s}
+.sysbar.collapsible .sysmore{display:flex}
+.sysmore:hover{border-color:#38789F;color:#A8C6E0}
+.sysmore .chev{font-size:9px;opacity:.75}
+
+/* ── Edit mode ─────────────────────────────
+   Hidden entirely until edit mode is on, so the reading view is untouched. */
+.editbar{display:none;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 0 10px;
+ border-top:1px solid #163148;margin-top:2px}
+.editbar.on{display:flex}
+.editbar button{background:#0B2135;border:1px solid #24567A;color:#A8C6E0;
+ border-radius:6px;padding:5px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
+.editbar button:hover:not(:disabled){background:#12324B;color:#E4F2FF}
+.editbar button:disabled{opacity:.4;cursor:default}
+.eb-dirty{color:#FBBF24;font-size:11px;font-weight:600}
+.edit-status{font-size:11px;color:#6E93B0;flex:1;min-width:100%}
+.edit-status.bad{color:#FCA5A5;font-weight:600}
+.editing .entry-hdr{cursor:pointer}
+.editor{padding:2px 0 4px}
+.ed-row{display:block;margin:0 0 8px}
+.ed-row>span,.ed-grid label>span{display:block;font-size:10px;letter-spacing:.5px;
+ text-transform:uppercase;color:#507490;margin-bottom:3px}
+.ed-in{width:100%;background:#0A1D2E;border:1px solid #204A6B;
+ color:#E4F2FF;border-radius:6px;padding:6px 9px;font:inherit;font-size:12.5px}
+.ed-in:focus{outline:none;border-color:#0EA5E9}
+.ed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:8px}
+.ed-sec{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#507490;
+ margin:12px 0 6px;padding-top:8px;border-top:1px solid #12293F}
+.ed-item{display:flex;gap:6px;align-items:flex-start;margin-bottom:5px}
+.ed-chk{flex-shrink:0;width:28px;background:none;border:1px solid #204A6B;color:#38BDF8;
+ border-radius:6px;font-size:14px;line-height:1;padding:5px 0;cursor:pointer}
+.ed-chk.off{color:#507490}
+.ed-text{flex:1;min-height:32px;resize:vertical;background:#0A1D2E;border:1px solid #204A6B;
+ color:#E4F2FF;border-radius:6px;padding:6px 9px;font:inherit;font-size:12.5px;line-height:1.45}
+.ed-text:focus{outline:none;border-color:#0EA5E9}
+.ed-itembtns{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.ed-itembtns button{width:24px;background:none;border:1px solid #1B3E5A;color:#6E93B0;
+ border-radius:5px;font-size:10px;line-height:1;padding:3px 0;cursor:pointer}
+.ed-itembtns button:disabled{opacity:.3;cursor:default}
+.ed-add{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ed-add button{background:#0B2135;border:1px solid #24567A;color:#A8C6E0;border-radius:6px;
+ padding:5px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
+.ed-empty{font-size:12px;color:#507490;padding:4px 0}
+button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
+.mg-list{display:flex;flex-direction:column;gap:5px;margin-bottom:4px}
+.mg-row{display:flex;gap:6px;align-items:center}
+.mg-row input[type=color]{width:30px;height:30px;flex-shrink:0;background:none;
+ border:1px solid #204A6B;border-radius:6px;padding:2px;cursor:pointer}
+.mg-row .ed-in{flex:1;min-width:60px}
+.mg-ct{font-size:11px;color:#507490;min-width:22px;text-align:right;flex-shrink:0}
+.mg-row button{width:26px;flex-shrink:0;background:none;border:1px solid #1B3E5A;color:#6E93B0;
+ border-radius:5px;font-size:11px;padding:5px 0;cursor:pointer}
+.mg-row button:disabled{opacity:.3;cursor:default}
+.mg-icon{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.mg-icon img{width:64px;height:64px;border-radius:14px;flex-shrink:0;
+ border:1px solid #1B3E5A;object-fit:cover;background:#0A1B2A}
+.mg-icon button{background:#0B2135;border:1px solid #24567A;color:#A8C6E0;border-radius:6px;
+ padding:5px 11px;font-size:11.5px;font-weight:600;cursor:pointer;margin:0 5px 5px 0}
+.mg-icon-note{font-size:11px;color:#507490;line-height:1.5}
+.tab.on{color:#E4F2FF;border-bottom-color:#0EA5E9}
+
+/* ── Layout ───────────────────────────────── */
+.main{display:flex;flex:1;overflow:hidden}
+.log-panel{flex:1;overflow-y:auto;padding:24px}
+
+/* ── Chat FAB ─────────────────────────────── */
+
+/* ── Chat panel ───────────────────────────── */
+
+/* ── Year divider ─────────────────────────── */
+.yr-div{display:flex;align-items:center;gap:14px;margin:28px 0 12px}
+.yr-lbl{font:11px/1 monospace;letter-spacing:4px;color:#507490;flex-shrink:0}
+.yr-rule{flex:1;height:1px;background:#0F3050}
+.yr-ct{font:11px/1 monospace;color:#0F3050}
+
+/* ── Entry ────────────────────────────────── */
+.entry{background:#0C1F30;border:1px solid #163148;border-radius:0 8px 8px 0;overflow:hidden;margin-bottom:6px}
+.entry-hdr{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;width:100%;background:none;border:none;text-align:left;color:#C8DCF0}
+.entry-hdr:hover{background:rgba(255,255,255,.02)}
+.edot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.entry-main{flex:1;min-width:0}
+.entry-name{font-size:14px;font-weight:600;color:#D4E8FF;margin-bottom:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.abadge{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#F59E0B;background:rgba(245,158,11,.12);padding:2px 7px;border-radius:4px}
+.entry-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.edate{font-size:11px;font-family:monospace;color:#507490}
+.esys{font-size:11px;font-weight:500;padding:1px 8px;border-radius:3px;background:rgba(0,0,0,.35)}
+.eudct{font-size:11px;color:#507490}
+.chev{color:#507490;font-size:10px;flex-shrink:0;transition:transform .18s}
+.entry-body{padding:0 16px 16px;border-top:1px solid #163148;display:none}
+.entry-body.open{display:block}
+.ebullets{margin:12px 0 0;padding-left:18px}
+.ebullets li{font-size:13px;line-height:1.65;margin-bottom:3px;color:#C8DCF0}
+/* The per-entry update boxes and the add-entry form were styled here until
+   11 Aug 2026. Removed with the editing UI — see the v4.1 revision entry. */
+.footer{text-align:center;padding:32px 0 16px;font-size:10px;color:#0F3050;font-family:monospace;letter-spacing:2px}
+
+/* ── Flash highlight for entry actions ──────── */
+@keyframes flash{0%{background:#163148}100%{background:#0C1F30}}
+.entry.flashed{animation:flash .8s ease-out}
+
+/* The export modal and its button lived here until 11 Aug 2026. Removed with
+   the browser-editing UI — see the v4.1 revision entry. */
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="vessel-lbl"></div>
+  <h1>Master Maintenance Log <span class="ver-badge" id="ver-badge" title="Click for revision history"></span></h1>
+  <p class="meta" id="meta"></p>
+  <nav class="tabs">
+    <button class="tab on" data-f="focus">Focus</button>
+    <button class="tab" data-f="all">All Work</button>
+    <button class="tab" data-f="active">Active Projects</button>
+    <button class="tab" data-f="complete">Completed</button>
+    <button class="tab" data-f="voyages">Voyages</button>
+    <button class="tab" data-f="updates">Updates</button>
+  </nav>
+  <div class="sysbar" id="sysbar"></div>
+  <div class="editbar" id="editbar">
+    <button id="eb-add">+ New job</button>
+    <button id="eb-manage">Boat &amp; categories</button>
+    <button id="eb-undo">Undo</button>
+    <button id="eb-import">Import…</button>
+    <button id="eb-export">Export</button>
+    <span class="eb-dirty" id="eb-dirty" title="edited on this device, not published">● local edits</span>
+    <span class="edit-status" id="edit-status"></span>
+  </div>
+  <input type="file" id="eb-file" accept="application/json,.json" hidden>
+  <input type="file" id="icon-file" accept="image/*" hidden>
+</header>
+
+<div class="main">
+  <!-- ── Log panel ── -->
+  <section class="log-panel">
+    <div id="log-content"></div>
+
+    <div class="footer"></div>
+  </section>
+
+  <!-- ── Chat panel ── -->
+</div>
+
+
+<div id="lock">
+  <div class="lockbox">
+    <img src="icon-192.png" alt="">
+    <h1 id="lock-title">Maintenance Log</h1>
+    <div class="sub">Private maintenance log.<br>Enter the passphrase to continue.</div>
+    <input type="password" id="lock-pw" placeholder="Passphrase" autocomplete="current-password"
+           autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
+    <button id="lock-go">Unlock</button>
+    <div class="lockerr" id="lock-err"></div>
+    <label class="lockrem"><input type="checkbox" id="lock-remember" checked> Remember this device</label>
+    <button class="linkbtn" id="lock-forgot">Forgotten the password?</button>
+    <div id="recovery" class="hide">
+      <div class="sub" style="margin-top:14px">Enter the recovery code from the kit
+        issued when this log was set up. You will then choose a new password.</div>
+      <input type="text" id="rec-code" placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
+             autocapitalize="characters" autocorrect="off" spellcheck="false">
+      <button id="rec-go">Recover access</button>
+      <div class="lockerr" id="rec-err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- First run: no log exists yet. Reachable without a password on purpose —
+     there is nothing to protect until the log is created. -->
+<div id="setup" class="hide">
+  <div class="lockbox wide">
+    <img src="icon-192.png" alt="">
+    <h1>Set up your log</h1>
+    <div class="sub">Nothing exists yet. This takes a minute and everything here
+      can be changed later.</div>
+    <form id="setup-form" onsubmit="return false">
+      <input type="text" id="su-name"  placeholder="Boat name (required)" autocomplete="off">
+      <div class="su-grid">
+        <input type="text" id="su-make"  placeholder="Make" autocomplete="off">
+        <input type="text" id="su-model" placeholder="Model" autocomplete="off">
+        <input type="text" id="su-year"  placeholder="Year" autocomplete="off">
+      </div>
+      <input type="text" id="su-port" placeholder="Home port" autocomplete="off">
+
+      <div class="su-sec">Who can read this log?</div>
+      <label class="su-opt"><input type="radio" name="prot" value="password" checked>
+        <span><strong>Password</strong><br>Encrypted. Anyone with the address sees
+        only a locked screen.</span></label>
+      <label class="su-opt"><input type="radio" name="prot" value="none">
+        <span><strong>No password</strong><br>Anyone who knows the address can read
+        the whole log. Nothing to forget.</span></label>
+
+      <div id="setup-pw-wrap">
+        <input type="password" id="su-pw"  placeholder="Password" autocomplete="new-password">
+        <input type="password" id="su-pw2" placeholder="Password again" autocomplete="new-password">
+        <div class="su-warn">There is no "reset password" — nobody can read this log,
+          including whoever hosts it. You will be given a recovery code next, and it
+          is the only way back in.</div>
+      </div>
+      <button id="setup-go">Create the log</button>
+      <div class="lockerr" id="setup-err"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Recovery kit. Modal on purpose: the code cannot be shown again. -->
+<div id="kit" class="hide">
+  <div class="lockbox wide">
+    <h1>Recovery code</h1>
+    <div class="sub" id="kit-note"></div>
+    <div class="kit-code" id="kit-code"></div>
+    <div class="su-warn">This is the only way back in if the password is forgotten.
+      It cannot be reissued or looked up by anyone. <strong>It is not shown again.</strong></div>
+    <div class="kit-btns">
+      <button id="kit-dl">Download the kit</button>
+      <button id="kit-copy">Copy the code</button>
+    </div>
+    <button id="kit-done" disabled>Save it first</button>
+  </div>
+</div>
+
+<div id="offline-pill">Offline — showing last saved copy</div>
+<div id="update-pill">Log updated</div>
+<script>
+// ═══════════════════════════════════════════════════════
+// APP VERSION — the code, NOT the log
+//
+// These are two different numbers and conflating them was the original sin of
+// the single-boat version. The app updates on its own schedule; a log's revision
+// belongs to whoever keeps the log. An update must never renumber someone's
+// history, and a log bump must never look like an app release.
+// ═══════════════════════════════════════════════════════
+const APP_VERSION = "1.0.0";
+const APP_REPO = "";        // "owner/repo" enables the update check; empty disables it
+
+// Put the boat's name on the lock screen if this device has seen it before.
+(function nameLockScreen(){
+  try {
+    const n = localStorage.getItem("cs2_vessel");
+    if (!n) return;
+    const h = document.getElementById("lock-title");
+    if (h) h.textContent = n;
+  } catch {}
+})();
+
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+const SYS_COLORS = {
+  "Fuel":"#FB923C","Plumbing":"#38BDF8","Engines":"#F87171",
+  "Port Engine":"#F87171","Starboard Engine":"#4ADE80",
+  "Hull / Structure":"#86EFAC","Electrical":"#FDE047",
+  "Running Gear":"#34D399","Steering":"#818CF8",
+  "Yard Work":"#C084FC","Cabin / Structure":"#94A3B8",
+  "Deck / Anchoring":"#22D3EE","Electronics":"#A78BFA",
+  "Propane":"#FB7185","HVAC":"#2DD4BF","Generator":"#FBBF24",
+};
+
+// Category tree — Port/Starboard Engine live UNDER Engines.
+// Filtering on a parent includes all of its children.
+const SYS_TREE = {
+  "Engines": ["Port Engine","Starboard Engine"],
+};
+// flat list of every filterable category, parents first with children indented
+const SYS_ORDER = [
+  "Engines","Port Engine","Starboard Engine",
+  "Running Gear","Steering","Fuel","Propane","Generator",
+  "Electrical","Electronics","Plumbing","HVAC",
+  "Hull / Structure","Cabin / Structure","Deck / Anchoring","Yard Work",
+];
+// returns every sys tag a filter selection should match
+function sysMatches(sel){
+  return [sel].concat(SYS_TREE[sel] || []);
+}
+
+// ═══════════════════════════════════════════════════════
+// VERSION — keep in sync with the Systems Manual & printed log
+// ═══════════════════════════════════════════════════════
+let VERSION = "";
+let REV_DATE = "";
+let REVISIONS = [];
+// HANDOFF-NOTES.md, embedded by encrypt-log.py. Build-side updates and replies
+// to the log-integration chat — inside the encrypted payload, same as the log.
+let NOTES = "";
+
+// ═══════════════════════════════════════════════════════
+// VOYAGE LOG — runs/journeys, ship's-log style.
+// Separate from BASE: a voyage is an EVENT (happens once, done on tie-up),
+// not a JOB (stays active until the part is back on the boat).
+// Fields marked AUTO are intended to be filled from the NMEA 2000 /
+// SignalK + InfluxDB logging layer once that is running.
+// ═══════════════════════════════════════════════════════
+let VOYAGES = [];
+
+let BASE = [];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const S = {
+  expanded: {},
+  filter: "focus",
+  sysFilter: "all",
+  customVoyages: [],   // category filter; parent tags include their children
+  revOpen: {},         // Updates tab: which revision rows are expanded
+  noteOpen: {},        // ...and which note sections
+  sysOpen: null,       // category bar: null = decide by measurement, true/false = user's choice
+};
+
+function allEntries() {
+  return [...BASE].sort((a,b) => a.sk.localeCompare(b.sk));
+}
+function shown() {
+  let all = allEntries();
+  if (S.filter==="active")   all = all.filter(e=>e.st==="active");
+  if (S.filter==="complete") all = all.filter(e=>e.st==="complete");
+  if (S.sysFilter!=="all") {
+    const want = sysMatches(S.sysFilter);
+    all = all.filter(e => want.includes(e.sys));
+  }
+  return all;
+}
+
+// ═══════════════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════════════
+// Nothing to load: the published app is read-only and writes no log data.
+// The only thing in localStorage is the derived unlock key (cs2_key).
+function load() {
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER LOG
+// ═══════════════════════════════════════════════════════
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function bStyle(b){
+  if (b.startsWith("✅")) return "color:#86EFAC";
+  if (b.startsWith("⏳")) return "color:#FDE047;opacity:.9";
+  if (b.startsWith("☐"))  return "color:#507490";
+  return "";
+}
+
+function renderLog() {
+  const entries = shown();
+  const years = [...new Set(entries.map(e=>e.yr))].sort();
+  let html = "";
+
+  for (const yr of years) {
+    const ye = entries.filter(e=>e.yr===yr);
+    html += `<div class="yr-div"><span class="yr-lbl">${esc(yr)}</span><div class="yr-rule"></div><span class="yr-ct">${ye.length}</span></div>`;
+
+    for (const e of ye) {
+      const isA = e.st === "active";
+      const isOpen = !!S.expanded[e.id];
+      const accent = isA ? "#F59E0B" : "#0EA5E9";
+      const sc = SYS_COLORS[e.sys] || "#94A3B8";
+
+      html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
+        <button class="entry-hdr" data-id="${esc(e.id)}">
+          <div class="edot" style="background:${accent};${isA?`box-shadow:0 0 8px ${accent}80`:""}"></div>
+          <div class="entry-main">
+            <div class="entry-name">${esc(e.title)}${isA?'<span class="abadge">ACTIVE</span>':''}</div>
+            <div class="entry-sub">
+              <span class="edate">${esc(e.date)}</span>
+              <span class="esys" style="color:${sc}">${esc(e.sys)}</span>
+            </div>
+          </div>
+          <span class="chev" style="${isOpen?"transform:rotate(180deg)":""}">▼</span>
+        </button>
+        <div class="entry-body${isOpen?" open":""}" id="body-${esc(e.id)}">
+          ${EDIT && DOC && isOpen && findEntry(e.id)
+            ? entryEditor(findEntry(e.id))
+            : `<ul class="ebullets">${e.b.map(b=>`<li style="${bStyle(b)}">${esc(b)}</li>`).join("")}</ul>`}
+        </div>
+      </div>`;
+    }
+  }
+
+  document.getElementById("log-content").innerHTML = html;
+  const all = allEntries();
+  const ac = all.filter(e=>e.st==="active").length;
+  document.getElementById("meta").innerHTML = `${all.length} entries &ensp;·&ensp; <span class="amber">${ac} active project${ac!==1?"s":""}</span> &ensp;·&ensp; ${REV_DATE}`;
+  const vb = document.getElementById("ver-badge");
+  if (vb) vb.textContent = VERSION;
+}
+
+// ═══════════════════════════════════════════════════════
+// LOG INTERACTIONS (event delegation)
+// ═══════════════════════════════════════════════════════
+document.getElementById("log-content").addEventListener("click", function(e) {
+  const hdr = e.target.closest(".entry-hdr");
+  if (hdr) { const id=hdr.dataset.id; S.expanded[id]=!S.expanded[id]; renderLog(); return; }
+});
+
+// The add-entry form, the per-entry update boxes and their localStorage went
+// with the export path on 11 Aug 2026 — see the v4.1 revision entry.
+
+// Only claim horizontal panning while the strip genuinely overflows.
+// Watched with a ResizeObserver rather than the resize event: it fires on the
+// actual layout change, so rotation, iPad split view and window resizing are
+// all covered, and it cannot report a stale measurement taken before reflow.
+function syncTabStrip(){
+  const strip = document.querySelector(".tabs");
+  if (!strip) return;
+  strip.classList.toggle("scrolls", strip.scrollWidth > strip.clientWidth + 1);
+}
+(function watchTabStrip(){
+  const strip = document.querySelector(".tabs");
+  if (strip && "ResizeObserver" in window) new ResizeObserver(syncTabStrip).observe(strip);
+  // Belt and braces: these are independent of the observer and cost nothing.
+  window.addEventListener("resize", syncTabStrip);
+  window.addEventListener("orientationchange", () => setTimeout(syncTabStrip, 150));
+  document.addEventListener("visibilitychange", syncTabStrip);
+})();
+
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on")); t.classList.add("on");
+  // the strip scrolls on narrow screens — keep the active tab visible
+  t.scrollIntoView({block:"nearest", inline:"nearest"});
+  syncTabStrip();
+  S.filter=t.dataset.f;
+  if (S.filter==="voyages"){ renderVoyages(); }
+  else if (S.filter==="updates"){ renderUpdates(); }
+  else if (S.filter==="focus"){ renderFocus(); }
+  else { const b=document.getElementById("sysbar"); if(b) b.style.display=""; renderSysBar(); renderLog(); }
+}));
+
+// ═══════════════════════════════════════════════════════
+// FOCUS VIEW — what am I working on, what's next, what's blocked
+// ═══════════════════════════════════════════════════════
+// Heading for the pinned block. "Splash" is a haul-out word and means nothing
+// on a boat that is already in the water — it comes from settings now.
+let CP_HEADING = "Critical Path";
+
+const PRI_META = {
+  now:     {label:"Working on now", color:"#34D399"},
+  next:    {label:"Next up",        color:"#38BDF8"},
+  blocked: {label:"Blocked / waiting", color:"#FB923C"},
+  later:   {label:"Postponed",        color:"#64748B"},
+};
+
+function renderFocus(){
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";
+
+  const all = allEntries().filter(e => e.st === "active");
+  let h = "";
+
+  // Critical path pinned at the top. Identified by role when the document says
+  // so, and only by the old title/prefix sniffing as a fallback \u2014 that sniffing
+  // renders nothing at all for a boat whose entry is not called "critical path",
+  // and breaks on this boat the moment a bullet is reworded.
+  const cpDoc = DOC && (DOC.entries || []).find(e => e.role === "critical-path");
+  const cp = cpDoc ? all.find(e => e.id === cpDoc.id)
+                   : all.find(e => e.title.toLowerCase().includes("critical path"));
+  if (cp){
+    const role = r => cpDoc && (cpDoc.items || []).filter(i => i.role === r);
+    const goalItem = cpDoc ? (role("goal")[0] || null) : null;
+    const noteItem = cpDoc ? (role("bottleneck")[0] || null) : null;
+
+    const goal = goalItem ? goalItem.text
+               : (cp.b.find(b => b.toLowerCase().startsWith("goal")) || "");
+    const steps = cpDoc
+      ? role("step").map(i => ({ done: !!i.done, text: i.text.replace(/^\d+\.\s*/, "") }))
+      : cp.b.filter(b => /^[\u2610\u2611]\s*\d/.test(b)).map(b => ({
+          done: b.charAt(0) === "\u2611",
+          text: b.replace(/^[\u2610\u2611]\s*\d+\.\s*/, "")
+        }));
+    const note = noteItem ? noteItem.text
+               : cp.b.find(b => b.toLowerCase().startsWith("current bottleneck"));
+    h += `<div class="cpath"><h3>${esc(CP_HEADING)}</h3>`
+       + (goal ? `<div class="goal">${esc(goal)}</div>` : "")
+       + `<ol>${steps.map(s=>`<li class="${s.done?"cp-done":""}">${esc(s.text)}</li>`).join("")}</ol>`
+       + (note ? `<div class="cp-note">${esc(note)}</div>` : "")
+       + `</div>`;
+  }
+
+  for (const key of ["now","next","blocked","later"]){
+    const items = all.filter(e => e.pri === key);
+    if (!items.length) continue;
+    const m = PRI_META[key];
+    h += `<div class="fgrp"><div class="fhd">`
+       + `<span class="lbl" style="color:${m.color}">${esc(m.label)}</span>`
+       + `<span class="rule"></span><span class="n">${items.length}</span></div>`;
+    for (const e of items){
+      const todo = e.b.filter(b => b.indexOf("\u2610") === 0);
+      const nextStep = todo.length ? todo[0].replace(/^\u2610\s*/, "") : "";
+      const sc = SYS_COLORS[e.sys] || "#94A3B8";
+      h += `<div class="fcard ${key}" data-jump="${esc(e.id)}">
+        <div class="fct">${esc(e.title)}</div>
+        <div class="fcm">
+          <span style="color:${sc}">&#9679; ${esc(e.sys)}</span>
+          <span>${todo.length} open</span>
+          ${e.waitOn ? `<span class="fcw">waiting on ${esc(e.waitOn)}</span>` : ""}
+        </div>
+        ${nextStep ? `<div class="fcn"><span class="box">next &rsaquo;</span> ${esc(nextStep)}</div>` : ""}
+      </div>`;
+    }
+    h += `</div>`;
+  }
+
+  if (!h) h = `<div style="text-align:center;color:#507490;padding:60px 20px">Nothing flagged yet.</div>`;
+  box.innerHTML = h;
+
+  const c = {};
+  ["now","next","blocked","later"].forEach(k => c[k] = all.filter(e=>e.pri===k).length);
+  document.getElementById("meta").innerHTML =
+    `<span style="color:#34D399">${c.now} in progress</span> &ensp;·&ensp; ${c.next} ready &ensp;·&ensp; `
+    + `<span class="amber">${c.blocked} blocked</span>`;
+}
+
+// tapping a focus card jumps to that entry in All Work
+document.addEventListener("click", function(ev){
+  const card = ev.target.closest && ev.target.closest(".fcard");
+  if (!card) return;
+  const id = card.dataset.jump;
+  S.filter = "all"; S.sysFilter = "all"; S.expanded[id] = true;
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.classList.toggle("on", t.dataset.f === "all");
+  });
+  const b = document.getElementById("sysbar"); if (b) b.style.display = "";
+  renderSysBar(); renderLog();
+  const el = document.getElementById("entry-" + id) || document.querySelector(`[data-id="${id}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({behavior:"smooth", block:"center"});
+});
+
+// ═══════════════════════════════════════════════════════
+// VOYAGE LOG RENDERING
+// ═══════════════════════════════════════════════════════
+function allVoyages(){
+  return [...VOYAGES, ...(S.customVoyages||[])].sort((a,b)=>b.sk.localeCompare(a.sk)); // newest first
+}
+
+function renderVoyages(){
+  const vs = allVoyages();
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";           // categories don't apply to voyages
+
+  if (!vs.length){
+    box.innerHTML = `<div style="text-align:center;color:#507490;padding:60px 20px;font-size:13px">
+      No voyages logged yet.<br><span style="font-size:12px">Runs and journeys are recorded here, ship's-log style.</span></div>`;
+    document.getElementById("meta").innerHTML = "0 voyages";
+    return;
+  }
+
+  const fld = (label, val) => `<div class="voy-f"><span class="voy-fl">${esc(label)}</span>`
+    + `<span class="voy-fv${val?"":" empty"}">${val?esc(val):"—"}</span></div>`;
+
+  let h = "";
+  let yr = null;
+  for (const v of vs){
+    if (v.yr !== yr){
+      yr = v.yr;
+      h += `<div class="yr-div"><span class="yr-lbl">${esc(yr)}</span><div class="yr-rule"></div></div>`;
+    }
+    h += `<div class="voy">
+      <div class="voy-hd">
+        <span class="voy-rt">${esc(v.from)} &rarr; ${esc(v.to)}</span>
+        <span class="voy-dt">${esc(v.date)}</span>
+      </div>
+      ${v.purpose ? `<div class="voy-pp">${esc(v.purpose)}</div>` : ""}
+      <div class="voy-grid">
+        ${fld("Distance", v.distance)}
+        ${fld("Underway", v.underway)}
+        ${fld("Fuel used", v.fuelUsed)}
+        ${fld("Hrs port", v.hoursPort)}
+        ${fld("Hrs stbd", v.hoursStbd)}
+        ${fld("Weather", v.weather)}
+        ${fld("Sea state", v.seaState)}
+        ${fld("Crew", v.crew)}
+      </div>
+      ${(v.notes&&v.notes.length) ? `<ul class="voy-nt">${v.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      <div class="voy-auto">Speed, RPM profile, burn rate and track will populate from the NMEA 2000 logging layer once it is running.</div>
+    </div>`;
+  }
+  box.innerHTML = h;
+  document.getElementById("meta").innerHTML = `${vs.length} voyage${vs.length!==1?"s":""} logged`;
+}
+
+// ═══════════════════════════════════════════════════════
+// UPDATES — revision history, plus notes from the build/publish side
+// ═══════════════════════════════════════════════════════
+
+// Deliberately small markdown subset: headings, paragraphs, lists, fenced code,
+// pipe tables, rules, bold and inline code. Everything is escaped first, so the
+// only HTML in the output is what this function puts there.
+function md(src){
+  const lines = String(src).replace(/\r/g, "").split("\n");
+  const inline = s => esc(s)
+    .replace(/`([^`]+)`/g, (m, c) => `<code>${c}</code>`)
+    .replace(/\*\*([^*]+)\*\*/g, (m, c) => `<strong>${c}</strong>`);
+
+  let out = "", para = [], list = null, i = 0;
+  const flushPara = () => { if (para.length){ out += `<p>${inline(para.join(" "))}</p>`; para = []; } };
+  const flushList = () => { if (list){ out += `</${list}>`; list = null; } };
+  const flush = () => { flushPara(); flushList(); };
+
+  while (i < lines.length){
+    const ln = lines[i];
+
+    if (/^```/.test(ln)){                                  // fenced code
+      flush(); i++;
+      const buf = [];
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++;
+      out += `<pre><code>${esc(buf.join("\n"))}</code></pre>`;
+      continue;
+    }
+
+    if (/^\|/.test(ln) && /^\|[\s:|-]+\|?\s*$/.test(lines[i+1] || "")){   // pipe table
+      flush();
+      const row = l => l.replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+      const head = row(ln); i += 2;
+      let body = "";
+      while (i < lines.length && /^\|/.test(lines[i])){
+        body += `<tr>${row(lines[i++]).map(c => `<td>${inline(c)}</td>`).join("")}</tr>`;
+      }
+      out += `<div class="nt-tw"><table><thead><tr>`
+           + head.map(c => `<th>${inline(c)}</th>`).join("")
+           + `</tr></thead><tbody>${body}</tbody></table></div>`;
+      continue;
+    }
+
+    const h = ln.match(/^(#{1,6})\s+(.*)$/);
+    if (h){ flush(); const lv = Math.min(h[1].length, 3); out += `<h${lv}>${inline(h[2])}</h${lv}>`; i++; continue; }
+
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(ln)){ flush(); out += "<hr>"; i++; continue; }
+
+    const li = ln.match(/^\s*(?:[-*+]|\d+\.)\s+(.*)$/);
+    if (li){
+      flushPara();
+      const want = /^\s*\d+\./.test(ln) ? "ol" : "ul";
+      if (list !== want){ flushList(); out += `<${want}>`; list = want; }
+      out += `<li>${inline(li[1])}</li>`; i++; continue;
+    }
+
+    if (!ln.trim()){ flush(); i++; continue; }
+
+    flushList(); para.push(ln.trim()); i++;
+  }
+  flush();
+  return out;
+}
+
+// Split the notes markdown into "## " sections. Anything before the first one
+// (the title, the intro, any "# " banner) is preamble and always shown.
+function noteSections(src){
+  const lines = String(src).replace(/\r/g, "").split("\n");
+  const out = [];
+  let pre = [], cur = null, fence = false;
+  for (const ln of lines){
+    if (/^```/.test(ln)) fence = !fence;
+    const h2 = !fence && ln.match(/^##\s+(?!#)(.*)$/);
+    if (h2){
+      if (cur) out.push(cur);
+      cur = { title: h2[1].trim(), body: [] };
+      continue;
+    }
+    (cur ? cur.body : pre).push(ln);
+  }
+  if (cur) out.push(cur);
+  return { preamble: pre.join("\n"), sections: out.map(s => ({ title: s.title, body: s.body.join("\n") })) };
+}
+
+function renderUpdates(){
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";          // categories don't apply here
+
+  // Rows carry a short headline in [3] since v4.4. Older payloads have three
+  // elements, in which case there is nothing to collapse to — show them open.
+  const collapsible = REVISIONS.some(r => r[3]);
+
+  let h = `<div class="upd-bar">
+      <div class="upd-cur">Showing <strong>${esc(VERSION)}</strong> <span>(${esc(REV_DATE)})</span></div>
+      <button class="upd-btn" id="upd-btn">Check for updates</button>
+      ${DOC ? `<button class="upd-btn" id="exp-btn">Export a backup</button>` : ""}
+      <div class="upd-status" id="upd-status"></div>
+    </div>
+    ${DOC ? `<div class="up-intro" style="margin-top:-4px">The backup is the whole log as
+      plain, readable JSON — every entry, category and voyage. It is <strong>not
+      encrypted</strong>, so keep it somewhere you would keep the passphrase.
+      <code>DATA-FORMAT.md</code> in the app's repository describes the file, so a
+      person or an AI can edit it and hand it back.</div>` : ""}
+    <div class="up-sec">This app</div>
+    <div class="up-intro">Version <strong>${esc(APP_VERSION)}</strong> — the app itself,
+      which is separate from the log's revision above. <span id="app-upd"></span></div>
+    <div class="up-sec">Revision history</div>
+    <div class="up-intro">The Systems Manual and the printed cabinet log share this
+    version number. If they don't match, one of them is out of date.${
+      collapsible ? " Tap a row for the full entry." : ""}</div>`;
+
+  REVISIONS.forEach((r, i) => {
+    const cur  = r[0] === VERSION;
+    const head = r[3] || "";
+    // newest open on arrival; it is the one being looked for
+    const open = !collapsible || !head || (S.revOpen[r[0]] ?? (i === 0));
+    h += `<div class="rev${cur ? " cur" : ""}${open ? " open" : ""}">
+      <button class="rev-hd" data-rev="${esc(r[0])}"${collapsible && head ? "" : " disabled"}>
+        <span class="rev-v">${esc(r[0])}</span>
+        <span class="rev-d">${esc(r[1])}</span>
+        ${cur ? `<span class="rev-now">current</span>` : ""}
+        ${head ? `<span class="rev-h">${esc(head)}</span>` : ""}
+        ${collapsible && head ? `<span class="rev-chev">▼</span>` : ""}
+      </button>
+      <div class="rev-t">${esc(r[2])}</div>
+    </div>`;
+  });
+
+  if (NOTES){
+    const { preamble, sections } = noteSections(NOTES);
+    h += `<div class="up-sec">Build &amp; publish notes</div>
+      <div class="up-intro">From the Claude Code side — what was changed, what was
+      verified, and replies to the log-integration chat. Newest entries are at the
+      bottom.${sections.length ? " Tap a section to open it." : ""}</div>`;
+    if (preamble.trim()) h += `<div class="nt">${md(preamble)}</div>`;
+    sections.forEach((s, i) => {
+      // last section open by default — it is the most recent reply
+      const open = S.noteOpen[s.title] ?? (i === sections.length - 1);
+      h += `<div class="nsec${open ? " open" : ""}">
+        <button class="nsec-hd" data-nsec="${esc(s.title)}">
+          <span class="nsec-t">${esc(s.title)}</span>
+          <span class="rev-chev">▼</span>
+        </button>
+        <div class="nt nsec-b">${md(s.body)}</div>
+      </div>`;
+    });
+  }
+
+  box.innerHTML = h;
+  document.getElementById("meta").innerHTML =
+    `${REVISIONS.length} revisions &ensp;·&ensp; current <span class="amber">${esc(VERSION)}</span> (${esc(REV_DATE)})`;
+  checkAppVersion();      // fire and forget; silent when offline
+}
+
+// ═══════════════════════════════════════════════════════
+// CHECK FOR UPDATES
+// On iOS a home-screen app that is resumed rather than launched does not
+// re-run the page load, so nothing is re-fetched and the log silently stays on
+// whatever version it had — which is why it used to take a force-quit. This
+// re-fetches on demand, and quietly on resume, without a reload.
+// ═══════════════════════════════════════════════════════
+let CHECKING = false;
+
+// Redraw the tab that is actually showing. A background check can fire while
+// the user is on Focus, and unconditionally calling renderUpdates() would have
+// dropped the Updates view into the Focus tab.
+function renderCurrent(){
+  if (S.filter === "manage")       renderManage();
+  else if (S.filter === "voyages") renderVoyages();
+  else if (S.filter === "updates") renderUpdates();
+  else if (S.filter === "focus")   renderFocus();
+  else { const b = document.getElementById("sysbar"); if (b) b.style.display = "";
+         renderSysBar(); renderLog(); }
+}
+
+// The pill is a notification, not an action: updates are applied live, so there
+// is nothing to reload. Auto-hides; tapping dismisses it.
+function showPill(msg){
+  const pill = document.getElementById("update-pill");
+  if (!pill) return;
+  pill.textContent = msg;
+  pill.classList.add("show");
+  clearTimeout(pill._hide);
+  pill._hide = setTimeout(() => pill.classList.remove("show"), 6000);
+  pill.onclick = () => { clearTimeout(pill._hide); pill.classList.remove("show"); };
+}
+
+function setUpdStatus(msg, kind){
+  const el = document.getElementById("upd-status");
+  if (el){ el.textContent = msg; el.className = "upd-status" + (kind ? " " + kind : ""); }
+}
+
+async function checkForUpdate(quiet){
+  if (CHECKING) return;
+  if (!CURRENT_KEY){ if(!quiet) setUpdStatus("Unlock first.", "warn"); return; }
+  CHECKING = true;
+  const btn = document.getElementById("upd-btn");
+  if (btn) btn.disabled = true;
+  if (!quiet) setUpdStatus("Checking…");
+
+  const was = VERSION;
+  try {
+    // let the service worker pick up a new shell too, if there is one
+    if ("serviceWorker" in navigator){
+      try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch(e){}
+    }
+    const before = ENC_BLOB;
+    ENC_BLOB = null;                       // force a real network fetch
+    await loadBlob(true);
+    const same = before && before.length === ENC_BLOB.length &&
+                 before.every((b, i) => b === ENC_BLOB[i]);
+    if (same){
+      if (!quiet) setUpdStatus("Already up to date — " + was + ".", "ok");
+      return;
+    }
+    const payload = await decryptWith(CURRENT_KEY);
+
+    // Never silently overwrite work done on this device. The published copy
+    // changing is not permission to discard local edits — and the quiet check
+    // runs on its own, so this would otherwise destroy edits with no one
+    // watching. Offer it, do not do it.
+    if (LOCAL_EDITS){
+      const theirs = payload.DOC && payload.DOC.document ? payload.DOC.document.revision : "the published copy";
+      const msg = `A newer log is published (${theirs}), but this device has ` +
+                  `unpublished edits.\n\nReplace them with the published copy?\n\n` +
+                  `Cancel keeps your edits. Export a backup first if you are unsure.`;
+      if (!confirm(msg)){
+        if (!quiet) setUpdStatus("Kept your local edits — the published copy was not applied.", "ok");
+        return;
+      }
+      await idbDel(DOC_KEY);
+      LOCAL_EDITS = false;
+      UNDO.length = 0;
+    }
+
+    applyPayload(payload);
+    updateEditBar();
+    const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+    renderCurrent();          // redraw whatever tab is showing, not always Updates
+    setUpdStatus(VERSION === was
+      ? "Refreshed — still " + VERSION + ", content updated."
+      : "Updated: " + was + " → " + VERSION + ".", "ok");
+    // the quiet check has no status line to write to, so say it with the pill
+    if (quiet) showPill(VERSION === was ? "Log updated" : "Updated to " + VERSION);
+  } catch(err){
+    ENC_BLOB = null;
+    if (!navigator.onLine){
+      if (!quiet) setUpdStatus("No connection — showing the copy already on this device.", "warn");
+    } else if (err && err.name === "OperationError"){
+      // decrypt failed: the passphrase or the salt changed on the server side
+      if (!quiet) setUpdStatus("This device's saved key no longer fits. Enter the passphrase again.", "warn");
+      localStorage.removeItem(KEY_STORE);
+      CURRENT_KEY = null;
+      document.getElementById("lock").classList.remove("hide");
+    } else if (!quiet){
+      setUpdStatus("Could not reach the server. Try again with a signal.", "warn");
+    }
+  } finally {
+    CHECKING = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Resumed from the background with a signal? Look for a new version quietly.
+document.addEventListener("visibilitychange", function(){
+  if (document.visibilityState === "visible" && CURRENT_KEY && navigator.onLine){
+    checkForUpdate(true);
+  }
+});
+
+document.addEventListener("click", function(e){
+  if (e.target && e.target.id === "upd-btn") checkForUpdate(false);
+  if (e.target && e.target.id === "exp-btn") exportDocument();
+});
+
+// Collapse/expand, delegated so it survives re-render
+document.addEventListener("click", function(e){
+  const rv = e.target.closest && e.target.closest("[data-rev]");
+  if (rv){
+    const k = rv.dataset.rev;
+    const box = rv.parentElement;
+    S.revOpen[k] = !box.classList.contains("open");
+    box.classList.toggle("open");
+    return;
+  }
+  const ns = e.target.closest && e.target.closest("[data-nsec]");
+  if (ns){
+    const k = ns.dataset.nsec;
+    const box = ns.parentElement;
+    S.noteOpen[k] = !box.classList.contains("open");
+    box.classList.toggle("open");
+  }
+});
+
+function showRevisions(){
+  const tab = document.querySelector('.tab[data-f="updates"]');
+  if (tab) tab.click();
+  window.scrollTo(0, 0);
+}
+
+// ═══════════════════════════════════════════════════════
+// CATEGORY FILTER BAR
+// ═══════════════════════════════════════════════════════
+function renderSysBar() {
+  const bar = document.getElementById("sysbar");
+  if (!bar) return;
+  // base set = entries passing the STATUS tab only (so counts reflect the tab)
+  let base = allEntries();
+  if (S.filter==="active")   base = base.filter(e=>e.st==="active");
+  if (S.filter==="complete") base = base.filter(e=>e.st==="complete");
+
+  const countFor = sel => base.filter(e => sysMatches(sel).includes(e.sys)).length;
+
+  let h = `<button class="syschip${S.sysFilter==="all"?" on":""}" data-s="all">All Systems <span class="ct">${base.length}</span></button>`;
+  for (const sys of SYS_ORDER) {
+    const n = countFor(sys);
+    if (!n) continue;                       // hide empty categories
+    const isChild = Object.values(SYS_TREE).some(kids => kids.includes(sys));
+    const col = SYS_COLORS[sys] || "#94A3B8";
+    h += `<button class="syschip${isChild?" child":""}${S.sysFilter===sys?" on":""}" data-s="${esc(sys)}">`
+       + `<span class="dot" style="background:${col}"></span>${esc(sys)} <span class="ct">${n}</span></button>`;
+  }
+  h += `<button class="sysmore" id="sysmore">Filters <span class="chev">▾</span></button>`;
+  bar.innerHTML = h;
+  syncSysBar();
+}
+
+// Collapse the bar when it wraps past two rows. The threshold is a MEASUREMENT,
+// not a breakpoint: categories get added, counts change width, and hiding empty
+// categories means the same viewport gives a different bar on every tab. Anything
+// keyed to screen width would drift out of step with what is actually on screen.
+// Same reasoning as syncTabStrip(), and the same reason the tab strip only claims
+// pan-x while it genuinely overflows.
+//
+// Two rows is the point where the bar stops being a strip and starts being a
+// block: at 375px the full bar is seven rows and 214px, and with the header and
+// tab strip above it that is 44% of the viewport before the first entry shows.
+const SYSBAR_MAX_ROWS = 2;
+
+function syncSysBar(){
+  const bar = document.getElementById("sysbar");
+  if (!bar || !bar.offsetParent) return;      // hidden on Focus / Voyages / Updates
+  const chips = [...bar.querySelectorAll(".syschip")];
+  if (!chips.length) return;
+
+  // Measure expanded. Dropping the class and reading offsetTop both happen
+  // inside one task and the browser cannot paint mid-task, so this does not
+  // flicker — it is the same trick as measuring a hidden element's height.
+  bar.classList.remove("collapsed");
+  const rows = new Set(chips.map(c => Math.round(c.offsetTop))).size;
+  const many = rows > SYSBAR_MAX_ROWS;
+
+  // Fits in a couple of rows: no toggle, no collapse, behaves exactly as before.
+  bar.classList.toggle("collapsible", many);
+  const open = !many || S.sysOpen === true;
+  bar.classList.toggle("collapsed", !open);
+
+  const btn = document.getElementById("sysmore");
+  if (btn){
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.innerHTML = `Filters <span class="chev">${open ? "▴" : "▾"}</span>`;
+  }
+}
+
+(function watchSysBar(){
+  const hdr = document.querySelector(".hdr");
+  let lastW = null;
+  const onWidth = () => {
+    // React to WIDTH only. Collapsing changes the header's height, so an
+    // observer that acted on any resize would retrigger its own effect.
+    const w = hdr ? hdr.clientWidth : window.innerWidth;
+    if (w === lastW) return;
+    lastW = w;
+    syncSysBar();
+  };
+  if (hdr && "ResizeObserver" in window) new ResizeObserver(onWidth).observe(hdr);
+  window.addEventListener("resize", onWidth);
+  window.addEventListener("orientationchange", () => setTimeout(syncSysBar, 150));
+  document.addEventListener("visibilitychange", syncSysBar);
+  window.addEventListener("pageshow", syncSysBar);
+
+  // Self-correction, and the reason both bars have one. Everything above is an
+  // EVENT, and the failure mode for this whole family of fixes is an event that
+  // does not arrive — which leaves a stale class on screen with nothing to
+  // dislodge it. Re-measuring on any tap costs 17 offsetTop reads and one forced
+  // reflow, only while the bar is on screen, and it means the worst case is a
+  // bar that looks wrong until the next touch rather than until the next reload.
+  // Unlike the observers, this one can actually be exercised in a desktop
+  // browser, so it is the part of the mechanism that gets tested before shipping.
+  document.addEventListener("click", () => { syncSysBar(); syncTabStrip(); });
+})();
+
+document.addEventListener("click", function(e){
+  const more = e.target.closest && e.target.closest(".sysmore");
+  if (more){ S.sysOpen = !(S.sysOpen === true); syncSysBar(); return; }
+  const chip = e.target.closest && e.target.closest(".syschip");
+  if (!chip) return;
+  S.sysOpen = false;               // one tap filters AND collapses
+  S.sysFilter = chip.dataset.s;
+  renderSysBar(); renderLog();
+});
+
+// ═══════════════════════════════════════════════════════
+// DOCUMENT VALIDATION — kept identical to validate-document.js
+// The command line and the app must agree about what a valid document is; two
+// implementations would drift and the disagreement would surface as "it passed
+// the validator but the app rejected it".
+// ═══════════════════════════════════════════════════════
+const SCHEMA_VERSION = 1;
+const V_HEX = /^#[0-9a-fA-F]{6}$/;
+const V_SORTKEY = /^\d{4}-\d{2}-\d{2}[a-z]?$/;
+
+function validateDocument(doc) {
+  const errors = [], warnings = [];
+  const E = m => errors.push(m);
+  const W = m => warnings.push(m);
+
+  if (doc === null || typeof doc !== "object" || Array.isArray(doc))
+    return { errors: ["document is not a JSON object"], warnings };
+
+  // ── shape ───────────────────────────────────────────────────────────────
+  if (doc.schemaVersion !== SCHEMA_VERSION)
+    E(`schemaVersion is ${JSON.stringify(doc.schemaVersion)}, expected ${SCHEMA_VERSION}`);
+
+  for (const [k, kind] of [["document","object"],["vessel","object"],["settings","object"],
+                           ["systems","array"],["priorities","array"],["entries","array"],
+                           ["voyages","array"],["revisions","array"],["notes","string"]]) {
+    const v = doc[k];
+    const ok = kind === "array" ? Array.isArray(v)
+             : kind === "string" ? typeof v === "string"
+             : v !== null && typeof v === "object" && !Array.isArray(v);
+    if (!ok) E(`${k} is missing or not ${kind === "array" ? "an array" : "a " + kind}`);
+  }
+  if (errors.length) return { errors, warnings };   // nothing below is safe yet
+
+  if (!doc.vessel.name) E("vessel.name is empty — the app has nothing to call the boat");
+  if (!doc.document.revision) W("document.revision is empty");
+
+  // ── systems ─────────────────────────────────────────────────────────────
+  const sysIds = new Set();
+  doc.systems.forEach((s, i) => {
+    const at = `systems[${i}]`;
+    if (!s.id) return E(`${at}.id is empty`);
+    if (sysIds.has(s.id)) E(`${at}: duplicate system id "${s.id}"`);
+    sysIds.add(s.id);
+    if (!s.name) E(`${at} ("${s.id}") has no name`);
+    if (s.color != null && !V_HEX.test(s.color)) E(`${at} ("${s.id}") colour "${s.color}" is not #RRGGBB`);
+  });
+  doc.systems.forEach((s, i) => {
+    if (s.parent == null) return;
+    if (!sysIds.has(s.parent)) return E(`systems[${i}] ("${s.id}") parent "${s.parent}" does not exist`);
+    if (s.parent === s.id) return E(`systems[${i}] ("${s.id}") is its own parent`);
+    // One level only. Filtering walks parent→children exactly once, so a
+    // grandchild would silently never appear under its grandparent's filter.
+    const p = doc.systems.find(x => x.id === s.parent);
+    if (p && p.parent != null)
+      E(`systems[${i}] ("${s.id}") nests under "${p.id}", which is itself a child — only one level is supported`);
+  });
+
+  // ── priorities ──────────────────────────────────────────────────────────
+  const priIds = new Set();
+  doc.priorities.forEach((p, i) => {
+    const at = `priorities[${i}]`;
+    if (!p.id) return E(`${at}.id is empty`);
+    if (priIds.has(p.id)) E(`${at}: duplicate priority id "${p.id}"`);
+    priIds.add(p.id);
+    if (!p.label) E(`${at} ("${p.id}") has no label`);
+    if (p.color != null && !V_HEX.test(p.color)) E(`${at} ("${p.id}") colour "${p.color}" is not #RRGGBB`);
+  });
+
+  // ── entries ─────────────────────────────────────────────────────────────
+  const ids = new Set();
+  let criticalPaths = 0;
+
+  const checkItems = (items, at, isCp) => {
+    if (!Array.isArray(items)) return E(`${at}.items is not an array`);
+    items.forEach((it, j) => {
+      const iat = `${at}.items[${j}]`;
+      if (it === null || typeof it !== "object") return E(`${iat} is not an object`);
+      if (it.type !== "task" && it.type !== "note")
+        return E(`${iat}.type is ${JSON.stringify(it.type)}, expected "task" or "note"`);
+      if (typeof it.text !== "string") E(`${iat}.text is missing or not a string`);
+      if (it.type === "task" && typeof it.done !== "boolean")
+        E(`${iat} is a task but done is ${JSON.stringify(it.done)}, expected true or false`);
+      if (it.type === "note" && "done" in it && it.done != null)
+        W(`${iat} is a note but carries done — it will not render a checkbox`);
+      if (it.role != null && !["goal","step","bottleneck","after-launch"].includes(it.role))
+        E(`${iat}.role "${it.role}" is not a known role`);
+      if (it.role === "step" && it.type !== "task")
+        E(`${iat} has role "step" but is a note — steps must be tasks to be tickable`);
+      if (it.role != null && !isCp)
+        W(`${iat} has role "${it.role}" but its entry is not the critical path, so it renders as a plain bullet`);
+    });
+  };
+
+  doc.entries.forEach((e, i) => {
+    const at = `entries[${i}]` + (e && e.id ? ` ("${e.id}")` : "");
+    if (e === null || typeof e !== "object") return E(`entries[${i}] is not an object`);
+    if (!e.id) return E(`entries[${i}].id is empty`);
+    if (ids.has(e.id)) E(`${at}: duplicate entry id`);
+    ids.add(e.id);
+
+    if (!e.title) E(`${at} has no title`);
+    if (!sysIds.has(e.system)) E(`${at} system "${e.system}" does not exist in systems`);
+    if (e.status !== "active" && e.status !== "complete")
+      E(`${at} status is ${JSON.stringify(e.status)}, expected "active" or "complete"`);
+    if (e.priority != null && !priIds.has(e.priority))
+      E(`${at} priority "${e.priority}" does not exist in priorities`);
+    if (!e.sortKey) E(`${at} has no sortKey — it cannot be placed in the log`);
+    else if (!V_SORTKEY.test(e.sortKey))
+      W(`${at} sortKey "${e.sortKey}" is not YYYY-MM-DD with an optional letter suffix`);
+
+    if (e.role != null && e.role !== "critical-path")
+      E(`${at} role "${e.role}" is not a known entry role`);
+    if (e.role === "critical-path") criticalPaths++;
+
+    // A blocked job whose reason is missing is the one case the Focus tab has
+    // nothing useful to show — the card exists to answer "why is this stuck".
+    if (e.priority === "blocked" && !e.waitingOn)
+      W(`${at} is blocked but has no waitingOn, so the card cannot say why`);
+
+    checkItems(e.items, at, e.role === "critical-path");
+  });
+
+  if (criticalPaths > 1)
+    E(`${criticalPaths} entries have role "critical-path" — only one can be pinned`);
+
+  // ── voyages ─────────────────────────────────────────────────────────────
+  const vids = new Set();
+  doc.voyages.forEach((v, i) => {
+    const at = `voyages[${i}]` + (v && v.id ? ` ("${v.id}")` : "");
+    if (v === null || typeof v !== "object") return E(`voyages[${i}] is not an object`);
+    if (!v.id) return E(`voyages[${i}].id is empty`);
+    if (vids.has(v.id)) E(`${at}: duplicate voyage id`);
+    if (ids.has(v.id)) W(`${at}: id is also used by an entry`);
+    vids.add(v.id);
+    if (!v.sortKey) E(`${at} has no sortKey`);
+    checkItems(v.items, at, false);
+  });
+
+  // ── revisions ───────────────────────────────────────────────────────────
+  const seen = new Set();
+  doc.revisions.forEach((r, i) => {
+    const at = `revisions[${i}]`;
+    if (r === null || typeof r !== "object") return E(`${at} is not an object`);
+    if (!r.version) E(`${at}.version is empty`);
+    else if (seen.has(r.version)) W(`${at}: duplicate revision "${r.version}"`);
+    else seen.add(r.version);
+    if (typeof r.text !== "string" || !r.text) E(`${at} ("${r.version}") has no text`);
+  });
+
+  if (doc.document.revision && doc.revisions.length &&
+      doc.revisions[0].version !== doc.document.revision)
+    W(`document.revision is "${doc.document.revision}" but the newest revisions row is ` +
+      `"${doc.revisions[0].version}" — revisions must be newest-first`);
+
+  const orphanSys = [...sysIds].filter(id => !doc.entries.some(e => e.system === id));
+  if (orphanSys.length)
+    W(`categories with no entries (hidden from the filter bar): ${orphanSys.join(", ")}`);
+
+  return { errors, warnings };
+}
+
+// ═══════════════════════════════════════════════════════
+// LOCAL STORE — IndexedDB
+//
+// The working copy lives here, not on the server. The boat is in a yard and the
+// helm has no signal; an app that needs the network to accept an edit is
+// unusable exactly where it gets used.
+//
+// localStorage is deliberately NOT used for the document: it is synchronous,
+// capped around 5MB, and this document is already 220KB and grows. The only
+// thing still in localStorage is the derived unlock key.
+// ═══════════════════════════════════════════════════════
+const DB_NAME = "boatlog", DB_STORE = "documents", DOC_KEY = "current";
+const KEYRING_KEY = "keyring";
+
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(DB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror   = () => rej(r.error);
+  });
+}
+async function idbGet(key){
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const r = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(key);
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbPut(key, val){
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const t = db.transaction(DB_STORE, "readwrite");
+    t.objectStore(DB_STORE).put(val, key);
+    t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+  });
+}
+async function idbDel(key){
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const t = db.transaction(DB_STORE, "readwrite");
+    t.objectStore(DB_STORE).delete(key);
+    t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// KEYRING — one data key, wrapped twice
+//
+// The problem this solves: a key derived straight from a passphrase means
+// forgetting the passphrase destroys the log, permanently, and no host or
+// backup service can help because none of them can read it either. That is not
+// a hosting problem and no change of host fixes it.
+//
+// So the document is encrypted with a random DATA KEY, and the data key is
+// stored twice — once wrapped by the passphrase, once wrapped by a recovery
+// code issued at setup. Forget the passphrase, unlock with the recovery code,
+// set a new one. The data key never changes, so nothing is re-encrypted.
+//
+// It also means changing the passphrase is instant instead of a full re-encrypt,
+// and that "remember this device" can store the wrapped key rather than a key
+// that would go stale the moment the passphrase changed.
+// ═══════════════════════════════════════════════════════
+const KEYRING_VERSION = 1;
+let DATA_KEY = null;                     // CryptoKey once unlocked, else null
+let KEYRING  = null;
+
+const enc = new TextEncoder();
+
+async function kdf(secret, salt, iterations){
+  const base = await crypto.subtle.importKey("raw", enc.encode(secret), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name:"PBKDF2", salt, iterations, hash:"SHA-256" },
+    base, { name:"AES-GCM", length:256 }, false, ["wrapKey","unwrapKey"]);
+}
+
+async function wrapDataKey(dk, secret, iterations){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const kek  = await kdf(secret, salt, iterations);
+  const wrapped = new Uint8Array(await crypto.subtle.wrapKey("raw", dk, kek, { name:"AES-GCM", iv }));
+  return { salt: bytesToB64(salt), iv: bytesToB64(iv), key: bytesToB64(wrapped) };
+}
+
+async function unwrapDataKey(rec, secret, iterations){
+  const kek = await kdf(secret, b64ToBytes(rec.salt), iterations);
+  return crypto.subtle.unwrapKey(
+    "raw", b64ToBytes(rec.key), kek, { name:"AES-GCM", iv: b64ToBytes(rec.iv) },
+    { name:"AES-GCM", length:256 }, true, ["encrypt","decrypt"]);
+}
+
+// 20 characters of Crockford-ish base32 in five-character groups — about 100
+// bits, and no 0/O or 1/I/L to misread off a printed card.
+const RC_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+function makeRecoveryCode(){
+  const r = crypto.getRandomValues(new Uint8Array(20));
+  const s = [...r].map(b => RC_ALPHABET[b % RC_ALPHABET.length]).join("");
+  return s.match(/.{5}/g).join("-");
+}
+const normaliseCode = s => String(s).toUpperCase().replace(/[^0-9A-Z]/g, "");
+
+async function createKeyring(passphrase){
+  const dk = await crypto.subtle.generateKey({ name:"AES-GCM", length:256 }, true, ["encrypt","decrypt"]);
+  const kr = { v: KEYRING_VERSION, iterations: KDF_ITERATIONS,
+               protection: passphrase ? "password" : "none",
+               createdAt: new Date().toISOString() };
+  let code = null;
+  if (passphrase){
+    code = makeRecoveryCode();
+    kr.byPassphrase = await wrapDataKey(dk, passphrase, kr.iterations);
+    kr.byRecovery   = await wrapDataKey(dk, normaliseCode(code), kr.iterations);
+  } else {
+    // No password: the data key is stored in the clear. This is NOT protection
+    // and is not dressed up as any — it exists so document storage has one code
+    // path. The setup screen says plainly what choosing this means.
+    kr.plainKey = bytesToB64(new Uint8Array(await crypto.subtle.exportKey("raw", dk)));
+  }
+  await idbPut(KEYRING_KEY, kr);
+  KEYRING = kr; DATA_KEY = dk;
+  return { keyring: kr, recoveryCode: code };
+}
+
+async function unlockKeyring(secret, which){
+  const kr = KEYRING || await idbGet(KEYRING_KEY);
+  if (!kr) throw new Error("no keyring on this device");
+  if (kr.protection === "none"){
+    DATA_KEY = await crypto.subtle.importKey("raw", b64ToBytes(kr.plainKey),
+      { name:"AES-GCM" }, true, ["encrypt","decrypt"]);
+  } else {
+    const rec = which === "recovery" ? kr.byRecovery : kr.byPassphrase;
+    DATA_KEY = await unwrapDataKey(rec, which === "recovery" ? normaliseCode(secret) : secret,
+                                   kr.iterations || KDF_ITERATIONS);
+  }
+  KEYRING = kr;
+  return DATA_KEY;
+}
+
+// Re-wrap only. The data key is untouched, so this is instant however large the
+// log is, and every device that already holds the data key stays working.
+async function setPassphrase(newPassphrase){
+  if (!DATA_KEY) throw new Error("unlock first");
+  const kr = KEYRING || {};
+  kr.v = KEYRING_VERSION;
+  kr.iterations = kr.iterations || KDF_ITERATIONS;
+  const code = makeRecoveryCode();
+  kr.protection   = "password";
+  kr.byPassphrase = await wrapDataKey(DATA_KEY, newPassphrase, kr.iterations);
+  kr.byRecovery   = await wrapDataKey(DATA_KEY, normaliseCode(code), kr.iterations);
+  delete kr.plainKey;
+  await idbPut(KEYRING_KEY, kr);
+  KEYRING = kr;
+  return code;
+}
+
+// ═══════════════════════════════════════════════════════
+// LOCAL DOCUMENT — encrypted at rest with the data key
+//
+// Phase 3 stored this in the clear, which quietly undid the point of the whole
+// app: the published copy was encrypted while the working copy — the one with
+// the newest edits — sat readable in the browser's database. Fixed here.
+// ═══════════════════════════════════════════════════════
+let LOCAL_EDITS = false;
+let SAVE_TIMER = null;
+
+async function encryptLocal(obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));   // fresh every save
+  const ct = new Uint8Array(await crypto.subtle.encrypt(
+    { name:"AES-GCM", iv }, DATA_KEY, enc.encode(JSON.stringify(obj))));
+  return { iv: bytesToB64(iv), ct: bytesToB64(ct) };
+}
+async function decryptLocal(rec){
+  const pt = await crypto.subtle.decrypt(
+    { name:"AES-GCM", iv: b64ToBytes(rec.iv) }, DATA_KEY, b64ToBytes(rec.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function saveLocal(){
+  LOCAL_EDITS = true;
+  clearTimeout(SAVE_TIMER);
+  // Debounced: typing a title should not write 40 times.
+  SAVE_TIMER = setTimeout(async () => {
+    try {
+      const body = DATA_KEY ? { enc: await encryptLocal(DOC) } : { doc: DOC };
+      await idbPut(DOC_KEY, { ...body, savedAt: new Date().toISOString(),
+                              baseRevision: DOC.document && DOC.document.revision });
+      setEditStatus("Saved");
+    } catch (err) {
+      // A failed save is the one error the user must not miss — it means the
+      // edit exists only in this tab and dies with it.
+      setEditStatus("NOT SAVED — " + err.message, true);
+    }
+  }, 400);
+}
+
+async function readLocalDocument(){
+  const rec = await idbGet(DOC_KEY);
+  if (!rec) return null;
+  if (rec.enc){
+    if (!DATA_KEY) return null;             // locked; nothing to read yet
+    return decryptLocal(rec.enc);
+  }
+  return rec.doc || null;                   // written before encryption at rest
+}
+
+// ═══════════════════════════════════════════════════════
+// MUTATION — every edit goes through here
+// ═══════════════════════════════════════════════════════
+const UNDO = [];
+const UNDO_LIMIT = 30;
+
+function snapshot(){ return JSON.parse(JSON.stringify(DOC)); }
+
+function mutate(fn, opts){
+  if (!DOC) return;
+  UNDO.push(snapshot());
+  if (UNDO.length > UNDO_LIMIT) UNDO.shift();
+  fn(DOC);
+  DOC.document = DOC.document || {};
+  DOC.document.updatedAt = new Date().toISOString();
+  applyDocument(DOC);              // rebuild BASE/VOYAGES/lookups from the document
+  saveLocal();
+  if (!opts || opts.rerender !== false) renderCurrent();
+  updateEditBar();
+}
+
+function undo(){
+  if (!UNDO.length) return setEditStatus("Nothing to undo");
+  DOC = UNDO.pop();
+  applyDocument(DOC);
+  saveLocal();
+  renderCurrent();
+  updateEditBar();
+  setEditStatus("Undone");
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT — the whole document as readable JSON
+//
+// This is the backup path and the hand-it-to-someone path at once. A recovery
+// code gets you back into an encrypted log; it does nothing for a device that
+// died, so an export that lives somewhere else is the only real backup.
+//
+// It writes PLAINTEXT. That is deliberate — a backup you cannot open without
+// the app is not a backup — but it means the file deserves the same care as the
+// passphrase, which is what the note above the button says.
+// ═══════════════════════════════════════════════════════
+function exportDocument(){
+  const status = document.getElementById("upd-status");
+  const say = m => { if (status) status.textContent = m; };
+  if (!DOC) return say("Nothing to export — this log predates the document format.");
+
+  try {
+    const name = (DOC.vessel && DOC.vessel.name || "log")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(DOC, null, 2) + "\n"], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name}-${DOC.document.revision || "log"}-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoked on a delay: Safari has been known to cancel the download if the
+    // object URL disappears in the same tick as the click.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    say(`Exported ${DOC.entries.length} entries as ${a.download}`);
+  } catch (err) {
+    say("Export failed: " + err.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// VESSEL ICON — the owner's own picture, if they set one
+//
+// The app ships with a stock boat. Anyone can replace it with a photo of THEIR
+// boat, which is the difference between an app they installed and an app that
+// is theirs. Stored in the document, so it travels with an export and is
+// covered by the same encryption as the log.
+//
+// Squared and re-encoded to 512px on upload rather than stored as picked: a
+// modern phone photo is 3–8MB, and the document is loaded, decrypted, cloned
+// for undo and re-encrypted on every keystroke. One unresized photo would make
+// all of that unusable.
+// ═══════════════════════════════════════════════════════
+const ICON_PX = 512;
+
+function applyVesselIcon(dataUrl){
+  const targets = [
+    ["#lock img", "src"],
+    ['link[rel="apple-touch-icon"]', "href"],
+    ['link[rel="icon"]', "href"],
+  ];
+  for (const [sel, attr] of targets){
+    const el = document.querySelector(sel);
+    if (el && dataUrl) el.setAttribute(attr, dataUrl);
+  }
+  if (!dataUrl) return;
+  // Rewrite the manifest so an install started from here picks the icon up.
+  // iOS bakes the icon in at "Add to Home Screen" and never revisits it, so an
+  // ALREADY-installed app keeps the old one until it is removed and re-added.
+  // Said plainly in the UI rather than left to be discovered.
+  try {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    fetch("manifest.json").then(r => r.json()).then(m => {
+      m.icons = [{ src: dataUrl, sizes: `${ICON_PX}x${ICON_PX}`, type: "image/png", purpose: "any" }];
+      const url = URL.createObjectURL(new Blob([JSON.stringify(m)], { type:"application/manifest+json" }));
+      link.setAttribute("href", url);
+    }).catch(() => {});
+  } catch {}
+}
+
+function readIconFile(file){
+  return new Promise((resolve, reject) => {
+    if (!/^image\//.test(file.type)) return reject(new Error("that is not an image"));
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Centre-crop to a square first, so a landscape photo is not squashed.
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      const c = document.createElement("canvas");
+      c.width = c.height = ICON_PX;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, ICON_PX, ICON_PX);
+      resolve(c.toDataURL("image/png"));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("could not read that image")); };
+    img.src = url;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// APP UPDATE CHECK
+//
+// Lifted in shape from web-watcher, not in code: that is a desktop app that
+// swaps Python files on disk, which a browser will never allow. Here the
+// service worker already does the code half — a redeploy reaches every device
+// on its own. What is missing is telling someone running a hand-dropped copy
+// that a newer one exists, since nothing else ever will.
+//
+// Deliberately advisory. It reads a version and prints a sentence; it does not
+// download anything, and it CANNOT touch the log. An updater that can write to
+// user data is how an update eats someone's history.
+// ═══════════════════════════════════════════════════════
+function cmpVersion(a, b){
+  const pa = String(a).split(/[.-]/), pb = String(b).split(/[.-]/);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++){
+    const x = parseInt(pa[i] || "0", 10), y = parseInt(pb[i] || "0", 10);
+    if (isNaN(x) || isNaN(y)) break;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
+async function checkAppVersion(){
+  const el = document.getElementById("app-upd");
+  if (!el) return;
+  if (!APP_REPO){ el.textContent = ""; return; }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${APP_REPO}/releases/latest`,
+                            { cache:"no-store" });
+    if (!res.ok) throw new Error("unavailable");
+    const tag = String((await res.json()).tag_name || "").replace(/^v/, "");
+    if (!tag) throw new Error("no tag");
+    el.innerHTML = cmpVersion(APP_VERSION, tag) < 0
+      ? `A newer version (<strong>${esc(tag)}</strong>) is available. ` +
+        `Your log is not affected by updating — it lives on this device and in your backups.`
+      : "This is the latest version.";
+  } catch {
+    // Offline is the normal state on a boat. Say nothing rather than cry wolf.
+    el.textContent = "";
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// IMPORT — replace the whole document from a file
+//
+// Validated with the SAME code the command-line validator uses, not a second
+// copy that drifts. A document that fails is rejected before it touches
+// anything, and the current one is left exactly as it was.
+// ═══════════════════════════════════════════════════════
+function importDocument(file){
+  const say = (m, bad) => setEditStatus(m, bad);
+  const rd = new FileReader();
+  rd.onerror = () => say("Could not read that file", true);
+  rd.onload = () => {
+    let incoming;
+    try { incoming = JSON.parse(rd.result); }
+    catch (err) { return say("Not valid JSON — " + err.message, true); }
+
+    const { errors, warnings } = validateDocument(incoming);
+    if (errors.length){
+      say(`Rejected — ${errors.length} problem${errors.length>1?"s":""}. First: ${errors[0]}`, true);
+      return;
+    }
+    const n = incoming.entries.length;
+    const was = DOC ? DOC.entries.length : 0;
+    if (!confirm(`Replace the whole log?\n\nIncoming: ${n} entries, ` +
+                 `${incoming.systems.length} categories, revision ` +
+                 `${(incoming.document||{}).revision || "unknown"}.\n` +
+                 `Current: ${was} entries.\n\nThis can be undone.`)) return say("Import cancelled");
+
+    mutate(() => { DOC = incoming; });
+    say(`Imported ${n} entries` + (warnings.length ? ` (${warnings.length} warning${warnings.length>1?"s":""})` : ""));
+  };
+  rd.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════
+// EDIT MODE
+//
+// Off by default, and when it is off the app renders exactly as it always has.
+// That is the whole design: reading the log is the common case and must stay
+// uncluttered, so editing is a mode you turn on rather than controls sprinkled
+// through the reading view.
+// ═══════════════════════════════════════════════════════
+let EDIT = false;
+
+function setEditStatus(msg, bad){
+  const el = document.getElementById("edit-status");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.classList.toggle("bad", !!bad);
+  if (msg && !bad) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 4000);
+}
+
+function updateEditBar(){
+  const bar = document.getElementById("editbar");
+  if (!bar) return;
+  bar.classList.toggle("on", EDIT);
+  const u = document.getElementById("eb-undo");
+  if (u) u.disabled = !UNDO.length;
+  const d = document.getElementById("eb-dirty");
+  if (d) d.style.display = LOCAL_EDITS ? "" : "none";
+  document.body.classList.toggle("editing", EDIT);
+}
+
+function toggleEdit(){
+  if (!DOC){ return setEditStatus("This log predates the editable format", true); }
+  EDIT = !EDIT;
+  updateEditBar();
+  renderCurrent();
+}
+
+// ── Editors ───────────────────────────────────────────────────────────────
+const uid = p => p + Math.random().toString(36).slice(2, 8);
+
+function nextEntryId(){
+  // Never reuse an id, including a deleted one — DATA-FORMAT.md is explicit
+  // about this, so take one past the highest ever seen rather than filling gaps.
+  let max = 0;
+  for (const e of DOC.entries){
+    const m = /^e(\d+)$/.exec(e.id);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return "e" + String(max + 1).padStart(3, "0");
+}
+
+function findEntry(id){ return DOC.entries.find(e => e.id === id); }
+
+function entryEditor(e){
+  const sysOpts = DOC.systems.map(s =>
+    `<option value="${esc(s.id)}"${s.id===e.system?" selected":""}>${esc(s.name)}</option>`).join("");
+  const priOpts = `<option value=""${e.priority?"":" selected"}>— no priority —</option>` +
+    DOC.priorities.map(p =>
+      `<option value="${esc(p.id)}"${p.id===e.priority?" selected":""}>${esc(p.label)}</option>`).join("");
+
+  const items = (e.items || []).map((it, i) => `
+    <div class="ed-item" data-i="${i}">
+      <button class="ed-chk${it.type==="task"?"":" off"}" data-act="toggle-type" title="task or note">${
+        it.type==="task" ? (it.done ? "☑" : "☐") : "·"}</button>
+      <textarea class="ed-text" data-act="item-text" rows="1">${esc(it.text)}</textarea>
+      <div class="ed-itembtns">
+        <button data-act="item-up" title="move up"${i===0?" disabled":""}>↑</button>
+        <button data-act="item-down" title="move down"${i===e.items.length-1?" disabled":""}>↓</button>
+        <button data-act="item-del" title="delete" class="danger">×</button>
+      </div>
+    </div>`).join("");
+
+  return `<div class="editor" data-id="${esc(e.id)}">
+    <label class="ed-row"><span>Title</span>
+      <input class="ed-in" data-act="title" value="${esc(e.title)}"></label>
+    <div class="ed-grid">
+      <label><span>Category</span><select class="ed-in" data-act="system">${sysOpts}</select></label>
+      <label><span>Priority</span><select class="ed-in" data-act="priority">${priOpts}</select></label>
+      <label><span>Status</span><select class="ed-in" data-act="status">
+        <option value="active"${e.status==="active"?" selected":""}>Active</option>
+        <option value="complete"${e.status==="complete"?" selected":""}>Complete</option>
+      </select></label>
+      <label><span>Sort key</span><input class="ed-in" data-act="sortKey" value="${esc(e.sortKey||"")}"></label>
+      <label><span>Year</span><input class="ed-in" data-act="year" value="${esc(e.year||"")}"></label>
+      <label><span>Date shown</span><input class="ed-in" data-act="dateLabel" value="${esc(e.dateLabel||"")}"></label>
+    </div>
+    <label class="ed-row"><span>Waiting on</span>
+      <input class="ed-in" data-act="waitingOn" value="${esc(e.waitingOn||"")}"
+             placeholder="why this is blocked — shown on the Focus card"></label>
+    <div class="ed-sec">Tasks and notes</div>
+    <div class="ed-items">${items || '<div class="ed-empty">Nothing here yet.</div>'}</div>
+    <div class="ed-add">
+      <button data-act="add-task">+ Task</button>
+      <button data-act="add-note">+ Note</button>
+      <button data-act="entry-del" class="danger">Delete this entry</button>
+    </div>
+  </div>`;
+}
+
+// ── Delegated editor events ───────────────────────────────────────────────
+// Text inputs fire on "input" and deliberately do NOT re-render: rebuilding the
+// DOM mid-keystroke would blow away focus and the caret. They mutate the model
+// and autosave; the view catches up on the next structural change.
+document.addEventListener("input", function(ev){
+  const el = ev.target.closest && ev.target.closest("[data-act]");
+  if (!el || !EDIT) return;
+  const wrap = el.closest(".editor"); if (!wrap) return;
+  const e = findEntry(wrap.dataset.id); if (!e) return;
+  const act = el.dataset.act;
+
+  if (act === "item-text"){
+    const i = +el.closest(".ed-item").dataset.i;
+    mutate(d => { e.items[i].text = el.value; }, { rerender: false });
+    return;
+  }
+  if (["title","sortKey","year","dateLabel","waitingOn"].includes(act)){
+    mutate(d => { e[act] = act === "waitingOn" ? (el.value || null) : el.value; }, { rerender: false });
+  }
+});
+
+document.addEventListener("change", function(ev){
+  const el = ev.target.closest && ev.target.closest("[data-act]");
+  if (!el || !EDIT) return;
+  const wrap = el.closest(".editor"); if (!wrap) return;
+  const e = findEntry(wrap.dataset.id); if (!e) return;
+  const act = el.dataset.act;
+  if (act === "system")   mutate(() => { e.system = el.value; });
+  if (act === "priority") mutate(() => { e.priority = el.value || null; });
+  if (act === "status")   mutate(() => { e.status = el.value; });
+});
+
+document.addEventListener("click", function(ev){
+  const btn = ev.target.closest && ev.target.closest("[data-act]");
+  if (!btn || !EDIT || btn.tagName !== "BUTTON") return;
+  const wrap = btn.closest(".editor"); if (!wrap) return;
+  const e = findEntry(wrap.dataset.id); if (!e) return;
+  const act = btn.dataset.act;
+  const row = btn.closest(".ed-item");
+  const i = row ? +row.dataset.i : -1;
+
+  if (act === "toggle-type") mutate(() => {
+    const it = e.items[i];
+    // Cycles note → open task → done task → note. One control, three states,
+    // which is fewer things on screen than a type picker plus a checkbox.
+    if (it.type === "note"){ it.type = "task"; it.done = false; }
+    else if (!it.done){ it.done = true; }
+    else { it.type = "note"; delete it.done; }
+  });
+  if (act === "item-up")   mutate(() => { const [x] = e.items.splice(i,1); e.items.splice(i-1,0,x); });
+  if (act === "item-down") mutate(() => { const [x] = e.items.splice(i,1); e.items.splice(i+1,0,x); });
+  if (act === "item-del")  mutate(() => { e.items.splice(i,1); });
+  if (act === "add-task")  mutate(() => { e.items.push({type:"task",done:false,text:"",role:null}); });
+  if (act === "add-note")  mutate(() => { e.items.push({type:"note",text:"",role:null}); });
+  if (act === "entry-del"){
+    if (!confirm(`Delete "${e.title}"?\n\nThis can be undone.`)) return;
+    mutate(() => { DOC.entries = DOC.entries.filter(x => x.id !== e.id); });
+  }
+});
+
+function addEntry(){
+  const id = nextEntryId();
+  const today = new Date().toISOString().slice(0,10);
+  mutate(() => {
+    DOC.entries.push({
+      id, title: "New job", system: (DOC.systems[0]||{}).id, status: "active",
+      priority: null, waitingOn: null, sortKey: today,
+      year: today.slice(0,4), dateLabel: today, role: null,
+      items: [{ type:"task", done:false, text:"", role:null }],
+    });
+    DOC.entries.sort((a,b) => String(a.sortKey).localeCompare(String(b.sortKey)));
+  });
+  S.filter = "all"; S.sysFilter = "all"; S.expanded[id] = true;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.f === "all"));
+  const b = document.getElementById("sysbar"); if (b) b.style.display = "";
+  renderSysBar(); renderLog();
+  const el = document.getElementById("entry-" + id);
+  if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
+  setEditStatus("Added " + id);
+}
+
+// ── Category and priority editor ──────────────────────────────────────────
+function renderManage(){
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";
+
+  const count = id => DOC.entries.filter(e => e.system === id).length;
+  const parents = DOC.systems.filter(s => !s.parent);
+
+  const rows = [...DOC.systems].sort((a,b)=>(a.order??0)-(b.order??0)).map((s, i) => `
+    <div class="mg-row" data-sys="${esc(s.id)}">
+      <input type="color" data-mact="color" value="${esc(s.color || "#94A3B8")}">
+      <input class="ed-in" data-mact="name" value="${esc(s.name)}">
+      <select class="ed-in" data-mact="parent">
+        <option value=""${s.parent?"":" selected"}>— top level —</option>
+        ${parents.filter(p => p.id !== s.id).map(p =>
+          `<option value="${esc(p.id)}"${s.parent===p.id?" selected":""}>under ${esc(p.name)}</option>`).join("")}
+      </select>
+      <span class="mg-ct">${count(s.id)}</span>
+      <button data-mact="up"${i===0?" disabled":""}>↑</button>
+      <button data-mact="down"${i===DOC.systems.length-1?" disabled":""}>↓</button>
+      <button data-mact="del" class="danger">×</button>
+    </div>`).join("");
+
+  const pris = [...DOC.priorities].sort((a,b)=>(a.order??0)-(b.order??0)).map(p => `
+    <div class="mg-row" data-pri="${esc(p.id)}">
+      <input type="color" data-mact="pcolor" value="${esc(p.color || "#94A3B8")}">
+      <input class="ed-in" data-mact="plabel" value="${esc(p.label)}">
+      <span class="mg-ct">${DOC.entries.filter(e=>e.priority===p.id).length}</span>
+    </div>`).join("");
+
+  const v = DOC.vessel || {};
+  const field = (k, label) =>
+    `<label class="ed-row"><span>${esc(label)}</span>
+      <input class="ed-in" data-vact="${k}" value="${esc(v[k]||"")}"></label>`;
+
+  box.innerHTML = `
+    <div class="up-sec">The vessel</div>
+    <div class="mg-icon">
+      <img id="icon-preview" src="${esc(v.icon || "icon-192.png")}" alt="">
+      <div>
+        <button data-mact="icon-pick">Use my own picture</button>
+        ${v.icon ? `<button data-mact="icon-clear">Use the stock one</button>` : ""}
+        <div class="mg-icon-note">Shown on the lock screen and used as the home
+          screen icon. Square works best; anything else is cropped from the centre.
+          <strong>If you have already added this to your home screen, remove it and
+          add it again</strong> — the phone keeps the icon it saved at the time.</div>
+      </div>
+    </div>
+    ${field("name","Name")}${field("make","Make")}${field("model","Model")}${field("year","Year")}
+    ${field("homePort","Home port")}${field("berth","Berth")}${field("currentLocation","Currently")}
+    <div class="up-sec">How it is labelled</div>
+    ${field("logTitle","Log title")}${field("headerLabel","Header strip")}
+    ${field("footerLabel","Footer")}${field("pageTitle","Browser tab")}${field("appShortName","Home screen name")}
+    <div class="up-sec">Categories</div>
+    <div class="up-intro">The number is how many jobs use it. A category still in
+      use cannot be deleted — move those jobs first. Nesting is one level deep.</div>
+    <div class="mg-list">${rows}</div>
+    <div class="ed-add"><button data-mact="add">+ Add a category</button></div>
+    <div class="up-sec">Priorities</div>
+    <div class="up-intro">The groups on the Focus tab, in order.</div>
+    <div class="mg-list">${pris}</div>`;
+
+  document.getElementById("meta").innerHTML =
+    `${DOC.systems.length} categories &ensp;·&ensp; ${DOC.priorities.length} priorities`;
+}
+
+document.addEventListener("input", function(ev){
+  const el = ev.target.closest && ev.target.closest("[data-mact],[data-vact]");
+  if (!el || !DOC) return;
+  if (el.dataset.vact) return mutate(() => { DOC.vessel[el.dataset.vact] = el.value; }, { rerender:false });
+  const row = el.closest(".mg-row"); if (!row) return;
+  if (row.dataset.sys){
+    const s = DOC.systems.find(x => x.id === row.dataset.sys); if (!s) return;
+    if (el.dataset.mact === "name")  mutate(() => { s.name = el.value; },  { rerender:false });
+    if (el.dataset.mact === "color") mutate(() => { s.color = el.value; }, { rerender:false });
+  } else if (row.dataset.pri){
+    const p = DOC.priorities.find(x => x.id === row.dataset.pri); if (!p) return;
+    if (el.dataset.mact === "plabel") mutate(() => { p.label = el.value; }, { rerender:false });
+    if (el.dataset.mact === "pcolor") mutate(() => { p.color = el.value; }, { rerender:false });
+  }
+});
+
+document.addEventListener("change", function(ev){
+  const el = ev.target.closest && ev.target.closest('[data-mact="parent"]');
+  if (!el || !DOC) return;
+  const row = el.closest(".mg-row");
+  const s = DOC.systems.find(x => x.id === row.dataset.sys); if (!s) return;
+  mutate(() => { s.parent = el.value || null; });
+  renderManage();
+});
+
+document.addEventListener("click", function(ev){
+  const btn = ev.target.closest && ev.target.closest("button[data-mact]");
+  if (!btn || !DOC) return;
+  const act = btn.dataset.mact;
+
+  if (act === "icon-pick"){
+    const f = document.getElementById("icon-file");
+    if (f) f.click();
+    return;
+  }
+  if (act === "icon-clear"){
+    mutate(() => { delete DOC.vessel.icon; }, { rerender:false });
+    // Put the shipped icon back in the places applyVesselIcon overwrote.
+    const lock = document.querySelector("#lock img"); if (lock) lock.src = "icon-192.png";
+    const at = document.querySelector('link[rel="apple-touch-icon"]');
+    if (at) at.setAttribute("href", "apple-touch-icon.png");
+    renderManage();
+    setEditStatus("Back to the stock icon");
+    return;
+  }
+
+  if (act === "add"){
+    const name = prompt("Name for the new category?");
+    if (!name) return;
+    let id = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || uid("sys-");
+    while (DOC.systems.some(s => s.id === id)) id = uid("sys-");
+    mutate(() => { DOC.systems.push({ id, name, color:"#94A3B8", parent:null,
+                                      order: DOC.systems.length }); }, { rerender:false });
+    renderManage();
+    setEditStatus("Added " + name);
+    return;
+  }
+
+  const row = btn.closest(".mg-row"); if (!row || !row.dataset.sys) return;
+  const idx = DOC.systems.findIndex(x => x.id === row.dataset.sys);
+  const s = DOC.systems[idx];
+
+  if (act === "del"){
+    const used = DOC.entries.filter(e => e.system === s.id).length;
+    // Refused rather than cascaded. Deleting a category that still holds jobs
+    // either destroys them or silently refiles them, and both are worse than
+    // being told to move them first.
+    if (used) return setEditStatus(`"${s.name}" still has ${used} job${used>1?"s":""} — move them first`, true);
+    const kids = DOC.systems.filter(x => x.parent === s.id).length;
+    if (kids) return setEditStatus(`"${s.name}" has ${kids} sub-categor${kids>1?"ies":"y"} — move them first`, true);
+    mutate(() => { DOC.systems.splice(idx,1); }, { rerender:false });
+    renderManage();
+    return;
+  }
+  if (act === "up" || act === "down"){
+    const j = act === "up" ? idx-1 : idx+1;
+    if (j < 0 || j >= DOC.systems.length) return;
+    mutate(() => {
+      const arr = DOC.systems;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      arr.forEach((x, n) => { x.order = n; });
+    }, { rerender:false });
+    renderManage();
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// VERSION / REVISION HISTORY
+// The history used to be dumped into an alert(). With 31 rows, one of them
+// over 1000 characters, that was an unreadable system dialog on iOS. It now
+// opens the Updates tab — see showRevisions() up there.
+// ═══════════════════════════════════════════════════════
+document.addEventListener("click", function(e){
+  if (e.target && e.target.id === "ver-badge") showRevisions();
+});
+
+// Export for Claude was removed 11 Aug 2026, with the browser-editing UI it
+// served. Nothing in the published app writes log data now — the only thing in
+// localStorage is the derived unlock key. See the v4.1 revision entry.
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// UNLOCK — the log data is stored AES-256-GCM encrypted (data.enc).
+// The passphrase never leaves the device and is never stored; what gets
+// remembered is the derived key, kept in localStorage on this device only.
+// Layout of data.enc (base64): [16B salt][12B iv][ciphertext+GCM tag]
+// ═══════════════════════════════════════════════════════
+const KDF_ITERATIONS = 310000;
+const KEY_STORE = "cs2_key";
+
+function b64ToBytes(b64){
+  const bin = atob(b64.trim());
+  const out = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out;
+}
+function bytesToB64(bytes){
+  let s=""; const b=new Uint8Array(bytes);
+  for (let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]);
+  return btoa(s);
+}
+
+async function deriveKey(passphrase, salt){
+  const base = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name:"PBKDF2", salt: salt, iterations: KDF_ITERATIONS, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, true, ["decrypt"]);
+}
+
+let ENC_BLOB = null;                       // cached bytes of data.enc
+let CURRENT_KEY = null;                    // live AES key, so a refresh can re-decrypt
+                                           // without asking for the passphrase again
+async function loadBlob(force){
+  if (ENC_BLOB && !force) return ENC_BLOB;
+  // force: skip the HTTP cache AND the service worker, so "check for updates"
+  // really goes to the network rather than being handed the copy we already have
+  const res = force
+    ? await fetch("data.enc?t=" + Date.now(), {cache:"no-store"})
+    : await fetch("data.enc", {cache:"no-cache"});
+  if (!res.ok) throw new Error("data.enc unavailable");
+  ENC_BLOB = b64ToBytes(await res.text());
+  return ENC_BLOB;
+}
+
+async function decryptWith(key){
+  const blob = await loadBlob();
+  const iv   = blob.slice(16, 28);
+  const ct   = blob.slice(28);
+  const buf  = await crypto.subtle.decrypt({name:"AES-GCM", iv: iv}, key, ct);
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+
+function applyPayload(p){
+  VERSION   = p.VERSION;
+  REV_DATE  = p.REV_DATE;
+  REVISIONS = p.REVISIONS;
+  BASE      = p.BASE;
+  VOYAGES   = p.VOYAGES;
+  NOTES     = p.NOTES || "";     // absent in payloads built before 11 Aug 2026
+  if (p.DOC) applyDocument(p.DOC);
+}
+
+// ═══════════════════════════════════════════════════════
+// SCHEMA v1 DOCUMENT — see DATA-FORMAT.md
+// Categories, priorities and the vessel's own name were hardcoded in this file
+// until 13 Aug 2026, which made the app usable by exactly one boat. They now
+// come from the document. Applied on top of the legacy arrays rather than
+// instead of them, so a payload without DOC still renders exactly as before.
+// ═══════════════════════════════════════════════════════
+let DOC = null;
+
+function applyDocument(d){
+  DOC = d;
+
+  // Categories: rebuild the three lookups the renderers already use, so this is
+  // a data swap and not a rewrite of every call site.
+  if (Array.isArray(d.systems) && d.systems.length){
+    const byOrder = [...d.systems].sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
+    const name = {};
+    for (const s of byOrder) name[s.id] = s.name;
+
+    SYS_ORDER.length = 0;
+    for (const k of Object.keys(SYS_TREE)) delete SYS_TREE[k];
+    for (const k of Object.keys(SYS_COLORS)) delete SYS_COLORS[k];
+
+    for (const s of byOrder){
+      SYS_ORDER.push(s.name);
+      if (s.color) SYS_COLORS[s.name] = s.color;
+      if (s.parent && name[s.parent]){
+        (SYS_TREE[name[s.parent]] = SYS_TREE[name[s.parent]] || []).push(s.name);
+      }
+    }
+  }
+
+  // Priorities: label and colour per Focus group.
+  if (Array.isArray(d.priorities) && d.priorities.length){
+    for (const k of Object.keys(PRI_META)) delete PRI_META[k];
+    for (const p of [...d.priorities].sort((a,b) => (a.order ?? 0) - (b.order ?? 0)))
+      PRI_META[p.id] = { label: p.label, color: p.color };
+  }
+
+  // The boat's own name, in the five places the shell used to hardcode it.
+  const v = d.vessel || {};
+  const set = (sel, val) => { const el = document.querySelector(sel); if (el && val) el.textContent = val; };
+  // Cached so the LOCK screen can say the boat's name. The shell ships generic —
+  // it has to, it is one app for any vessel — but a padlock over "Maintenance
+  // Log" tells the owner nothing about whose log they are opening. The name is
+  // the only thing cached, it never leaves the device, and it is already on the
+  // home-screen icon.
+  try { if (v.name) localStorage.setItem("cs2_vessel", v.name); } catch {}
+  applyVesselIcon(v.icon);
+  if (v.pageTitle) document.title = v.pageTitle;
+  set(".vessel-lbl", v.headerLabel);
+  set(".footer", v.footerLabel);
+  set("#lock h1", v.name);
+  const h1 = document.querySelector("header h1");
+  if (h1 && v.logTitle) h1.childNodes[0].nodeValue = v.logTitle + " ";
+  const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (meta && v.appShortName) meta.setAttribute("content", v.appShortName);
+
+  if (d.settings && d.settings.criticalPathHeading) CP_HEADING = d.settings.criticalPathHeading;
+
+  // ── One source of truth ────────────────────────────────────────────────
+  // The renderers read BASE/VOYAGES/REVISIONS, so those are rebuilt FROM the
+  // document rather than left as the payload's own copy. Without this the app
+  // draws its categories from one place and its entries from another, and they
+  // agree only by luck — rename a category in the document and every job filed
+  // under it quietly vanishes from the filter bar. Same shape as every other
+  // bug this app has had: two things that correlate, until they don't.
+  if (Array.isArray(d.entries)){
+    const sysName = {};
+    for (const s of (d.systems || [])) sysName[s.id] = s.name;
+    const marker = it => (it.type === "task" ? (it.done ? "☑ " : "☐ ") : "") + it.text;
+
+    BASE = d.entries.map(e => ({
+      id: e.id,
+      pri: e.priority ?? undefined,
+      waitOn: e.waitingOn ?? undefined,
+      sk: e.sortKey,
+      yr: e.year,
+      date: e.dateLabel,
+      title: e.title,
+      sys: sysName[e.system] || e.system,
+      st: e.status,
+      b: (e.items || []).map(marker),
+    }));
+  }
+
+  if (Array.isArray(d.voyages)){
+    VOYAGES = d.voyages.map(v => ({
+      ...v, sk: v.sortKey, yr: v.year, date: v.dateLabel,
+      notes: (v.items || []).map(it => (it.type === "task" ? (it.done ? "☑ " : "☐ ") : "") + it.text),
+    }));
+  }
+
+  if (Array.isArray(d.revisions) && d.revisions.length)
+    REVISIONS = d.revisions.map(r => [r.version, r.date, r.text, r.headline ?? undefined]);
+
+  if (d.document && d.document.revision){
+    VERSION  = d.document.revision;
+    REV_DATE = d.document.revisionDate || REV_DATE;
+  }
+  if (typeof d.notes === "string" && d.notes) NOTES = d.notes;
+}
+
+// Wire the edit bar once. The toggle lives on the version badge's neighbour so
+// it is reachable but not in the reading view's way.
+(function wireEditBar(){
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
+  on("eb-add",    () => addEntry());
+  on("eb-manage", () => { S.filter = "manage";
+                          document.querySelectorAll(".tab").forEach(t => t.classList.remove("on"));
+                          renderManage(); });
+  on("eb-undo",   () => undo());
+  on("eb-export", () => exportDocument());
+  on("eb-import", () => { const f = document.getElementById("eb-file"); if (f) f.click(); });
+  const icon = document.getElementById("icon-file");
+  if (icon) icon.addEventListener("change", async () => {
+    const f = icon.files && icon.files[0];
+    icon.value = "";
+    if (!f) return;
+    try {
+      const dataUrl = await readIconFile(f);
+      mutate(() => { DOC.vessel.icon = dataUrl; }, { rerender:false });
+      applyVesselIcon(dataUrl);
+      renderManage();
+      setEditStatus("Icon updated");
+    } catch (err) { setEditStatus("Could not use that image: " + err.message, true); }
+  });
+
+  const file = document.getElementById("eb-file");
+  if (file) file.addEventListener("change", () => {
+    if (file.files && file.files[0]) importDocument(file.files[0]);
+    file.value = "";                     // so re-picking the same file fires again
+  });
+  // Long-press / double-click the version badge toggles editing. Tap still
+  // opens the revision history, which is what the badge has always done.
+  const vb = document.getElementById("ver-badge");
+  if (vb){
+    vb.addEventListener("dblclick", ev => { ev.preventDefault(); toggleEdit(); });
+    let t = null;
+    vb.addEventListener("touchstart", () => { t = setTimeout(toggleEdit, 600); }, {passive:true});
+    ["touchend","touchmove","touchcancel"].forEach(e =>
+      vb.addEventListener(e, () => clearTimeout(t), {passive:true}));
+  }
+})();
+
+async function startApp(payload){
+  applyPayload(payload);
+
+  // A document edited on this device beats the published one. Applied AFTER the
+  // payload so local work is never quietly replaced by whatever was last
+  // deployed — the failure that would matter most, because it is silent.
+  try {
+    const local = await readLocalDocument();
+    if (local){
+      const { errors } = validateDocument(local);
+      if (errors.length){
+        console.warn("stored document failed validation, ignoring it:", errors[0]);
+      } else {
+        applyDocument(local);
+        LOCAL_EDITS = true;
+      }
+    }
+  } catch (err) { console.warn("no local document:", err && err.message); }
+  updateEditBar();
+  // Set the version badge here, not in renderLog() — Focus is the default tab
+  // and renderFocus() never touches it, so the badge sat blank until you
+  // happened to open All Work or Completed.
+  const vb0 = document.getElementById("ver-badge");
+  if (vb0) vb0.textContent = VERSION;
+  document.getElementById("lock").classList.add("hide");
+  load();
+  renderSysBar();
+  renderFocus();
+  syncTabStrip();          // strip is only measurable once it is on screen
+}
+
+async function attemptUnlock(passphrase, remember){
+  // Keyring first. A log created ON this device has no data.enc to unlock —
+  // it lives only in IndexedDB — so insisting on the published file made a
+  // fresh install impossible to reopen: the missing file surfaced as
+  // "Incorrect passphrase" and there was no way past it.
+  const kr = await idbGet(KEYRING_KEY);
+  if (kr){
+    let opened = false;
+    try { await unlockKeyring(passphrase, "passphrase"); opened = true; }
+    catch { opened = false; }                 // wrong password, or a legacy keyring
+    if (opened){
+      const local = await readLocalDocument();
+      if (local){
+        DOC = local;
+        applyDocument(local);
+        LOCAL_EDITS = true;
+        if (remember){
+          try { const raw = await crypto.subtle.exportKey("raw", DATA_KEY);
+                localStorage.setItem(KEY_STORE + "_dk", bytesToB64(new Uint8Array(raw))); } catch {}
+        }
+        document.getElementById("lock").classList.add("hide");
+        updateEditBar(); load(); renderSysBar(); renderFocus(); syncTabStrip();
+        const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+        return;
+      }
+      // Keyring opened but no local document: fall through to the published
+      // copy, which is the normal state on a second device.
+    }
+  }
+
+  const blob = await loadBlob();
+  const salt = blob.slice(0, 16);
+  const key  = await deriveKey(passphrase, salt);
+  const payload = await decryptWith(key);        // throws if wrong passphrase
+  if (remember){
+    try {
+      const raw = await crypto.subtle.exportKey("raw", key);
+      localStorage.setItem(KEY_STORE, bytesToB64(raw));
+    } catch(e){}
+  }
+  CURRENT_KEY = key;                 // kept so "check for updates" can re-decrypt
+
+  // A log that predates the keyring gets one on first successful unlock, using
+  // the passphrase it already has. That is what puts the local working copy
+  // under encryption and issues a recovery code for a log that never had one.
+  // Silent and automatic: the alternative is a security upgrade nobody applies.
+  try {
+    if (!(await idbGet(KEYRING_KEY))){
+      const { recoveryCode } = await createKeyring(passphrase);
+      PENDING_RECOVERY = recoveryCode;
+    } else {
+      await unlockKeyring(passphrase, "passphrase");
+    }
+  } catch (err){ console.warn("keyring:", err && err.message); }
+
+  await startApp(payload);
+  // Shown after the app is up, not over the lock screen, so the boat's name is
+  // on the card and there is something to come back to once it is dismissed.
+  if (PENDING_RECOVERY) showRecoveryKit(PENDING_RECOVERY);
+}
+
+// ── Recovery: the second door ─────────────────────────────────────────────
+(function initRecovery(){
+  const forgot = document.getElementById("lock-forgot");
+  const panel  = document.getElementById("recovery");
+  const go     = document.getElementById("rec-go");
+  if (!forgot || !panel || !go) return;
+
+  forgot.addEventListener("click", async () => {
+    panel.classList.toggle("hide");
+    if (!panel.classList.contains("hide")){
+      const kr = await idbGet(KEYRING_KEY);
+      if (!kr || !kr.byRecovery)
+        document.getElementById("rec-err").textContent =
+          "This device has no recovery code on file. A code only works in the " +
+          "browser it was issued for until the log has been opened there once.";
+      else document.getElementById("rec-code").focus();
+    }
+  });
+
+  go.addEventListener("click", async () => {
+    const err  = document.getElementById("rec-err");
+    const code = document.getElementById("rec-code").value;
+    if (!normaliseCode(code)) return (err.textContent = "Enter the code from the kit.");
+    err.textContent = "Checking…";
+    try {
+      await unlockKeyring(code, "recovery");
+    } catch {
+      return (err.textContent = "That code does not match. Check for mistyped characters.");
+    }
+    const pw = prompt("Recovered. Choose a new password (at least 6 characters):");
+    if (!pw || pw.length < 6) return (err.textContent = "Cancelled — password unchanged.");
+    const fresh = await setPassphrase(pw);
+    err.textContent = "";
+
+    const local = await readLocalDocument();
+    if (local){
+      applyDocument(local); LOCAL_EDITS = true;
+      document.getElementById("lock").classList.add("hide");
+      await startApp({ VERSION, REV_DATE, REVISIONS, BASE, VOYAGES, NOTES, DOC: local });
+      showRecoveryKit(fresh, { note: "New password set. This replaces your old recovery code." });
+    } else {
+      // The keyring unlocked but the log itself is the published data.enc, which
+      // is encrypted to the OLD passphrase — this cannot decrypt it, and saying
+      // so is better than looping on the lock screen.
+      err.textContent = "Password reset, but the published log on this address is " +
+        "still encrypted with the old one. Re-publish it with the new password, " +
+        "or import a backup.";
+      showRecoveryKit(fresh, { note: "New password set. This replaces your old recovery code." });
+    }
+  });
+})();
+
+// ═══════════════════════════════════════════════════════
+// RECOVERY KIT
+//
+// A recovery code that lives only in the browser that generated it is not a
+// recovery code. The kit is a printable card and the app nags until it has been
+// taken, because the moment it is needed is the moment the app cannot show it.
+// ═══════════════════════════════════════════════════════
+let PENDING_RECOVERY = null;
+
+function recoveryKitText(code){
+  const v = (DOC && DOC.vessel) || {};
+  return [
+    "RECOVERY KIT — " + (v.name || "boat log"),
+    "=".repeat(48), "",
+    "Website:       " + location.origin + location.pathname,
+    "Boat:          " + (v.name || ""),
+    "Issued:        " + new Date().toISOString().slice(0, 10),
+    "", "RECOVERY CODE", "", "    " + code, "",
+    "-".repeat(48),
+    "This code is the ONLY way back in if the password is",
+    "forgotten. It cannot be reissued, looked up or reset by",
+    "anyone — not the website, not the host, not the person who",
+    "set this up. Without the password AND without this code,",
+    "the log is gone permanently.",
+    "",
+    "Print this and keep it with the vessel's documents.",
+    "A photo on the phone that holds the log is not a backup.",
+    "",
+    "The code replaces the password, it does not reveal it.",
+    "After using it you will be asked to set a new password,",
+    "and a new recovery code will be issued.",
+  ].join("\n");
+}
+
+function downloadRecoveryKit(code){
+  const v = (DOC && DOC.vessel) || {};
+  const name = (v.name || "boat-log").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const blob = new Blob([recoveryKitText(code)], { type:"text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${name}-recovery-kit.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+function showRecoveryKit(code, opts){
+  PENDING_RECOVERY = code;
+  const wrap = document.getElementById("kit");
+  document.getElementById("kit-code").textContent = code;
+  document.getElementById("kit-note").textContent = (opts && opts.note) ||
+    "This log had no recovery code until now. Take it before you carry on.";
+  wrap.classList.remove("hide");
+  let taken = false;
+  const done = document.getElementById("kit-done");
+  done.disabled = true;
+  document.getElementById("kit-dl").onclick = () => {
+    downloadRecoveryKit(code); taken = true; done.disabled = false;
+    done.textContent = "I have saved it — continue";
+  };
+  document.getElementById("kit-copy").onclick = async () => {
+    try { await navigator.clipboard.writeText(code); taken = true; done.disabled = false;
+          done.textContent = "I have saved it — continue"; }
+    catch { alert("Copy failed — use Download instead, or write the code down."); }
+  };
+  done.onclick = () => {
+    if (!taken) return;
+    wrap.classList.add("hide"); PENDING_RECOVERY = null;
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+// FIRST RUN — a fresh deployment with no log at all
+//
+// This is the path someone else's copy takes: they drop the folder on a host,
+// open the URL, and there is no data.enc to unlock. Nothing exists yet, so
+// there is nothing to expose — the setup screen is deliberately reachable
+// without a password, because demanding one to create the log it protects is
+// circular.
+// ═══════════════════════════════════════════════════════
+const SEED_SYSTEMS = [
+  ["Engines","#F87171"],["Port Engine","#F87171","Engines"],["Starboard Engine","#4ADE80","Engines"],
+  ["Running Gear","#34D399"],["Steering","#818CF8"],["Fuel","#FB923C"],["Propane","#FB7185"],
+  ["Generator","#FBBF24"],["Electrical","#FDE047"],["Electronics","#A78BFA"],["Plumbing","#38BDF8"],
+  ["HVAC","#2DD4BF"],["Hull / Structure","#86EFAC"],["Cabin / Structure","#94A3B8"],
+  ["Deck / Anchoring","#22D3EE"],["Yard Work","#C084FC"],
+];
+const SEED_PRIORITIES = [
+  ["now","Working on now","#34D399"],["next","Next up","#38BDF8"],
+  ["blocked","Blocked / waiting","#FB923C"],["later","Postponed","#64748B"],
+];
+
+function slugify(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
+
+function blankDocument(v){
+  const ids = {};
+  const systems = SEED_SYSTEMS.map(([name, color, parent], i) => {
+    const id = slugify(name); ids[name] = id;
+    return { id, name, color, parent: parent ? slugify(parent) : null, order: i };
+  });
+  const today = new Date();
+  const stamp = today.toISOString().slice(0,10);
+  const nice = today.toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
+  const label = [v.name, v.make, v.model, v.year].filter(Boolean).join(" · ").toUpperCase();
+  return {
+    schemaVersion: 1,
+    document: { revision: "v1.0", revisionDate: nice, updatedAt: today.toISOString() },
+    vessel: {
+      name: v.name, make: v.make || "", model: v.model || "", year: v.year || "",
+      hullType: "", homePort: v.homePort || "", berth: "", currentLocation: "",
+      headerLabel: label || v.name.toUpperCase(),
+      footerLabel: label || v.name.toUpperCase(),
+      logTitle: "Maintenance Log",
+      pageTitle: v.name + " · Maintenance Log",
+      appName: v.name + " — Maintenance Log",
+      appShortName: v.name,
+      appDescription: "Maintenance log and voyage record for " + v.name + ".",
+    },
+    settings: { defaultTab: "focus", theme: "dark", criticalPathHeading: "Critical Path" },
+    systems,
+    priorities: SEED_PRIORITIES.map(([id,label,color], i) => ({ id, label, color, order:i })),
+    entries: [{
+      id: "e001", title: "First job", system: systems[0].id, status: "active",
+      priority: "now", waitingOn: null, sortKey: stamp, year: stamp.slice(0,4),
+      dateLabel: nice, role: null,
+      items: [
+        { type:"note", text:"Edit or delete this. Every bullet is a fact, a decision with its reason, or something to do.", role:null },
+        { type:"task", done:false, text:"Add a real job", role:null },
+      ],
+    }],
+    voyages: [],
+    revisions: [{ version:"v1.0", date: nice, text:"Log created.", headline:"Log created" }],
+    notes: "",
+  };
+}
+
+async function runSetup(v, passphrase){
+  const { recoveryCode } = await createKeyring(passphrase);
+  DOC = blankDocument(v);
+  const { errors } = validateDocument(DOC);
+  if (errors.length) throw new Error("generated document is invalid: " + errors[0]);
+  applyDocument(DOC);
+  await idbPut(DOC_KEY, { enc: await encryptLocal(DOC), savedAt: new Date().toISOString(),
+                          baseRevision: DOC.document.revision });
+  LOCAL_EDITS = true;
+  document.getElementById("setup").classList.add("hide");
+  document.getElementById("lock").classList.add("hide");
+  updateEditBar();
+  load(); renderSysBar(); renderFocus(); syncTabStrip();
+  const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+  if (recoveryCode) showRecoveryKit(recoveryCode,
+    { note: "Take this now. Without it, a forgotten password means the log is gone." });
+  else setEditStatus("No password set — anyone who opens this address can read the log.", true);
+}
+
+(function initSetup(){
+  const form = document.getElementById("setup-form");
+  if (!form) return;
+  const pwWrap = document.getElementById("setup-pw-wrap");
+  form.addEventListener("change", ev => {
+    if (ev.target.name === "prot")
+      pwWrap.style.display = ev.target.value === "password" ? "" : "none";
+  });
+  document.getElementById("setup-go").addEventListener("click", async () => {
+    const err = document.getElementById("setup-err");
+    const val = id => (document.getElementById(id).value || "").trim();
+    const name = val("su-name");
+    if (!name) return (err.textContent = "The boat needs a name.");
+    const prot = form.querySelector('input[name="prot"]:checked').value;
+    let pw = null;
+    if (prot === "password"){
+      pw = document.getElementById("su-pw").value;
+      if (pw.length < 6) return (err.textContent = "Use at least 6 characters.");
+      if (pw !== document.getElementById("su-pw2").value)
+        return (err.textContent = "The two passwords do not match.");
+    }
+    err.textContent = "";
+    try { await runSetup({ name, make: val("su-make"), model: val("su-model"),
+                           year: val("su-year"), homePort: val("su-port") }, pw); }
+    catch (e){ err.textContent = "Setup failed: " + e.message; }
+  });
+})();
+
+// Silent unlock if this device was remembered
+async function tryRememberedKey(){
+  const saved = localStorage.getItem(KEY_STORE);
+  if (!saved) return false;
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw", b64ToBytes(saved), {name:"AES-GCM"}, true, ["decrypt"]);
+    const payload = await decryptWith(key);
+    CURRENT_KEY = key;
+    startApp(payload);
+    return true;
+  } catch(e){
+    localStorage.removeItem(KEY_STORE);   // stale key (salt changed)
+    return false;
+  }
+}
+
+(function initLock(){
+  const pw  = document.getElementById("lock-pw");
+  const go  = document.getElementById("lock-go");
+  const err = document.getElementById("lock-err");
+  const rem = document.getElementById("lock-remember");
+
+  async function submit(){
+    if (!pw.value) return;
+    go.disabled = true; err.textContent = "Checking…";
+    try {
+      await attemptUnlock(pw.value, rem.checked);
+    } catch(e){
+      err.textContent = "Incorrect passphrase.";
+      pw.value = ""; pw.focus();
+    } finally {
+      go.disabled = false;
+      if (err.textContent === "Checking…") err.textContent = "";
+    }
+  }
+  go.addEventListener("click", submit);
+  pw.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+
+  // Boot. Three states, decided in this order:
+  //   1. a document already on this device  -> open it, no server needed
+  //   2. a published data.enc               -> the lock screen, as always
+  //   3. neither                            -> first run, show setup
+  (async () => {
+    // 1. Local first. This is what makes a boat with no signal work, and it is
+    //    also the only path that survives the host being unreachable.
+    try {
+      const kr = await idbGet(KEYRING_KEY);
+      const rec = await idbGet(DOC_KEY);
+      // No password, or a remembered device: either way the data key is
+      // available without asking, so open the local document straight away.
+      const savedDk = localStorage.getItem(KEY_STORE + "_dk");
+      if (kr && rec && (kr.protection === "none" || savedDk)){
+        if (kr.protection === "none") await unlockKeyring(null, "none");
+        else DATA_KEY = await crypto.subtle.importKey("raw", b64ToBytes(savedDk),
+                          { name:"AES-GCM" }, true, ["encrypt","decrypt"]);
+        const local = await readLocalDocument();
+        if (local){
+          DOC = local; applyDocument(local); LOCAL_EDITS = true;
+          document.getElementById("lock").classList.add("hide");
+          updateEditBar(); load(); renderSysBar(); renderFocus(); syncTabStrip();
+          const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
+          return;
+        }
+      }
+    } catch (e){ /* fall through to the normal paths */ }
+
+    // 2. Remembered device, then the passphrase prompt.
+    if (await tryRememberedKey()) return;
+
+    // 3. Nothing here and nothing published — first run.
+    try {
+      const res = await fetch("data.enc", { cache:"no-cache" });
+      if (!res.ok) throw new Error("no data.enc");
+      pw.focus();
+    } catch {
+      const kr = await idbGet(KEYRING_KEY);
+      if (kr){ pw.focus(); return; }        // has a keyring; a fetch blip, not a fresh install
+      document.getElementById("lock").classList.add("hide");
+      document.getElementById("setup").classList.remove("hide");
+      const n = document.getElementById("su-name"); if (n) n.focus();
+    }
+  })();
+})();
+
+// ═══════════════════════════════════════════════════════
+// OFFLINE / INSTALLABLE
+// ═══════════════════════════════════════════════════════
+// The pill used to hang off the service worker's "updatefound", which was the
+// wrong signal in both directions:
+//   - sw.js only changes when CACHE_NAME is bumped, so publishing a new LOG
+//     version never fired it. It never appeared when it should have.
+//   - when it did fire, the reload achieved nothing. The worker is network
+//     first, so the page load that just happened had already fetched the newest
+//     index.html and data.enc, and sw.js calls skipWaiting() in its own install
+//     handler, so the new worker had already taken over. It announced something
+//     that was finished before the pill appeared, and reloading just flashed.
+// New-log-version notice now comes from checkForUpdate(), which watches the
+// thing that actually changes. A reload is only offered below, where it is the
+// one case that genuinely needs one.
+if ("serviceWorker" in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+
+  // A different worker taking control means the app SHELL changed under a page
+  // that is still running the old code — the one situation a reload fixes.
+  // Guarded on hadController so first-ever activation stays silent.
+  navigator.serviceWorker.addEventListener("controllerchange", function(){
+    if (!hadController) return;
+    const pill = document.getElementById("update-pill");
+    if (!pill) return;
+    clearTimeout(pill._hide);
+    pill.textContent = "App updated — tap to reload";
+    pill.classList.add("show");
+    pill.onclick = function(){ window.location.reload(); };
+  });
+}
+function flagConnection(){
+  const pill = document.getElementById("offline-pill");
+  if (pill) pill.classList.toggle("show", !navigator.onLine);
+}
+window.addEventListener("online", flagConnection);
+window.addEventListener("offline", flagConnection);
+flagConnection();
+</script>
+</body>
+</html>

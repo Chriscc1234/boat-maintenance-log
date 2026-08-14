@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+
+# Never commit a log to the app repo — the app is generic, the log is yours.
+data.enc
+document.json
+*-log-*.json
