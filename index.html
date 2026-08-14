@@ -61,11 +61,24 @@ a{color:#0EA5E9}
    should take some effort — it is in the job editor behind edit mode and a
    confirm, and that is the right amount of friction.
 
-   What the trailing swipe does instead is TAKE THE JOB OFF THE FOCUS LIST, and
-   put it back if it is already off. 1.6.0 had it postpone, which sounded right
-   and was not: Postponed is itself a group ON Focus, so the swipe moved a job
-   to the bottom of the same screen while claiming to clear it. See the comment
-   on FOCUS_DEFAULT for the whole distinction.
+   THE TWO EDGES BEHAVE DIFFERENTLY, ON PURPOSE (1.9.0).
+
+   · LEADING (swipe right) is one action — complete, or reopen — and it commits
+     on a full swipe. One action, one motion, no tap.
+   · TRAILING (swipe left) is a DRAWER. It locks open showing its buttons and
+     you tap the one you want. There is more than one thing you might mean by
+     moving a job off the list ("not now" and "not tracking this"), and a single
+     gesture cannot ask which.
+
+   Chris asked for this and thought it was the Gmail pattern. It is the iOS MAIL
+   pattern — Gmail commits on a full swipe and offers Undo. Mail is the better
+   reference here anyway: it is the one that solves "several actions, one edge".
+
+   This is the "half-open drawer" the earlier comment said it was avoiding, and
+   that judgement was wrong for the trailing edge specifically. The cost is real
+   — an open drawer has to be dismissed — so it is paid on ONE edge only, and
+   only where there is a genuine choice to make. The leading edge, which is the
+   common action, still commits in a single motion.
 
    touch-action:pan-y is what makes it possible: it hands the horizontal axis to
    the page and keeps vertical scrolling native, so the list still scrolls
@@ -81,14 +94,25 @@ a{color:#0EA5E9}
  letter-spacing:.4px;color:#fff;opacity:.55;transition:opacity .12s}
 .sw-act.armed{opacity:1}
 .sw-lead{background:#15803D}
-.sw-trail{background:#475569;margin-left:auto;justify-content:flex-end}
-/* One at a time. The panel fills whatever the row uncovers, so pulling further
-   just shows more of the same colour rather than revealing the other action
-   sitting behind it — which is what happened when both were always drawn and
-   you swiped the row clear across. */
-.sw-bg .sw-act{display:none}
-.sw-bg.dir-lead  .sw-lead {display:flex;flex:1}
-.sw-bg.dir-trail .sw-trail{display:flex;flex:1}
+.sw-acts{margin-left:auto;display:flex;align-items:stretch}
+/* Each button is the colour of the state it puts the job INTO — Postpone is the
+   Postponed group's own grey, To Focus is Next up's blue — so the panel says
+   where the job lands rather than just naming a verb. Off Focus lands nowhere,
+   so it takes the neutral. 44px minimum on both axes, per HIG. */
+.sw-btn{display:flex;align-items:center;justify-content:center;min-width:104px;
+ min-height:44px;padding:0 14px;border:0;font:700 12px/1 inherit;letter-spacing:.4px;
+ color:#fff;cursor:pointer;font-family:inherit}
+.sw-b-later{background:#64748B}
+.sw-b-off{background:#334155}
+.sw-b-focus{background:#38BDF8;color:#06283A}
+.sw-btn:active{filter:brightness(1.18)}
+/* One side at a time. The leading panel fills whatever the row uncovers, so
+   pulling further just shows more of the same colour rather than revealing the
+   other action sitting behind it — which is what happened when both were always
+   drawn and you swiped the row clear across. */
+.sw-bg .sw-act,.sw-bg .sw-acts{display:none}
+.sw-bg.dir-lead  .sw-lead{display:flex;flex:1}
+.sw-bg.dir-trail .sw-acts{display:flex}
 .sw-fg{position:relative;background:#0C1F30;will-change:transform}
 .sw-fg{touch-action:pan-y}
 .sw-fg.settling{transition:transform .18s cubic-bezier(.22,.61,.36,1)}
@@ -111,12 +135,12 @@ a{color:#0EA5E9}
    controls, where it belongs, and nowhere else. */
 .tab,.syschip,.sysmore,.ver-badge,.edit-toggle,.editbar button,.upd-btn,.ord button,.cp-edit,
 .cp-job,.addjob,.ed-chk,.ed-itembtns button,.ed-add button,.rev-hd,.entry-hdr,
-.nsec-hd,.yr-div,.fcard,.bt-chip{
+.nsec-hd,.yr-div,.fcard,.bt-chip,.sw-btn{
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 /* Feedback on tap is kept — removing it makes a control feel broken on a phone
    — but toned down from the default grey block flash. */
 .tab,.syschip,.sysmore,.ver-badge,.edit-toggle,.editbar button,.upd-btn,.ord button,.cp-edit,
-.cp-job,.addjob,.ed-chk,.ed-itembtns button,.ed-add button,.rev-hd,.entry-hdr{
+.cp-job,.addjob,.ed-chk,.ed-itembtns button,.ed-add button,.rev-hd,.entry-hdr,.sw-btn{
   -webkit-tap-highlight-color:rgba(56,189,248,.18)}
 .vessel-lbl{font:10px/1 monospace;letter-spacing:4px;color:#507490;margin-bottom:5px}
 h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bottom:4px}
@@ -680,7 +704,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.8.0";
+const APP_VERSION = "1.9.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -692,6 +716,18 @@ const APP_VERSION = "1.8.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.9.0", "14 Aug 2026", "Swipe left opens buttons instead of guessing",
+   "There are two different things you can mean by moving a job off the list — "
+ + "“not now” and “not something I’m tracking” — and one "
+ + "gesture cannot ask which. Swipe left now holds the row open and shows the "
+ + "choices as buttons: Postpone, Off Focus, or To Focus for a job that is "
+ + "already off. Tap one, or tap anywhere else to close it again. Only one row "
+ + "opens at a time, and swiping the open row back shuts it without doing "
+ + "anything — including if you overshoot, which cannot run on into completing "
+ + "the job. Swipe RIGHT is unchanged and still commits in one motion, because "
+ + "it is a single action and the common one. Each button is the colour of the "
+ + "state it puts the job into."],
+
   ["1.8.0", "14 Aug 2026", "Swipe on the Focus tab",
    "Focus cards swipe too now, which is where it was always most wanted: that "
  + "is the list you are trying to get shorter, so both actions clear the card "
@@ -917,7 +953,7 @@ function bStyle(b){
  *  a cheap and visible one: the job reappears under Next up where you can move
  *  it in a tap. Storing a hidden "priority before" on every entry would be a
  *  schema change earning its keep once. */
-const FOCUS_DEFAULT = "next";
+const FOCUS_DEFAULT = "next", POSTPONE_ID = "later";
 const hasPriority = id => !!(DOC && (DOC.priorities || []).some(p => p.id === id));
 const priorityLabel = id => {
   const p = DOC && (DOC.priorities || []).find(x => x.id === id);
@@ -927,6 +963,39 @@ const priorityLabel = id => {
  *  log has no priorities at all — in which case Focus cannot be joined. */
 const focusPriority = () => hasPriority(FOCUS_DEFAULT) ? FOCUS_DEFAULT
   : ((DOC && (DOC.priorities || [])[0] || {}).id || null);
+
+/** The action panel behind one swipeable row, built once for both the All Work
+ *  rows and the Focus cards so the two cannot drift apart.
+ *
+ *  Takes an entry in the display shape from allEntries() — `st` and `pri`, not
+ *  `status` and `priority`.
+ *
+ *  Which trailing buttons appear depends on where the job already is, so no
+ *  button is ever offered that would do nothing:
+ *    on Focus, not postponed  →  Postpone · Off Focus
+ *    on Focus, postponed      →  Off Focus          (Postpone is where it is)
+ *    not on Focus             →  To Focus
+ *    complete                 →  nothing            (Focus ignores it anyway)
+ *  Every priority id is guarded, because they are the log's own editable list. */
+function swipeBg(e){
+  const isA = e.st === "active";
+  const btns = [];
+  if (isA){
+    if (e.pri == null){
+      if (focusPriority()) btns.push(["focus", "To Focus", "sw-b-focus"]);
+    } else {
+      if (e.pri !== POSTPONE_ID && hasPriority(POSTPONE_ID))
+        btns.push(["later", "Postpone", "sw-b-later"]);
+      btns.push(["off", "Off Focus", "sw-b-off"]);
+    }
+  }
+  return `<div class="sw-bg">`
+       + `<div class="sw-act sw-lead">${isA ? "COMPLETE" : "REOPEN"}</div>`
+       + (btns.length ? `<div class="sw-acts">` + btns.map(([a, label, cls]) =>
+           `<button class="sw-btn ${cls}" data-swact="${a}" data-id="${esc(e.id)}"
+             >${label}</button>`).join("") + `</div>` : "")
+       + `</div>`;
+}
 
 const addJobRow = () =>
   (EDIT && DOC && !readOnly())
@@ -943,9 +1012,6 @@ function renderLog() {
   const canWrite = !!DOC && !readOnly();
   const canOrder = EDIT && canWrite;
   const canSwipe = canWrite;
-  // Taking a job OFF Focus is always possible; putting one on needs a priority
-  // to put it under, which a log with none at all does not have.
-  const canJoinFocus = canWrite && !!focusPriority();
 
   for (const yr of years) {
     const ye = entries.filter(e=>e.yr===yr);
@@ -966,12 +1032,7 @@ function renderLog() {
 
       html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
         <div class="sw-row">
-        ${canSwipe ? `<div class="sw-bg">
-          <div class="sw-act sw-lead">${isA ? "COMPLETE" : "REOPEN"}</div>
-          ${(isA && (e.pri || canJoinFocus))
-            ? `<div class="sw-act sw-trail">${e.pri ? "OFF FOCUS" : "TO FOCUS"}</div>`
-            : ""}
-        </div>` : ""}
+        ${canSwipe ? swipeBg(e) : ""}
         <div class="sw-fg"${canSwipe ? ` data-swipe="${esc(e.id)}"` : ""}>
         ${canOrder ? `<div class="ord">
           <button data-ord="up" data-id="${esc(e.id)}" title="move up"${idx===0?" disabled":""}>▲</button>
@@ -1020,9 +1081,11 @@ document.getElementById("log-content").addEventListener("click", function(e) {
   if (hdr) { const id=hdr.dataset.id; S.expanded[id]=!S.expanded[id]; renderLog(); return; }
 });
 
-/** Swipe a job row: right to complete or reopen it, left to postpone or resume it.
+/** Swipe a job row or a Focus card.
  *
- *  Neither one deletes. See the CSS block above for why.
+ *  RIGHT commits: complete, or reopen. LEFT opens a drawer of buttons and locks
+ *  there until you tap one or dismiss it. Nothing deletes. The CSS block near
+ *  the top of the file carries the reasoning for all three of those.
  *
  *  Pointer events rather than touch events, so a trackpad drag works the same as
  *  a finger and there is one code path instead of two.
@@ -1032,32 +1095,52 @@ document.getElementById("log-content").addEventListener("click", function(e) {
  *  vertical flick scrolls the list exactly as it always did. That test is the
  *  whole trick; without it a swipe implementation eats the scroll.
  *
- *  Committing needs 38% of the row's width. Below that it springs back, which is
- *  the iOS behaviour and means a hesitant swipe never does anything. Both actions
- *  are reversible by swiping the same row back the other way, and by Undo.
+ *  Travel is clamped: right to the row's own width, left to the drawer's, so a
+ *  hard flick cannot throw the row past the panel it is uncovering.
  *
- *  Travel is CLAMPED to the row's own width. Without it you could throw the row
- *  clear off its own background and see the far action sitting behind it, which
- *  says the swipe will do something it will not.
+ *  ONE DRAWER AT A TIME, and anything else you touch closes it — another row,
+ *  the card it belongs to, the start of a scroll. An open drawer that survives
+ *  the next tap is the failure mode this pattern is known for.
  */
 (function wireSwipe(){
-  const COMMIT = 0.38, CLAIM = 10;
+  const COMMIT = 0.38, CLAIM = 10, LOCK = 0.4;
   let fg = null, id = null, x0 = 0, y0 = 0, live = false, dx = 0, swallow = false;
+  let open = null;                       // the .sw-fg currently locked open
+  let fromOpen = false;                  // this gesture began on the open row
+
+  const bgOf = el => {
+    const bg = el.previousElementSibling;
+    return bg && bg.classList.contains("sw-bg") ? bg : null;
+  };
+  /** How far left this row can travel: the width of its buttons, or 0 if it has
+   *  none — a row with no trailing action simply does not pull that way. */
+  const drawerW = el => {
+    const bg = bgOf(el), acts = bg && bg.querySelector(".sw-acts");
+    if (!acts) return 0;
+    bg.classList.add("dir-trail");       // it must be laid out to be measured
+    return acts.offsetWidth;
+  };
+  const closeDrawer = () => {
+    if (!open) return;
+    const el = open; open = null;
+    el.classList.add("settling");
+    el.style.transform = "";
+    const bg = bgOf(el);
+    setTimeout(() => {
+      el.classList.remove("settling");
+      if (bg && el !== open) bg.classList.remove("dir-lead", "dir-trail");
+    }, 200);
+  };
 
   const armed = () => Math.abs(dx) >= fg.offsetWidth * COMMIT;
   const paint = () => {
-    const bg = fg.previousElementSibling;
-    const hasBg = bg && bg.classList.contains("sw-bg");
-    // A side with no action behind it does not open. That is the log whose owner
-    // deleted the Postponed priority: the row simply will not pull that way,
-    // rather than sliding across to show a blank panel that does nothing.
-    const act = hasBg && bg.querySelector(dx > 0 ? ".sw-lead" : ".sw-trail");
-    if (dx !== 0 && hasBg && !act) dx = 0;
+    const bg = bgOf(fg);
     fg.style.transform = dx ? `translateX(${dx}px)` : "";
-    if (!hasBg) return;
+    if (!bg) return;
     bg.classList.toggle("dir-lead",  dx > 0);
     bg.classList.toggle("dir-trail", dx < 0);
-    if (act) act.classList.toggle("armed", armed());
+    const lead = bg.querySelector(".sw-lead");
+    if (lead) lead.classList.toggle("armed", dx > 0 && armed());
   };
   const settle = () => {
     fg.classList.add("settling");
@@ -1071,11 +1154,18 @@ document.getElementById("log-content").addEventListener("click", function(e) {
     // tap. Clearing here rather than on a timer keeps it exact.
     swallow = false;
     if (!DOC || readOnly()) return;
+    // A tap on a drawer button is that button's, not a new gesture. Everything
+    // else that is not inside the open row closes it first.
+    if (ev.target.closest("[data-swact]")) return;
+    // Touching anything outside the open row dismisses it, and that touch does
+    // nothing else — the same as tapping away from an open drawer in Mail.
+    if (open && !open.contains(ev.target)){ closeDrawer(); swallow = true; }
     // Not on the reorder arrows, and not on a text selection the user is making.
     if (ev.target.closest("[data-ord]")) return;
     const el = ev.target.closest("[data-swipe]");
     if (!el) return;
     fg = el; id = el.dataset.swipe; x0 = ev.clientX; y0 = ev.clientY; live = false; dx = 0;
+    fromOpen = open === el;
   });
 
   document.addEventListener("pointermove", ev => {
@@ -1084,30 +1174,56 @@ document.getElementById("log-content").addEventListener("click", function(e) {
     if (!live){
       if (Math.abs(ax) < CLAIM || Math.abs(ax) <= Math.abs(ay)) {
         // Vertical, or not yet decided. Let go entirely if it is clearly a scroll.
-        if (Math.abs(ay) > CLAIM) fg = null;
+        if (Math.abs(ay) > CLAIM){ fg = null; closeDrawer(); }
         return;
       }
       live = true;
       fg.setPointerCapture(ev.pointerId);
       fg.classList.remove("settling");
     }
-    // Clamped to the row's width: past that there is nothing left to uncover,
-    // and letting it keep going exposed the other action behind the row.
-    const w = fg.offsetWidth;
-    dx = Math.max(-w, Math.min(w, ax));
+    // Each direction is clamped to what it can actually uncover. Swiping the
+    // already-open row rightwards pushes the drawer shut rather than dragging
+    // the row off into empty space.
+    const w = drawerW(fg);
+    const from = fromOpen ? -w : 0;
+    // From the open position the row can only travel back to shut — it must not
+    // run on into a rightward COMPLETE, or overshooting a dismiss would finish
+    // the job.
+    dx = Math.max(-w, Math.min(fromOpen ? 0 : fg.offsetWidth, from + ax));
     paint();
   });
 
   const finish = ev => {
     if (!fg) return;
-    const el = fg, commit = live && armed(), right = dx > 0;
+    const el = fg, wasLive = live, right = dx > 0, commit = live && armed();
     if (live) { try { el.releasePointerCapture(ev.pointerId); } catch {} }
     const jid = id;
     fg = null; id = null;
-    if (!live) return;
+    if (!wasLive){
+      // A tap, not a drag. If this row's own drawer was open under it, the tap
+      // dismisses it instead of opening the job.
+      if (open === el){ closeDrawer(); swallow = true; }
+      return;
+    }
     live = false;
     swallow = true;
-    if (!commit){ fg = el; settle(); fg = null; return; }
+
+    if (dx < 0){
+      // Trailing: lock open past the threshold, otherwise fall shut. Never acts.
+      const w = drawerW(el);
+      if (w && Math.abs(dx) >= w * LOCK){
+        open = el;
+        el.classList.add("settling");
+        el.style.transform = `translateX(${-w}px)`;
+        setTimeout(() => el.classList.remove("settling"), 200);
+      } else {
+        open = (open === el) ? null : open;
+        fg = el; settle(); fg = null;
+      }
+      return;
+    }
+    if (open === el) open = null;        // pushed shut from the open position
+    if (fromOpen || !commit){ fg = el; settle(); fg = null; return; }
 
     const e = findEntry(jid);
     if (!e){ el.style.transform = ""; return; }
@@ -1115,26 +1231,34 @@ document.getElementById("log-content").addEventListener("click", function(e) {
       const nowComplete = e.status !== "complete";
       mutate(() => { e.status = nowComplete ? "complete" : "active"; });
       setEditStatus(`${e.id} marked ${nowComplete ? "complete" : "active"}`);
-    } else if (e.status === "complete"){
-      // No trailing action on a completed job: Focus does not show it whatever
-      // its priority, so "off Focus" would be a label for nothing happening.
-      el.style.transform = "";
-    } else if (e.priority != null){
-      // Off the Focus list. The job is untouched otherwise — still active, still
-      // in All Work, still in the record. This is the "not something I am
-      // tracking" state, and it is the one people mean by getting a job off
-      // their list.
-      mutate(() => { e.priority = null; });
-      setEditStatus(`${e.id} taken off Focus — still here in All Work`);
-    } else {
-      const to = focusPriority();
-      if (!to){ el.style.transform = ""; return; }
-      mutate(() => { e.priority = to; });
-      setEditStatus(`${e.id} back on Focus, under ${priorityLabel(to)}`);
     }
   };
   document.addEventListener("pointerup", finish);
   document.addEventListener("pointercancel", finish);
+
+  /** The drawer's buttons. Each one is also reachable in the job editor; this is
+   *  the accelerator, so it says plainly what it did and Undo catches it. */
+  document.addEventListener("click", ev => {
+    const b = ev.target.closest && ev.target.closest("[data-swact]");
+    if (!b) return;
+    ev.stopImmediatePropagation(); ev.preventDefault();
+    open = null; swallow = false;
+    const e = findEntry(b.dataset.id);
+    if (!e) return;
+    if (b.dataset.swact === "off"){
+      mutate(() => { e.priority = null; });
+      setEditStatus(`${e.id} taken off Focus — still here in All Work`);
+    } else if (b.dataset.swact === "later"){
+      if (!hasPriority(POSTPONE_ID)) return;
+      mutate(() => { e.priority = POSTPONE_ID; });
+      setEditStatus(`${e.id} postponed — still on Focus, at the bottom`);
+    } else {
+      const to = focusPriority();
+      if (!to) return;
+      mutate(() => { e.priority = to; });
+      setEditStatus(`${e.id} back on Focus, under ${priorityLabel(to)}`);
+    }
+  }, true);
 
   // A swipe that springs back still ends in a click on whatever was under the
   // finger, and in the ordinary list that is the row header — so an abandoned
@@ -1351,18 +1475,12 @@ function renderFocus(){
         </div>
         ${nextStep ? `<div class="fcn"><span class="box">next &rsaquo;</span> ${esc(nextStep)}</div>` : ""}
       </div>`;
-      // Both actions REMOVE the card from this tab, which is the point of having
-      // them here: Focus is the list you are trying to get shorter, so the
-      // feedback is the card leaving. Neither label needs a second state —
-      // everything on Focus is open (so it is always COMPLETE, never REOPEN) and
-      // on the list (so it is always OFF FOCUS, never TO FOCUS). Putting a job
-      // back is All Work's job, because that is where you can see it again.
+      // Everything a swipe does here takes the card off this tab, which is the
+      // point of having it here: Focus is the list you are trying to get
+      // shorter, so the feedback is the card leaving. Putting a job back is All
+      // Work's job, because that is where you can see it again.
       h += canSwipe
-        ? `<div class="sw-row fsw ${key}">
-             <div class="sw-bg">
-               <div class="sw-act sw-lead">COMPLETE</div>
-               <div class="sw-act sw-trail">OFF FOCUS</div>
-             </div>
+        ? `<div class="sw-row fsw ${key}">${swipeBg(e)}
              <div class="sw-fg" data-swipe="${esc(e.id)}">${card}</div>
            </div>`
         : card;
@@ -3478,15 +3596,23 @@ function renderHelp(){
     <div class="hp">Job rows and Focus cards can both be swiped, the way a mail
       app works. No need to turn on editing.
       <p><b>Swipe right</b> to mark it complete — or to reopen it if it already
-      is. <b>Swipe left</b> to take it off the <b>Focus</b> tab, and swipe left
-      again to put it back under <i>Next up</i>.</p>
-      <p>On <b>Focus</b> itself both swipes clear the card off the screen, which
-      is the point — that list is the one you are trying to get shorter. Putting
-      a job back is done from <b>All Work</b>, where you can see it again.</p>
-      <p>You have to carry the row about a third of the way across. Let go short
-      of that and it springs back and nothing happens, which is deliberate: a
-      half-hearted swipe should never do anything. Scrolling up and down is
-      unaffected.</p>
+      is. That one happens as soon as you let go: carry the row about a third of
+      the way across, and short of that it springs back and nothing happens.</p>
+      <p><b>Swipe left</b> and the row stays open, showing buttons. Tap the one
+      you want:</p>
+      <ul class="hp-list">
+        <li><b>Postpone</b> — stays on Focus, in the grey group at the bottom.
+          "Not now."</li>
+        <li><b>Off Focus</b> — off the Focus tab altogether, still in All Work.
+          "Not something I'm tracking."</li>
+        <li><b>To Focus</b> — for a job that is off the list, puts it back under
+          <i>Next up</i>.</li>
+      </ul>
+      <p>Tap anywhere else, or swipe the row back, to close it again without
+      doing anything. Only one row opens at a time.</p>
+      <p>On <b>Focus</b> itself every one of these takes the card off the screen,
+      which is the point — that list is the one you are trying to get shorter.
+      Scrolling up and down is unaffected throughout.</p>
       <p><b>Nothing here deletes.</b> A swipe is easy to make by accident and
       this is a record of work done, so the worst a slip can do is take a job
       off Focus — which the same swipe puts back. Deleting a job is in the job
