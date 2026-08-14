@@ -239,6 +239,13 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .editbar button:hover:not(:disabled){background:#12324B;color:#E4F2FF}
 .editbar button:disabled{opacity:.4;cursor:default}
 .eb-dirty{color:#FBBF24;font-size:11px;font-weight:600}
+/* The add row sits at the top of the list it adds to, rather than in a toolbar.
+   Dashed, because it is a placeholder for a job that does not exist yet — the
+   same language as .editing .entry, which goes dashed while editable. */
+.addjob{display:block;width:100%;margin:0 0 12px;padding:11px;cursor:pointer;
+ background:transparent;border:1px dashed #3F2D06;border-radius:8px;
+ color:#F59E0B;font-size:12.5px;font-weight:600;font-family:inherit;text-align:center}
+.addjob:hover{background:#14100A;border-color:#F59E0B}
 .edit-status{font-size:11px;color:#6E93B0;flex:1;min-width:100%}
 .edit-status.bad{color:#FCA5A5;font-weight:600}
 .editing .entry-hdr{cursor:pointer}
@@ -392,12 +399,13 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
     <button class="tab" data-f="help">Help</button>
   </nav>
   <div class="sysbar" id="sysbar"></div>
+  <!-- Undo is the only thing here that belongs to no particular place: it acts on
+       whatever you last did, so it has to live above everything. The rest moved to
+       where the thing itself is — New job to the top of the list, Boat details to
+       the Boat tab (which IS the editor in edit mode), Import next to Export on
+       Updates. A toolbar of things that live elsewhere is just a second menu. -->
   <div class="editbar" id="editbar">
-    <button id="eb-add">+ New job</button>
-    <button id="eb-manage">Boat details</button>
     <button id="eb-undo">Undo</button>
-    <button id="eb-import">Import…</button>
-    <button id="eb-export">Export</button>
     <span class="eb-dirty" id="eb-dirty" title="edited on this device, not published">● local edits</span>
     <span class="edit-status" id="edit-status"></span>
   </div>
@@ -528,7 +536,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
 const APP_REPO = "Chriscc1234/boat-maintenance-log";   // enables the update check
 
 // Put the boat's name on the lock screen if this device has seen it before.
@@ -639,10 +647,17 @@ function bStyle(b){
   return "";
 }
 
+/** The one place a job gets created. Rendered at the top of whichever list of
+ *  jobs you are looking at, so "add one" is next to the ones you are reading
+ *  rather than in a toolbar that has to be found first. */
+const addJobRow = () =>
+  (EDIT && DOC && !readOnly())
+    ? `<button class="addjob" data-addjob="1">+ New job</button>` : "";
+
 function renderLog() {
   const entries = shown();
   const years = [...new Set(entries.map(e=>e.yr))].sort();
-  let html = "";
+  let html = addJobRow();
 
   for (const yr of years) {
     const ye = entries.filter(e=>e.yr===yr);
@@ -687,6 +702,7 @@ function renderLog() {
 // LOG INTERACTIONS (event delegation)
 // ═══════════════════════════════════════════════════════
 document.getElementById("log-content").addEventListener("click", function(e) {
+  if (e.target.closest("[data-addjob]")) { addEntry(); return; }
   const hdr = e.target.closest(".entry-hdr");
   if (hdr) { const id=hdr.dataset.id; S.expanded[id]=!S.expanded[id]; renderLog(); return; }
 });
@@ -802,7 +818,11 @@ function renderFocus(){
   }
 
   if (!h) h = `<div style="text-align:center;color:#507490;padding:60px 20px">Nothing flagged yet.</div>`;
-  box.innerHTML = h;
+  // Focus shows only jobs that carry a priority, so a brand new one will not
+  // appear here — addEntry switches to All Work and opens it, which is where it
+  // needs to be edited anyway. Offering it from Focus still beats making
+  // someone change tab first to find the button.
+  box.innerHTML = addJobRow() + h;
 
   const c = {};
   ["now","next","blocked","later"].forEach(k => c[k] = all.filter(e=>e.pri===k).length);
@@ -978,13 +998,17 @@ function renderUpdates(){
       <div class="upd-cur">Showing <strong>${esc(VERSION)}</strong> <span>(${esc(REV_DATE)})</span></div>
       <button class="upd-btn" id="upd-btn">Check for updates</button>
       ${DOC ? `<button class="upd-btn" id="exp-btn">Export a backup</button>` : ""}
+      ${DOC && !readOnly() ? `<button class="upd-btn" id="imp-btn">Restore from a backup…</button>` : ""}
       <div class="upd-status" id="upd-status"></div>
     </div>
     ${DOC ? `<div class="up-intro" style="margin-top:-4px">The backup is the whole log as
       plain, readable JSON — every entry, category and voyage. It is <strong>not
       encrypted</strong>, so keep it somewhere you would keep the passphrase.
       <code>DATA-FORMAT.md</code> in the app's repository describes the file, so a
-      person or an AI can edit it and hand it back.</div>` : ""}
+      person or an AI can edit it and hand it back.${readOnly() ? "" :
+      ` Restoring <strong>replaces the whole log</strong> with the file you pick —
+      it is checked first, it tells you how many entries it is about to swap in,
+      and Undo reverses it.`}</div>` : ""}
     ${readOnly() ? `<div class="up-intro" style="color:#FBBF24">You are viewing a
       <strong>read-only share</strong> of this log. It updates when the owner
       changes it. You cannot edit it, and the server will not accept changes
@@ -1171,6 +1195,9 @@ document.addEventListener("visibilitychange", function(){
 document.addEventListener("click", function(e){
   if (e.target && e.target.id === "upd-btn") checkForUpdate(false);
   if (e.target && e.target.id === "exp-btn") exportDocument();
+  if (e.target && e.target.id === "imp-btn"){
+    const f = document.getElementById("eb-file"); if (f) f.click();
+  }
   if (e.target && e.target.id === "signout-btn") signOut();
   if (e.target && e.target.id === "rev-btn") recordRevision();
 });
@@ -1392,6 +1419,11 @@ function validateDocument(doc) {
         E(`${iat} has role "step" but is a note — steps must be tasks to be tickable`);
       if (it.role != null && !isCp)
         W(`${iat} has role "${it.role}" but its entry is not the critical path, so it renders as a plain bullet`);
+      // A leading ☐/☑ is how the OLD format carried task state, inside the text.
+      // Left in place it renders next to the checkbox the app draws from `done`,
+      // so the line shows two boxes that can disagree with each other.
+      if (typeof it.text === "string" && /^\s*[☐☑]/.test(it.text))
+        W(`${iat}.text starts with a checkbox character — task state belongs in done, not in the text`);
     });
   };
 
@@ -1426,6 +1458,19 @@ function validateDocument(doc) {
 
   if (criticalPaths > 1)
     E(`${criticalPaths} entries have role "critical-path" — only one can be pinned`);
+
+  // The app sorts on read, so an out-of-order file still displays correctly.
+  // It is reported anyway because a hand-edited file that disagrees with the
+  // order on screen is confusing to edit again, and it usually means a new
+  // entry was appended rather than placed.
+  for (let i = 1; i < doc.entries.length; i++) {
+    const a = doc.entries[i-1], b = doc.entries[i];
+    if (a && b && a.sortKey && b.sortKey && a.sortKey.localeCompare(b.sortKey) > 0) {
+      W(`entries are not in sortKey order — "${b.id}" (${b.sortKey}) follows ` +
+        `"${a.id}" (${a.sortKey}). The app sorts on read, so this is cosmetic.`);
+      break;
+    }
+  }
 
   // ── voyages ─────────────────────────────────────────────────────────────
   const vids = new Set();
@@ -2329,7 +2374,13 @@ async function checkAppVersion(){
 // anything, and the current one is left exactly as it was.
 // ═══════════════════════════════════════════════════════
 function importDocument(file){
-  const say = (m, bad) => setEditStatus(m, bad);
+  // Import is reachable from the Updates tab without edit mode being on, and the
+  // edit bar — where setEditStatus writes — is hidden then. So say it in both
+  // places; whichever one is on screen is the one that gets read.
+  const say = (m, bad) => {
+    setEditStatus(m, bad);
+    if (document.getElementById("upd-status")) setUpdStatus(m, bad ? "warn" : "ok");
+  };
   const rd = new FileReader();
   rd.onerror = () => say("Could not read that file", true);
   rd.onload = () => {
@@ -2370,7 +2421,12 @@ function setEditStatus(msg, bad){
   if (!el) return;
   el.textContent = msg || "";
   el.classList.toggle("bad", !!bad);
-  if (msg && !bad) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 4000);
+  // The bar is now conditional on having something to show, and a status
+  // message is one of those things — so setting or clearing one has to re-ask.
+  updateEditBar();
+  if (msg && !bad) setTimeout(() => {
+    if (el.textContent === msg){ el.textContent = ""; updateEditBar(); }
+  }, 4000);
 }
 
 function updateEditBar(){
@@ -2383,16 +2439,24 @@ function updateEditBar(){
     tog.style.display = readOnly() ? "none" : "";
   }
   if (!bar) return;
-  bar.classList.toggle("on", EDIT);
   const u = document.getElementById("eb-undo");
   if (u) u.disabled = !UNDO.length;
   const d = document.getElementById("eb-dirty");
+  const dirty = SYNC ? PUSH_PENDING : LOCAL_EDITS;
   if (d){
     // With syncing on, "local edits" means UNSENT — a much more useful thing to
     // show than "differs from the published copy", which is always true.
-    d.style.display = (SYNC ? PUSH_PENDING : LOCAL_EDITS) ? "" : "none";
+    d.style.display = dirty ? "" : "none";
     d.textContent = SYNC ? "\u25CF not yet synced" : "\u25CF local edits";
   }
+  // The bar earns its row or it does not get one. With everything else moved out
+  // of it, entering edit mode was costing a full-width strip holding a single
+  // greyed-out Undo — pure chrome above a list already fighting for vertical
+  // space on a phone. It appears the moment there is something to undo or
+  // report, which is the only time it has anything to say.
+  const st = document.getElementById("edit-status");
+  bar.classList.toggle("on",
+    !!(EDIT && (UNDO.length || dirty || (st && st.textContent))));
   document.body.classList.toggle("editing", EDIT);
 }
 
@@ -2630,13 +2694,16 @@ function renderHelp(){
     <div class="up-sec">Changing things</div>
     <div class="hp">
       <p>Press <b>Edit</b>, top right. The header turns amber so you can tell at a
-      glance, and a row of buttons appears. Press <b>Done editing</b> to go back.</p>
-      <p><b>+ New job</b> adds one. Open a job while editing and you can change its
-      title, category, priority, dates, and every line in it.</p>
+      glance. Press <b>Done editing</b> to go back.</p>
+      <p>Everything then becomes editable where it already sits — there is no
+      separate settings screen to go and find.</p>
+      <p><b>+ New job</b> appears at the top of Focus and All Work. Open any job
+      while editing and you can change its title, category, priority, dates, and
+      every line in it.</p>
       <p>The round button on the left of each line cycles it:
       <b>note → task to do → task done</b>.</p>
-      <p><b>Boat details</b> is where the vessel's information, the categories and
-      the passwords live.</p>
+      <p>The <b>Boat</b> tab becomes the editor for the vessel's details, the
+      categories and the passwords.</p>
       <p>One job can be <b>pinned to the top of Focus as the plan</b> — a goal, a
       numbered list of what has to happen, and what is holding it up. Open the job
       while editing, tick the box under "Focus tab", then mark its lines as
@@ -2653,18 +2720,21 @@ function renderHelp(){
       in five years.</p></div>
 
     <div class="up-sec">Backups</div>
-    <div class="hp"><b>Export</b>, on the Updates tab, saves the whole log as a
-      file. Do it now and then and keep it somewhere else — a computer, a cloud
-      drive, an email to yourself.
+    <div class="hp"><b>Export a backup</b>, on the Updates tab, saves the whole log
+      as a file. Do it now and then and keep it somewhere else — a computer, a
+      cloud drive, an email to yourself.
       <p>The log is on your device and on the server. That covers a lot, but not
-      "I deleted it by accident three weeks ago". The export does.</p></div>
+      "I deleted it by accident three weeks ago". The export does.</p>
+      <p><b>Restore from a backup</b> is next to it, and puts one back. It replaces
+      the whole log, checks the file first, tells you how many entries it is about
+      to swap in, and Undo reverses it.</p></div>
 
     <div class="up-sec">Passwords</div>
     <div class="hp">There are two. The <b>full</b> one changes the log; the
       <b>read-only</b> one just looks. Hand out the read-only one — someone using
       it can't alter anything, and that's enforced by the server rather than by the
       app being polite about it.
-      <p>Both are under Boat details while editing. There is no password reset;
+      <p>Both are on the Boat tab while editing. There is no password reset;
       the recovery code issued at setup is the way back in.</p></div>
 
     <div class="up-sec">Sharing and other devices</div>
@@ -2751,8 +2821,8 @@ function renderBoat(){
 
     <div class="up-intro" style="margin-top:16px">${readOnly()
       ? "You are viewing a read-only share, so none of this can be changed here."
-      : "To change any of this, turn on editing — press and hold the version badge " +
-        "next to the title, or double-click it."}</div>`;
+      : "To change any of this — the details, the categories or the passwords — " +
+        "press <b>Edit</b> at the top. This tab becomes the editor."}</div>`;
 
   document.getElementById("meta").innerHTML =
     `${esc(v.name || "Boat")} &ensp;·&ensp; ${counts.entries} jobs &ensp;·&ensp; ` +
@@ -3383,20 +3453,11 @@ function applyDocument(d){
   if (typeof d.notes === "string" && d.notes) NOTES = d.notes;
 }
 
-// Wire the edit bar once. The toggle lives on the version badge's neighbour so
-// it is reachable but not in the reading view's way.
+// Wire the edit bar once. Undo is all that is left on it — everything else went
+// to where the thing it acts on already lives (see the markup for which).
 (function wireEditBar(){
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
-  on("eb-add",    () => addEntry());
-  on("eb-manage", () => {
-    S.filter = "boat";
-    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.f === "boat"));
-    renderBoat();
-    syncTabStrip();
-  });
   on("eb-undo",   () => undo());
-  on("eb-export", () => exportDocument());
-  on("eb-import", () => { const f = document.getElementById("eb-file"); if (f) f.click(); });
   const icon = document.getElementById("icon-file");
   if (icon) icon.addEventListener("change", async () => {
     const f = icon.files && icon.files[0];

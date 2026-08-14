@@ -78,6 +78,24 @@ meaningfully, and add a matching row to `revisions`.
 `convertedFrom` is provenance from the original one-off conversion. It is
 informational and may be absent.
 
+### `document.pending` — the app's own, leave it alone
+
+You may find a `pending` key here:
+
+```json
+"pending": { "added": ["e059"], "edited": ["e012"], "removed": [], "other": ["Boat details"] }
+```
+
+This is the app's change tracking, not part of the log. It accumulates as edits
+are made, drives the "N changes since the last revision" line on the Updates tab
+and the draft revision text, and **the app deletes the key** once a revision is
+recorded.
+
+**Do not maintain it and do not clear it.** If it is there when you open a file,
+it describes edits somebody made in the app before yours, which is still true.
+Leaving it untouched is exactly right. Add a `revisions` row for your own changes
+in the normal way.
+
 ---
 
 ## `vessel` — who the boat is

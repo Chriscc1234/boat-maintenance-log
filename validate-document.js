@@ -95,6 +95,11 @@ function validateDocument(doc) {
         E(`${iat} has role "step" but is a note — steps must be tasks to be tickable`);
       if (it.role != null && !isCp)
         W(`${iat} has role "${it.role}" but its entry is not the critical path, so it renders as a plain bullet`);
+      // A leading ☐/☑ is how the OLD format carried task state, inside the text.
+      // Left in place it renders next to the checkbox the app draws from `done`,
+      // so the line shows two boxes that can disagree with each other.
+      if (typeof it.text === "string" && /^\s*[☐☑]/.test(it.text))
+        W(`${iat}.text starts with a checkbox character — task state belongs in done, not in the text`);
     });
   };
 
@@ -129,6 +134,19 @@ function validateDocument(doc) {
 
   if (criticalPaths > 1)
     E(`${criticalPaths} entries have role "critical-path" — only one can be pinned`);
+
+  // The app sorts on read, so an out-of-order file still displays correctly.
+  // It is reported anyway because a hand-edited file that disagrees with the
+  // order on screen is confusing to edit again, and it usually means a new
+  // entry was appended rather than placed.
+  for (let i = 1; i < doc.entries.length; i++) {
+    const a = doc.entries[i-1], b = doc.entries[i];
+    if (a && b && a.sortKey && b.sortKey && a.sortKey.localeCompare(b.sortKey) > 0) {
+      W(`entries are not in sortKey order — "${b.id}" (${b.sortKey}) follows ` +
+        `"${a.id}" (${a.sortKey}). The app sorts on read, so this is cosmetic.`);
+      break;
+    }
+  }
 
   // ── voyages ─────────────────────────────────────────────────────────────
   const vids = new Set();
