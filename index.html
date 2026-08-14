@@ -244,6 +244,18 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .upd-btn{margin-left:auto;background:none;border:1px solid #1E4A6B;color:#8FB4CE;border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font:inherit;font-size:12px}
 .upd-btn:hover{color:#E4F2FF;border-color:#38BDF8}
 .upd-btn:disabled{opacity:.45;cursor:default}
+/* The facts about THIS device, laid out so they can be read off and quoted.
+   Every diagnosis in this app's history has needed them and none of them were
+   anywhere on screen. */
+.dev-facts{margin:10px 0 4px;font-size:12.5px}
+.dev-facts div{display:flex;gap:10px;padding:3px 0;border-bottom:1px solid #10293D}
+.dev-facts span{color:#6E93B0;min-width:150px}
+.dev-facts b{color:#C8DCF0;font-weight:600;word-break:break-all}
+.dev-facts b.ok{color:#34D399}
+.dev-facts b.warn{color:#FBBF24}
+.dev-warn{margin:10px 0 4px;padding:11px 13px;border:1px solid #7C4A12;
+ background:rgba(251,191,36,.07);border-radius:7px;color:#F5D9A8;font-size:13px;line-height:1.55}
+.dev-warn strong{color:#FBBF24}
 .upd-status{flex:1 1 100%;font-size:12px;color:#6E93B0;min-height:0}
 .upd-status:empty{display:none}
 .upd-status.ok{color:#86EFAC}
@@ -704,7 +716,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.10.1";
+const APP_VERSION = "1.11.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -716,6 +728,18 @@ const APP_VERSION = "1.10.1";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.11.0", "14 Aug 2026", "This device says what it is doing",
+   "Two devices showing different revision numbers means one of them is not "
+ + "syncing, and the app barely said so — eight words at the end of a sentence, "
+ + "easy to read past. The Updates tab now states it plainly: whether this "
+ + "device syncs, its log id, which server, whether it can write, the last "
+ + "revision it saw, and whether anything is waiting to go out. If it is not "
+ + "syncing it says what that costs — the device drifts and stays drifted — and "
+ + "offers to connect it. And the update button no longer answers "
+ + "\u201cUnlock first\u201d when the real answer is that there is nothing to "
+ + "sync with; that one message sent three rounds of debugging at the wrong "
+ + "problem."],
+
   ["1.10.1", "14 Aug 2026", "Why none of those fixes had reached you",
    "The service worker's cache name had not changed since before any of the last "
  + "six releases. An installed app on iOS that is RESUMED never re-runs the page "
@@ -1853,7 +1877,28 @@ function renderUpdates(){
       from this device.</div>` : ""}
     <div class="up-sec">This device</div>
     <div class="up-intro">Signed in to <strong>${esc((DOC && DOC.vessel && DOC.vessel.name) || "this log")}</strong>${
-      readOnly() ? " (read-only)" : ""}.${SYNC ? "" : " Not synced — this device holds the only copy."}
+      readOnly() ? " (read-only)" : ""}.
+      ${SYNC
+        ? `<div class="dev-facts">
+             <div><span>Syncing</span><b class="ok">yes</b></div>
+             <div><span>Log id</span><b>${esc(SYNC.logId)}</b></div>
+             <div><span>Server</span><b>${esc(SYNC.url)}</b></div>
+             <div><span>Can write</span><b>${SYNC.writeKey ? "yes" : "no — read-only"}</b></div>
+             <div><span>Server revision seen</span><b>${esc(String(REMOTE_REV || 0))}</b></div>
+             <div><span>Unsent changes</span><b class="${PUSH_PENDING ? "warn" : "ok"}">${
+               PUSH_PENDING ? "yes" : "none"}</b></div>
+           </div>`
+        /* This is the state that explains "my two devices show different
+           numbers". It used to be eight words at the end of a sentence, easy to
+           read past — and reading past it costs you the assumption that your
+           devices are talking to each other, which is the whole point. */
+        : `<div class="dev-warn"><strong>This device is not syncing.</strong>
+             It holds its own copy of the log, and nothing you change here
+             reaches your other devices — or arrives from them. Two devices in
+             this state drift apart and stay apart, each showing a different
+             revision number.
+             ${readOnly() ? "" : `<button class="upd-btn" id="join-btn">Connect this device…</button>`}
+           </div>`}
       <button class="upd-btn" id="signout-btn">Sign out</button></div>
     <div class="up-sec">This app</div>
     <div class="up-intro">Version <strong>${esc(APP_VERSION)}</strong> — the app itself,
@@ -2060,8 +2105,15 @@ document.addEventListener("visibilitychange", function(){
 
 document.addEventListener("click", function(e){
   if (e.target && e.target.id === "upd-btn"){
-    if (!SYNC) return checkForUpdate(false);
     checkForNewShell();     // pressing it should also look for a new APP
+    if (!SYNC){
+      // It used to fall through to the retired published-file check, which
+      // answered "Unlock first" — a message about the wrong thing entirely, and
+      // the reason this took three rounds to find. Say what is actually true.
+      setUpdStatus("This device is not syncing, so there is nothing to fetch. "
+                 + "Use “Connect this device” below.", "warn");
+      return;
+    }
     // The button lives on the Updates tab, so its answer has to appear there —
     // setSyncStatus writes to the pill at the bottom, which is the wrong place
     // to look when you have just pressed a button at the top.
@@ -2083,6 +2135,18 @@ document.addEventListener("click", function(e){
         (st === "conflict" || st === "denied") ? "warn"
         : (st === "queued" || st === "offline") ? "warn" : "ok");
     }).finally(() => { btn.disabled = false; });
+    return;
+  }
+  // Rather than a second copy of the join flow, go to where it already lives.
+  // Turning edit mode on is what puts the Boat tab into its editor, and the
+  // Syncing section with "Turn on syncing" is in there.
+  if (e.target && e.target.id === "join-btn"){
+    if (!EDIT) toggleEdit();
+    S.filter = "boat";
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.f === "boat"));
+    renderCurrent(); syncTabStrip();
+    const el = document.querySelector(".mg-sync, [data-mact='sync-on']");
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior:"smooth", block:"center" });
     return;
   }
   if (e.target && e.target.id === "exp-btn") exportDocument();
