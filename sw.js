@@ -2,16 +2,33 @@
 // Strategy: NETWORK FIRST, falling back to cache.
 //   Online  -> always fetches the latest page, then refreshes the cached copy.
 //   Offline -> serves the last good copy from cache.
-// Bump CACHE_NAME whenever you want to force every device to drop its old cache.
+// CACHE_NAME IS STAMPED BY build-app.sh FROM APP_VERSION. Do not hand-edit it,
+// and do not "tidy" the stamp away.
+//
+// Why it is generated rather than bumped by hand: it was NOT bumped by hand,
+// for six releases (1.5.0 through 1.10.0), and that is the whole reason changes
+// stopped reaching Chris's iPad. The chain matters —
+//
+//   an installed iOS app that is RESUMED never re-runs the page load, so the
+//   JavaScript already in memory keeps running however new the server copy is;
+//   the only thing that reliably replaces it is a NEW SERVICE WORKER, which the
+//   browser only notices when THIS FILE'S BYTES CHANGE; and the only thing in
+//   here that changes per release is this string.
+//
+// So a release that does not change this string cannot reach an installed
+// device that is never force-quit. The fix is not to remember — it is to make
+// the string a function of the version, which build-app.sh now does.
+const CACHE_NAME = "boatlog-1.10.1";   // stamped at build
 
-// Bumping this name is what makes every device drop its cached shell.
-// is what makes devices drop the old ones.
-const CACHE_NAME = "boatlog-v12";
+// NO data.enc. It belongs to the retired published-file design and 404s on a
+// synced deployment — and cache.addAll REJECTS THE WHOLE LIST if any single
+// entry fails, so listing it meant nothing was pre-cached at all and the first
+// offline load had no shell to fall back to. The catch below hid that
+// completely, which is how it survived this long.
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./data.enc",
   "./icon-192.png",
   "./icon-512.png"
 ];
@@ -20,9 +37,13 @@ const ASSETS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS))
+      // Individually, so one missing asset costs only that asset. addAll is
+      // all-or-nothing and that is the wrong trade for a shell.
+      .then((cache) => Promise.all(
+        ASSETS.map((a) => cache.add(a).catch(() => {}))
+      ))
       .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())   // don't block install if one asset 404s
+      .catch(() => self.skipWaiting())
   );
 });
 

@@ -704,7 +704,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.10.0";
+const APP_VERSION = "1.10.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -716,6 +716,19 @@ const APP_VERSION = "1.10.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.10.1", "14 Aug 2026", "Why none of those fixes had reached you",
+   "The service worker's cache name had not changed since before any of the last "
+ + "six releases. An installed app on iOS that is RESUMED never re-runs the page "
+ + "load, so the code already in memory keeps running however new the server "
+ + "copy is — and the only thing that reliably replaces it is a new service "
+ + "worker, which the browser only notices when that file's bytes change. "
+ + "Nothing in it was changing. So every fix since 1.5.0 shipped to the server "
+ + "and stopped there. The cache name is now generated from the app version at "
+ + "build time, so a release cannot silently fail to arrive. Also: the worker "
+ + "was pre-caching data.enc, which these logs do not have — and because that "
+ + "pre-cache was all-or-nothing, the one missing file meant NOTHING was cached "
+ + "and a first offline load had no shell to fall back to."],
+
   ["1.10.0", "14 Aug 2026", "A device that stopped listening",
    "A device with an edit it could not send — typing at the yard with no signal "
  + "is the normal case — got stuck sending and never pulled again, so nothing "
@@ -2048,6 +2061,7 @@ document.addEventListener("visibilitychange", function(){
 document.addEventListener("click", function(e){
   if (e.target && e.target.id === "upd-btn"){
     if (!SYNC) return checkForUpdate(false);
+    checkForNewShell();     // pressing it should also look for a new APP
     // The button lives on the Updates tab, so its answer has to appear there —
     // setSyncStatus writes to the pill at the bottom, which is the wrong place
     // to look when you have just pressed a button at the top.
@@ -3021,11 +3035,26 @@ async function syncNow(opts){
   return r;
 }
 
+/** Ask whether the APP ITSELF has been replaced.
+ *
+ *  Separate from syncing, which is about the log. A browser checks for a new
+ *  service worker on navigation, and an installed iOS app that is resumed never
+ *  navigates — so without this an app that is only ever resumed can go
+ *  indefinitely without noticing a new release, whatever the server has.
+ *  Cheap: a conditional request that is a 304 nearly every time. */
+function checkForNewShell(){
+  if (!("serviceWorker" in navigator) || !navigator.onLine) return;
+  navigator.serviceWorker.getRegistration()
+    .then(reg => reg && reg.update())
+    .catch(() => {});
+}
+
 // Retry whenever the machine looks like it has a connection again.
-window.addEventListener("online", () => syncNow({ quiet: true }));
+window.addEventListener("online", () => { syncNow({ quiet: true }); checkForNewShell(); });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   syncNow({ quiet: true });
+  checkForNewShell();
 });
 
 // ═══════════════════════════════════════════════════════
