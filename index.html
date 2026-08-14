@@ -71,7 +71,15 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .fcn{font-size:12px;color:#8FB4CE;margin-top:7px;line-height:1.5}
 .fcn .box{color:#507490}
 .cpath{background:rgba(14,165,233,.07);border:1px solid #14425F;border-radius:8px;padding:14px 16px;margin-bottom:24px}
-.cpath h3{margin:0 0 4px;font-size:13px;color:#38BDF8;letter-spacing:1px;text-transform:uppercase}
+.cpath h3{margin:0 0 4px;font-size:13px;color:#38BDF8;letter-spacing:1px;text-transform:uppercase;
+ display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cp-edit{background:#0B2135;border:1px solid #24567A;color:#A8C6E0;border-radius:6px;
+ padding:4px 10px;font-size:10.5px;font-weight:600;letter-spacing:.5px;cursor:pointer;
+ font-family:inherit;text-transform:none}
+.cp-edit:hover{background:#12324B;color:#E4F2FF}
+.cp-hint{margin-top:10px;padding-top:8px;border-top:1px solid #14425F;
+ font-size:11.5px;color:#6E93B0;line-height:1.55}
+.cpath-empty{border-style:dashed}
 .cpath .goal{font-size:12px;color:#8FB4CE;font-style:italic;margin-bottom:9px}
 .cpath ol{margin:0;padding-left:20px}
 .cpath li{font-size:13px;color:#C8DCF0;margin-bottom:5px;line-height:1.5}
@@ -353,7 +361,17 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .yr-ct{font:11px/1 monospace;color:#0F3050}
 
 /* ── Entry ────────────────────────────────── */
-.entry{background:#0C1F30;border:1px solid #163148;border-radius:0 8px 8px 0;overflow:hidden;margin-bottom:6px}
+.entry{background:#0C1F30;border:1px solid #163148;border-radius:0 8px 8px 0;overflow:hidden;margin-bottom:6px;position:relative}
+/* Reorder arrows. They sit OUTSIDE .entry-hdr because that is a <button>, and a
+   button cannot contain buttons. Arrows rather than drag: dragging on a
+   touchscreen fights the text selection you need for copying a part number. */
+.ord{position:absolute;right:14px;top:50%;transform:translateY(-50%);
+ display:flex;flex-direction:column;gap:3px;z-index:2}
+.ord button{background:#12324B;border:1px solid #24567A;color:#A8C6E0;border-radius:4px;
+ width:27px;height:19px;font-size:9px;line-height:1;padding:0;cursor:pointer}
+.ord button:hover:not(:disabled){background:#1B4568;color:#E4F2FF}
+.ord button:disabled{opacity:.28;cursor:default}
+.editing .entry-hdr{padding-right:57px}
 .entry-hdr{display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;width:100%;background:none;border:none;text-align:left;color:#C8DCF0}
 .entry-hdr:hover{background:rgba(255,255,255,.02)}
 .edot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -536,7 +554,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const APP_REPO = "Chriscc1234/boat-maintenance-log";   // enables the update check
 
 // Put the boat's name on the lock screen if this device has seen it before.
@@ -659,17 +677,23 @@ function renderLog() {
   const years = [...new Set(entries.map(e=>e.yr))].sort();
   let html = addJobRow();
 
+  const canOrder = EDIT && DOC && !readOnly();
+
   for (const yr of years) {
     const ye = entries.filter(e=>e.yr===yr);
     html += `<div class="yr-div"><span class="yr-lbl">${esc(yr)}</span><div class="yr-rule"></div><span class="yr-ct">${ye.length}</span></div>`;
 
-    for (const e of ye) {
+    ye.forEach((e, idx) => {
       const isA = e.st === "active";
       const isOpen = !!S.expanded[e.id];
       const accent = isA ? "#F59E0B" : "#0EA5E9";
       const sc = SYS_COLORS[e.sys] || "#94A3B8";
 
       html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
+        ${canOrder ? `<div class="ord">
+          <button data-ord="up" data-id="${esc(e.id)}" title="move up"${idx===0?" disabled":""}>▲</button>
+          <button data-ord="down" data-id="${esc(e.id)}" title="move down"${idx===ye.length-1?" disabled":""}>▼</button>
+        </div>` : ""}
         <button class="entry-hdr" data-id="${esc(e.id)}">
           <div class="edot" style="background:${accent};${isA?`box-shadow:0 0 8px ${accent}80`:""}"></div>
           <div class="entry-main">
@@ -687,7 +711,7 @@ function renderLog() {
             : `<ul class="ebullets">${e.b.map(b=>`<li style="${bStyle(b)}">${esc(b)}</li>`).join("")}</ul>`}
         </div>
       </div>`;
-    }
+    });
   }
 
   document.getElementById("log-content").innerHTML = html;
@@ -703,9 +727,53 @@ function renderLog() {
 // ═══════════════════════════════════════════════════════
 document.getElementById("log-content").addEventListener("click", function(e) {
   if (e.target.closest("[data-addjob]")) { addEntry(); return; }
+  const ord = e.target.closest("[data-ord]");
+  if (ord) { moveEntry(ord.dataset.id, ord.dataset.ord); return; }
   const hdr = e.target.closest(".entry-hdr");
   if (hdr) { const id=hdr.dataset.id; S.expanded[id]=!S.expanded[id]; renderLog(); return; }
 });
+
+/** Move a job one place up or down.
+ *
+ *  WHAT ORDER ACTUALLY IS. Jobs sort on `sortKey`, a YYYY-MM-DD string with an
+ *  optional letter suffix, and they are grouped under a year heading. The catch
+ *  is that the day is frequently invented: six of this log's eight 2024 entries
+ *  read "Nov 2024" and nothing more, yet carry days 01, 02, 03, 07, 08 and 09.
+ *  Those digits were never observations — they are sequence numbers wearing a
+ *  date. So the order inside a month is already somebody's arbitrary choice, and
+ *  letting it be changed is restoring an intent, not overriding a record.
+ *
+ *  HOW. The two entries exchange sort keys. Their positions swap and no new
+ *  date is fabricated, which is the honest move when the day is not known. It
+ *  also cannot corrupt the ordering: the set of keys in the log is unchanged.
+ *
+ *  WITHIN A YEAR ONLY. Crossing a year heading would have to rewrite `year` too,
+ *  and that is a change of date rather than of order — it belongs in the date
+ *  fields, where it is visible.
+ *
+ *  Swapping is with the neighbour you can SEE. Under a category filter that may
+ *  be several places away in the unfiltered list, which is the right reading of
+ *  "put this above that". */
+function moveEntry(id, dir){
+  if (!EDIT || !DOC || readOnly()) return;
+  const view = shown();
+  const i = view.findIndex(x => x.id === id);
+  if (i < 0) return;
+  const j = dir === "up" ? i - 1 : i + 1;
+  const other = view[j];
+  if (!other || other.yr !== view[i].yr)
+    return setEditStatus("Already at the " + (dir === "up" ? "top" : "bottom") + " of " + view[i].yr);
+
+  const a = findEntry(id), b = findEntry(other.id);
+  if (!a || !b) return;
+  mutate(() => {
+    const t = a.sortKey; a.sortKey = b.sortKey; b.sortKey = t;
+    DOC.entries.sort((x, y) => String(x.sortKey).localeCompare(String(y.sortKey)));
+  });
+  const el = document.getElementById("entry-" + id);
+  if (el) el.scrollIntoView({ block: "nearest" });
+  setEditStatus(`Moved ${dir} — sort key now ${a.sortKey}`);
+}
 
 // The add-entry form, the per-entry update boxes and their localStorage went
 // with the export path on 11 Aug 2026 — see the v4.1 revision entry.
@@ -786,11 +854,34 @@ function renderFocus(){
         }));
     const note = noteItem ? noteItem.text
                : cp.b.find(b => b.toLowerCase().startsWith("current bottleneck"));
-    h += `<div class="cpath"><h3>${esc(CP_HEADING)}</h3>`
+    // The block is built from `cp`, which may have been found by role OR by the
+    // old title sniffing. Route in on cp.id either way — a plan you can see but
+    // cannot reach is the whole complaint, and it is worse in the sniffed case
+    // because nothing is pinned to find.
+    const canEditCp = EDIT && DOC && !readOnly() && findEntry(cp.id);
+    h += `<div class="cpath"><h3>${esc(CP_HEADING)}${
+           canEditCp ? `<button class="cp-edit" data-editcp="${esc(cp.id)}">Edit the plan</button>` : ""}</h3>`
        + (goal ? `<div class="goal">${esc(goal)}</div>` : "")
        + `<ol>${steps.map(s=>`<li class="${s.done?"cp-done":""}">${esc(s.text)}</li>`).join("")}</ol>`
        + (note ? `<div class="cp-note">${esc(note)}</div>` : "")
+       + (canEditCp ? `<div class="cp-hint">${cpDoc
+           ? `The plan is job <b>${esc(cp.id)}</b>. Open it to change the heading, or
+              to mark a line as the <b>goal</b>, a numbered <b>step</b>, or the
+              <b>bottleneck</b>.`
+           : `This is showing because job <b>${esc(cp.id)}</b> is <i>titled</i> like a
+              critical path, not because it is pinned — so its lines are being read
+              by their wording. Open it and tick the pin to set the parts properly.`
+         }</div>` : "")
        + `</div>`;
+  } else if (EDIT && DOC && !readOnly()){
+    // Without this, an unpinned log gives edit mode nothing to act on here and
+    // no clue that pinning is even possible — the feature is invisible until
+    // somebody happens to open a job and read the checkbox labels.
+    h += `<div class="cpath cpath-empty"><h3>${esc(CP_HEADING)}</h3>
+      <div class="cp-hint">No job is pinned as the plan yet. Open one on
+      <b>All Work</b> and tick <b>“Pin this to the top of Focus as the plan”</b>;
+      its lines can then be marked as the goal, the numbered steps, and what is
+      holding it up.</div></div>`;
   }
 
   for (const key of ["now","next","blocked","later"]){
@@ -831,19 +922,28 @@ function renderFocus(){
     + `<span class="amber">${c.blocked} blocked</span>`;
 }
 
-// tapping a focus card jumps to that entry in All Work
-document.addEventListener("click", function(ev){
-  const card = ev.target.closest && ev.target.closest(".fcard");
-  if (!card) return;
-  const id = card.dataset.jump;
+/** Open a job in All Work, expanded. In edit mode that expansion IS the editor,
+ *  which is what makes it the way in to editing anything about a job. */
+function jumpToEntry(id){
   S.filter = "all"; S.sysFilter = "all"; S.expanded[id] = true;
   document.querySelectorAll(".tab").forEach(t=>{
     t.classList.toggle("on", t.dataset.f === "all");
   });
   const b = document.getElementById("sysbar"); if (b) b.style.display = "";
-  renderSysBar(); renderLog();
+  renderSysBar(); renderLog(); syncTabStrip();
   const el = document.getElementById("entry-" + id) || document.querySelector(`[data-id="${id}"]`);
   if (el && el.scrollIntoView) el.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+// tapping a focus card jumps to that entry in All Work
+document.addEventListener("click", function(ev){
+  const card = ev.target.closest && ev.target.closest(".fcard");
+  if (card) return jumpToEntry(card.dataset.jump);
+  // The plan is a job like any other, but it is the ONE job you cannot find by
+  // looking — nothing in the pinned block says which entry it comes from, so
+  // editing it meant already knowing. This is the way in.
+  const cpe = ev.target.closest && ev.target.closest("[data-editcp]");
+  if (cpe){ ev.stopPropagation(); jumpToEntry(cpe.dataset.editcp); }
 });
 
 // ═══════════════════════════════════════════════════════
@@ -2704,12 +2804,27 @@ function renderHelp(){
       <b>note → task to do → task done</b>.</p>
       <p>The <b>Boat</b> tab becomes the editor for the vessel's details, the
       categories and the passwords.</p>
+      <p>The plan at the top of <b>Focus</b> has an <b>Edit the plan</b> button
+      while editing, which opens whichever job it comes from.</p>
       <p>One job can be <b>pinned to the top of Focus as the plan</b> — a goal, a
       numbered list of what has to happen, and what is holding it up. Open the job
       while editing, tick the box under "Focus tab", then mark its lines as
       <b>goal</b>, <b>step</b> or <b>bottleneck</b>.</p>
       <p><b>Undo</b> goes back through what you've changed since you opened the app.</p>
     </div>
+
+    <div class="up-sec">What order jobs come in</div>
+    <div class="hp">Jobs are grouped by year, oldest first, and inside a year they
+      go by a hidden <b>sort key</b> — a date like <code>2024-11-07</code>.
+      <p>Where only the month is known, the day in that key is a stand-in, not a
+      record: several jobs here say "Nov 2024" but carry days 01, 02, 03 and so
+      on. It is a running order, and it was somebody's guess.</p>
+      <p>So while editing, each job gets <b>▲ ▼</b> arrows on the right. They swap
+      it with the job above or below, <b>within its year</b> — moving between
+      years is a change of date, so use the date fields for that. Under a category
+      filter it swaps with the neighbour you can see.</p>
+      <p>Nothing invents a new date: the two jobs trade sort keys. And Undo
+      reverses it like anything else.</p></div>
 
     <div class="up-sec">A job is a job, not a step</div>
     <div class="hp">"Replace the raw water pump" is a job. Taking the old one off is
