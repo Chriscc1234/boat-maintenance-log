@@ -704,7 +704,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.9.0";
+const APP_VERSION = "1.10.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -716,6 +716,19 @@ const APP_VERSION = "1.9.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.10.0", "14 Aug 2026", "A device that stopped listening",
+   "A device with an edit it could not send — typing at the yard with no signal "
+ + "is the normal case — got stuck sending and never pulled again, so nothing "
+ + "changed anywhere else ever reached it. It now sends and then receives, both, "
+ + "in that order, every time it comes to the foreground. “Check for "
+ + "updates” was worse: it was still wired to the retired published-file "
+ + "mechanism, fetched a file these logs do not have, and reported “Unlock "
+ + "first” however unlocked you were. It is “Sync now”, it does "
+ + "the real thing, and it says what happened on the tab you pressed it on. And "
+ + "recording a revision no longer demands a sentence: leave it empty and the "
+ + "automatic change list is recorded on its own. Nothing about revisions ever "
+ + "held up a sync — edits save and send as they are made."],
+
   ["1.9.0", "14 Aug 2026", "Swipe left opens buttons instead of guessing",
    "There are two different things you can mean by moving a job off the list — "
  + "“not now” and “not something I’m tracking” — and one "
@@ -1808,7 +1821,7 @@ function renderUpdates(){
 
   let h = `<div class="upd-bar">
       <div class="upd-cur">Showing <strong>${esc(VERSION)}</strong> <span>(${esc(REV_DATE)})</span></div>
-      <button class="upd-btn" id="upd-btn">Check for updates</button>
+      <button class="upd-btn" id="upd-btn">${SYNC ? "Sync now" : "Check for updates"}</button>
       ${DOC ? `<button class="upd-btn" id="exp-btn">Export a backup</button>` : ""}
       ${DOC && !readOnly() ? `<button class="upd-btn" id="imp-btn">Restore from a backup…</button>` : ""}
       <div class="upd-status" id="upd-status"></div>
@@ -2021,14 +2034,43 @@ async function checkForUpdate(quiet){
 }
 
 // Resumed from the background with a signal? Look for a new version quietly.
+//
+// This is the RETIRED data.enc path and only applies to a log that has no sync
+// configured. A synced log is handled by syncNow(), further down — running both
+// would fetch a data.enc that is not deployed alongside the synced app, and the
+// 404 is exactly what used to make "Check for updates" report "Unlock first".
 document.addEventListener("visibilitychange", function(){
-  if (document.visibilityState === "visible" && CURRENT_KEY && navigator.onLine){
+  if (!SYNC && document.visibilityState === "visible" && CURRENT_KEY && navigator.onLine){
     checkForUpdate(true);
   }
 });
 
 document.addEventListener("click", function(e){
-  if (e.target && e.target.id === "upd-btn") checkForUpdate(false);
+  if (e.target && e.target.id === "upd-btn"){
+    if (!SYNC) return checkForUpdate(false);
+    // The button lives on the Updates tab, so its answer has to appear there —
+    // setSyncStatus writes to the pill at the bottom, which is the wrong place
+    // to look when you have just pressed a button at the top.
+    const btn = e.target;
+    btn.disabled = true;
+    setUpdStatus("Checking…");
+    syncNow().then(r => {
+      const st = r && r.state;
+      setUpdStatus(
+        st === "pulled"   ? "Updated from the server."
+      : st === "same"     ? "Already up to date."
+      : st === "pushed"   ? "This device's changes are now online."
+      : st === "conflict" ? "This log changed elsewhere — see the message above."
+      : st === "denied"   ? "This device's write key does not match the log on the server."
+      : st === "absent"   ? "No log on the server at this address yet."
+      : st === "queued" || st === "offline"
+                          ? "No connection — showing this device's copy."
+      : "Done.",
+        (st === "conflict" || st === "denied") ? "warn"
+        : (st === "queued" || st === "offline") ? "warn" : "ok");
+    }).finally(() => { btn.disabled = false; });
+    return;
+  }
   if (e.target && e.target.id === "exp-btn") exportDocument();
   if (e.target && e.target.id === "imp-btn"){
     const f = document.getElementById("eb-file"); if (f) f.click();
@@ -2945,11 +2987,45 @@ function showConflict(server){
   }
 }
 
+/** Send anything waiting, THEN take whatever is on the server. Both, in that
+ *  order, every time.
+ *
+ *  This used to be `if (PUSH_PENDING) push(); else pull();` — an either/or, and
+ *  the wrong one. A device with an edit it could not send (typing at the yard
+ *  with no signal is the normal case) had PUSH_PENDING stuck true, so from then
+ *  on it ONLY ever pushed. It never pulled again, and nothing another device
+ *  changed ever reached it. That is why Chris's iPad stopped picking up changes:
+ *  not a failure to sync, a device that had quietly stopped listening.
+ *
+ *  Pushing first is what makes doing both safe: it settles the local edit, so
+ *  the pull that follows is either "same" or a clean apply, rather than the
+ *  conflict the pair would otherwise trip on every time. A genuine conflict is
+ *  still caught by pushRemote and put to the user. */
+async function syncNow(opts){
+  if (!SYNC) return;
+  const quiet = opts && opts.quiet;
+  if (!quiet) setSyncStatus("Checking…");
+  let pushed = false;
+  if (PUSH_PENDING){
+    const r = await pushRemote();
+    // A conflict has already asked the user what to do and started that; a
+    // second pull on top of it would race the answer.
+    if (r && (r.state === "conflict" || r.state === "queued" || r.state === "denied")) return r;
+    pushed = !!(r && r.state === "pushed");
+  }
+  const r = await pullRemote({ quiet });
+  if (!quiet && r && r.state === "same") setSyncStatus("Up to date", "ok");
+  // Having sent something and found nothing new is "sent", not "nothing
+  // happened" — the report should name the thing that actually moved.
+  if (pushed && r && r.state === "same") return { state: "pushed", rev: r.rev };
+  return r;
+}
+
 // Retry whenever the machine looks like it has a connection again.
-window.addEventListener("online", () => { if (PUSH_PENDING) pushRemote(); else pullRemote({quiet:true}); });
+window.addEventListener("online", () => syncNow({ quiet: true }));
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible" || !SYNC) return;
-  if (PUSH_PENDING) pushRemote(); else pullRemote({ quiet: true });
+  if (document.visibilityState !== "visible") return;
+  syncNow({ quiet: true });
 });
 
 // ═══════════════════════════════════════════════════════
@@ -3032,17 +3108,37 @@ function nextRevision(current){
   return "v" + m[1] + "." + (parseInt(m[2], 10) + 1);
 }
 
+/** Record a revision. The headline is INVITED, never required.
+ *
+ *  It used to refuse an empty line and abandon the whole revision on Cancel,
+ *  which made a nicety into a gate — and Chris hit it: "it should auto apply
+ *  the update without asking for revision history, at least the log in the
+ *  update is enough if skipped."
+ *
+ *  He is right, and the reason is that the two halves are not equally scarce.
+ *  The factual half is already written by draftRevisionText() and costs nothing.
+ *  The reason-why half is the part no machine can reconstruct — so it is worth
+ *  ASKING for, and never worth losing the record over. Skip it and the revision
+ *  is recorded from the draft alone; a history of what changed with some entries
+ *  missing their why beats a history with holes in it.
+ *
+ *  Nothing here ever blocked syncing — an edit is saved and pushed by mutate()
+ *  and queuePush() the moment it is made, revision or no revision. */
 async function recordRevision(){
   if (!DOC) return;
   if (!pendingCount()) return setEditStatus("Nothing has changed since the last revision");
   const draft = draftRevisionText();
-  const headline = prompt(
+  const typed = prompt(
     "One line: what changed, and why.\n\n" +
     "This is the part nothing can work out on its own, and it is what makes the\n" +
-    "history worth reading in five years.\n\n" +
-    "The details below are recorded automatically:\n\n" + draft, "");
-  if (headline === null) return setEditStatus("Cancelled");
-  if (!headline.trim()) return setEditStatus("A revision needs a line saying what changed", true);
+    "history worth reading in five years. Leave it EMPTY and press OK to record\n" +
+    "just the details below, which are filled in automatically either way.\n" +
+    "Cancel does not record anything.\n\n" + draft, "");
+  // Empty means "skip the headline". Cancel keeps its ordinary meaning — back
+  // out — because a dialog whose Cancel still does the thing is worse than a
+  // gate.
+  if (typed === null) return setEditStatus("Cancelled — nothing recorded");
+  const headline = typed.trim();
 
   const ver = nextRevision(DOC.document.revision);
   const date = new Date().toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
@@ -3050,11 +3146,12 @@ async function recordRevision(){
     DOC.document.revision = ver;
     DOC.document.revisionDate = date;
     DOC.revisions.unshift({ version: ver, date,
-      text: headline.trim() + (draft ? "\n\n" + draft : ""),
-      headline: headline.trim() });
+      text: headline ? headline + (draft ? "\n\n" + draft : "") : draft,
+      headline: headline || draft.split(". ")[0] || "Changes recorded" });
     delete DOC.document.pending;
   }, { norecord: true });
-  setEditStatus("Recorded " + ver);
+  setEditStatus(headline ? "Recorded " + ver
+                         : "Recorded " + ver + " from the change list — add a line later if you want one");
 }
 
 function mutate(fn, opts){
