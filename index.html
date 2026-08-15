@@ -256,6 +256,16 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .dev-warn{margin:10px 0 4px;padding:11px 13px;border:1px solid #7C4A12;
  background:rgba(251,191,36,.07);border-radius:7px;color:#F5D9A8;font-size:13px;line-height:1.55}
 .dev-warn strong{color:#FBBF24}
+.dev-list{margin:10px 0 4px}
+.dev-row{padding:9px 0;border-bottom:1px solid #10293D}
+.dev-row.me{border-left:3px solid #38BDF8;padding-left:10px;margin-left:-13px}
+.dev-name{font-size:13.5px;font-weight:600;color:#E4F2FF;display:flex;align-items:center;gap:7px}
+.dev-tag{font:600 10px/1 monospace;letter-spacing:.5px;color:#8FB4CE;
+ border:1px solid #1E4A6B;border-radius:3px;padding:3px 6px;text-transform:uppercase}
+.dev-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:#6E93B0;margin-top:3px}
+.dev-meta b{font-weight:700}
+.dev-meta b.ok{color:#34D399}
+.dev-meta b.warn{color:#FBBF24}
 .upd-status{flex:1 1 100%;font-size:12px;color:#6E93B0;min-height:0}
 .upd-status:empty{display:none}
 .upd-status.ok{color:#86EFAC}
@@ -716,7 +726,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.11.0";
+const APP_VERSION = "1.12.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -728,6 +738,16 @@ const APP_VERSION = "1.11.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.12.0", "14 Aug 2026", "Every device on one list",
+   "Each device now reports what it is running whenever it syncs, and every "
+ + "device can read the list: what it is, which log revision it is on, which "
+ + "app version, and when it last checked in. A device on an older log revision "
+ + "than the others is shown in amber, because that is the thing worth "
+ + "spotting — and one that never catches up is one that is not syncing. It "
+ + "replaces walking between an iPad and an iPhone to compare two numbers. The "
+ + "list needs the full password: it is ordinary text rather than encrypted "
+ + "log data, so a read-only share does not get it."],
+
   ["1.11.0", "14 Aug 2026", "This device says what it is doing",
    "Two devices showing different revision numbers means one of them is not "
  + "syncing, and the app barely said so — eight words at the end of a sentence, "
@@ -1900,6 +1920,28 @@ function renderUpdates(){
              ${readOnly() ? "" : `<button class="upd-btn" id="join-btn">Connect this device…</button>`}
            </div>`}
       <button class="upd-btn" id="signout-btn">Sign out</button></div>
+    ${(SYNC && SYNC.writeKey) ? `
+      <div class="up-sec">All devices on this log</div>
+      <div class="up-intro">Each one reports what it is running when it syncs.
+        <strong>If a device shows an older log revision than the others, it is
+        behind</strong> — open the app on it and it will catch up. If it never
+        does, it is not syncing.</div>
+      ${DEVICES.length ? `<div class="dev-list">${DEVICES.map(d => {
+        const me = d.id === DEVICE_ID;
+        const behind = DEVICES.some(o => (o.rev || 0) > (d.rev || 0));
+        return `<div class="dev-row${me ? " me" : ""}">
+          <div class="dev-name">${esc(d.label || "a device")}${
+            me ? `<span class="dev-tag">this one</span>` : ""}${
+            d.readOnly ? `<span class="dev-tag">read-only</span>` : ""}</div>
+          <div class="dev-meta">
+            <span>log <b class="${behind ? "warn" : "ok"}">${esc(d.logRevision || "?")}</b></span>
+            <span>app ${esc(d.appVersion || "?")}</span>
+            <span>${esc(agoText(d.seenAt))}</span>
+          </div>
+        </div>`;
+      }).join("")}</div>`
+      : `<div class="up-intro" style="color:#6E93B0">No devices have reported yet.
+           Press ${SYNC ? "Sync now" : "the button"} above.</div>`}` : ""}
     <div class="up-sec">This app</div>
     <div class="up-intro">Version <strong>${esc(APP_VERSION)}</strong> — the app itself,
       which is separate from the log's revision below. <span id="app-upd"></span></div>
@@ -2013,6 +2055,25 @@ function showPill(msg){
   clearTimeout(pill._hide);
   pill._hide = setTimeout(() => pill.classList.remove("show"), 6000);
   pill.onclick = () => { clearTimeout(pill._hide); pill.classList.remove("show"); };
+}
+
+/** "4 minutes ago". Relative rather than a timestamp because the only question
+ *  anyone asks of this column is whether the device has been near the log
+ *  recently, and a date makes you do that subtraction yourself. */
+function agoText(iso){
+  const t = Date.parse(iso || "");
+  if (!t) return "never";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 90)      return "just now";
+  const units = [[60, "minute"], [3600, "hour"], [86400, "day"], [604800, "week"]];
+  for (let i = 0; i < units.length; i++){
+    const next = units[i + 1];
+    if (!next || s < next[0]){
+      const n = Math.round(s / units[i][0]);
+      return n + " " + units[i][1] + (n === 1 ? "" : "s") + " ago";
+    }
+  }
+  return "a long time ago";
 }
 
 function setUpdStatus(msg, kind){
@@ -2922,7 +2983,10 @@ async function afterOpen(){
   const vb = document.getElementById("ver-badge"); if (vb) vb.textContent = VERSION;
   try {
     await loadSyncConfig();
-    if (SYNC) pullRemote({ quiet: true });
+    if (SYNC) await pullRemote({ quiet: true });
+    // After the pull, so the revision it reports is the one it actually ended
+    // up on rather than the one it arrived with.
+    reportDevice();
   } catch (err) { console.warn("sync:", err && err.message); }
   // The plan stopped being a job on this open. Say so and push it, rather than
   // leaving a converted document sitting only on this device — the next device
@@ -2934,6 +2998,73 @@ async function afterOpen(){
     setEditStatus("The plan is no longer filed as a job — it moved to the top of Focus");
   }
   updateEditBar();
+}
+
+/** ── This device, on the record ──────────────────────────────────────────────
+ *
+ *  Every device announces what it is running, and every device can read the
+ *  list. Chris asked for it after spending a round comparing an iPad against an
+ *  iPhone by walking between them: "it says 6.2 on the ipad its 6.1 on the
+ *  iphone". Two devices disagreeing is the symptom that matters most in this
+ *  app, and until now it could only be seen by holding both.
+ *
+ *  The id is random and lives on the device. It is deliberately NOT derived
+ *  from anything about the browser or the machine — a fingerprint would be a
+ *  worse version of the same thing and would follow the user off this app. */
+let DEVICE_ID = null, DEVICES = [];
+const DEVICE_KEY = "cs2_device_id";
+
+async function deviceId(){
+  if (DEVICE_ID) return DEVICE_ID;
+  try { DEVICE_ID = localStorage.getItem(DEVICE_KEY); } catch {}
+  if (!DEVICE_ID || !/^[A-Za-z0-9_-]{16,64}$/.test(DEVICE_ID)){
+    const b = crypto.getRandomValues(new Uint8Array(18));
+    DEVICE_ID = btoa(String.fromCharCode(...b)).replace(/[+/=]/g, "").slice(0, 22);
+    try { localStorage.setItem(DEVICE_KEY, DEVICE_ID); } catch {}
+  }
+  return DEVICE_ID;
+}
+
+/** A name a person can recognise across the room. Coarse on purpose: the point
+ *  is to tell an iPad from a phone, not to identify the machine. */
+function deviceLabel(){
+  const ua = navigator.userAgent || "";
+  const touch = (navigator.maxTouchPoints || 0) > 1;
+  // iPadOS reports itself as a Mac; the touch points are what give it away.
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && touch)) return "iPad";
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/Android/.test(ua)) return /Mobile/.test(ua) ? "Android phone" : "Android tablet";
+  if (/Macintosh/.test(ua)) return "Mac";
+  if (/Windows/.test(ua)) return "Windows PC";
+  if (/Linux/.test(ua)) return "Linux";
+  return "a device";
+}
+
+/** Tell the server what this device is running, then keep the list it returns.
+ *  Never throws into a caller and never blocks anything: a roster that cannot
+ *  be reached is a missing convenience, not a failure to sync. */
+async function reportDevice(){
+  if (!SYNC || !SYNC.writeKey) return;         // read-only shares have no roster
+  try {
+    const res = await fetch(syncUrl("/devices/" + SYNC.logId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SYNC.writeKey },
+      body: JSON.stringify({
+        id: await deviceId(),
+        label: deviceLabel(),
+        appVersion: APP_VERSION,
+        logRevision: VERSION,                  // the LOG's revision, the one that differed
+        rev: REMOTE_REV || 0,
+        readOnly: readOnly(),
+      }),
+    });
+    if (!res.ok) return;
+    const out = await res.json();
+    if (out && Array.isArray(out.devices)){
+      DEVICES = out.devices;
+      if (S.filter === "updates") renderCurrent();
+    }
+  } catch {}
 }
 
 async function loadSyncConfig(){
@@ -3095,6 +3226,7 @@ async function syncNow(opts){
   if (!quiet && r && r.state === "same") setSyncStatus("Up to date", "ok");
   // Having sent something and found nothing new is "sent", not "nothing
   // happened" — the report should name the thing that actually moved.
+  reportDevice();
   if (pushed && r && r.state === "same") return { state: "pushed", rev: r.rev };
   return r;
 }
