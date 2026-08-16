@@ -489,6 +489,9 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .bt-row{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid #10283D;font-size:13px}
 .bt-row:last-child{border-bottom:none}
 .bt-l{color:#507490;min-width:96px;flex-shrink:0}
+/* Settings' label column carries longer names ("Home screen name"), which
+   overran the 96px and left that one row's value out of line with the rest. */
+.bt-table.wide .bt-l{min-width:140px}
 .bt-v{color:#D6E9F8}
 .bt-empty{font-size:12.5px;color:#507490;padding:6px 0;line-height:1.5}
 .bt-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
@@ -585,14 +588,16 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
     <button class="tab" data-f="complete">Completed</button>
     <button class="tab" data-f="voyages">Voyages</button>
     <button class="tab" data-f="boat">Boat</button>
+    <button class="tab" data-f="settings">Settings</button>
     <button class="tab" data-f="updates">Updates</button>
     <button class="tab" data-f="help">Help</button>
   </nav>
   <div class="sysbar" id="sysbar"></div>
   <!-- Undo is the only thing here that belongs to no particular place: it acts on
        whatever you last did, so it has to live above everything. The rest moved to
-       where the thing itself is — New job to the top of the list, Boat details to
-       the Boat tab (which IS the editor in edit mode), Import next to Export on
+       where the thing itself is — New job to the top of the list, the boat to the
+       Boat tab and its setup to Settings (both ARE the editor in edit mode),
+       Import next to Export on
        Updates. A toolbar of things that live elsewhere is just a second menu. -->
   <div class="editbar" id="editbar">
     <button id="eb-undo">Undo</button>
@@ -726,7 +731,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.12.2";
+const APP_VERSION = "1.14.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -738,6 +743,65 @@ const APP_VERSION = "1.12.2";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.14.0", "16 Aug 2026", "Settings stops asking you to turn on Edit",
+   "Chris: \"mirror the priorities too, also, in the settings tab, all the "
+ + "catagorie settings should show even when not in edit mode.\"\n\n"
+ + "Both land in the same place. The priorities now appear on the Boat tab "
+ + "beside the categories, read and editable, from one shared function — same "
+ + "reasoning as 1.13.1. There is deliberately no add or delete for them: the "
+ + "four groups ARE the Focus tab's layout, so a fifth would have nowhere to "
+ + "render and removing one would strand every job that used it. Renaming and "
+ + "recolouring is the whole of what is safe.\n\n"
+ + "The bigger change is that NOTHING on Settings is behind edit mode any more. "
+ + "Write access is the only gate. The half of the tab that writes to the "
+ + "document went through mutate() like any other change, so it seemed to follow "
+ + "that it belonged behind the same button — but the other half, syncing and "
+ + "passwords, was never gated, because gating it would have been obviously "
+ + "absurd. One tab with two rules is a tab nobody can predict.\n\n"
+ + "The objection would be an accidental change with no way back, and it does "
+ + "not survive contact with the Undo bar, which appears whenever there is "
+ + "anything to undo whether or not edit mode is on. That was settled once "
+ + "already when swiping stopped requiring edit mode.\n\n"
+ + "Settings also moved to sit between Boat and Updates, which is where it "
+ + "belongs — next to the other tab about the boat rather than out past the "
+ + "changelog."],
+
+  ["1.13.1", "16 Aug 2026", "Categories are on both tabs, from one piece of code",
+   "Splitting Settings off the Boat tab in 1.13.0 missed that the old Systems "
+ + "section was doing two jobs at once. Chris: \"in the old boat tab the systems "
+ + "section was playing double duty showing how many jobs in each catagory, but "
+ + "now the setting side is missing the catagories, and the boat side is missing "
+ + "the edit tools.\"\n\n"
+ + "They are two different questions — the chips answer \"how much work is "
+ + "sitting in each system?\", the editor answers \"what systems are there and "
+ + "what are they called?\" — and the split had taken one answer away from each "
+ + "side. Both tabs now carry both, rendered by a single categoriesSection() "
+ + "rather than by two copies that would drift apart the first time either one "
+ + "changed.\n\n"
+ + "The chips still list only categories that HAVE jobs, which is what makes "
+ + "them a picture of the workload rather than of the setup; a quiet line says "
+ + "how many empty ones are not shown. The editor lists every category including "
+ + "the empty ones, because you cannot rename or delete what is not on screen."],
+
+  ["1.13.0", "16 Aug 2026", "Settings has its own tab; Boat is just the boat",
+   "The Boat tab had become the place every control ended up: the vessel's own "
+ + "details, but also the labels, the categories, the priorities, the passwords "
+ + "and syncing — all of it behind Edit, all on one scroll. The boat's make and "
+ + "model were the hardest thing to find on the tab named after the boat.\n\n"
+ + "Settings now holds everything that CONFIGURES the log. Boat holds what "
+ + "DESCRIBES it — the details, the picture, and the read view's stats and "
+ + "system chips, which stay where they are.\n\n"
+ + "Two gates apply on Settings rather than one, and the difference is real "
+ + "rather than cosmetic. Syncing and passwords act on this device and on the "
+ + "server: they never go through mutate(), Undo cannot reverse them, and they "
+ + "no longer sit behind Edit — needing edit mode to press \"Sync now\" never "
+ + "made sense when the identical button on Updates never did. The labels, "
+ + "categories and priorities are fields in the document, so they stay behind "
+ + "Edit like every other change.\n\n"
+ + "Also here: the Help tab said iOS only lets Safari add a web app to the home "
+ + "screen. That is wrong — any browser on the phone can — and it had been "
+ + "telling people to go and find a different browser for no reason."],
+
   ["1.12.2", "16 Aug 2026", "The tab/bookmark icon actually updates now",
    "1.12.1 cached a custom icon correctly and applied it to the lock screen, "
  + "but the browser TAB icon still showed the stock one — not an iOS quirk, "
@@ -1447,6 +1511,7 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   S.filter=t.dataset.f;
   if (S.filter==="help"){ renderHelp(); }
   else if (S.filter==="boat"){ renderBoat(); }
+  else if (S.filter==="settings"){ renderSettings(); }
   else if (S.filter==="voyages"){ renderVoyages(); }
   else if (S.filter==="updates"){ renderUpdates(); }
   else if (S.filter==="focus"){ renderFocus(); }
@@ -2070,6 +2135,7 @@ let CHECKING = false;
 function renderCurrent(){
   if (S.filter === "help")         renderHelp();
   else if (S.filter === "manage" || S.filter === "boat") renderBoat();
+  else if (S.filter === "settings") renderSettings();
   else if (S.filter === "voyages") renderVoyages();
   else if (S.filter === "updates") renderUpdates();
   else if (S.filter === "focus")   renderFocus();
@@ -2230,13 +2296,12 @@ document.addEventListener("click", function(e){
     }).finally(() => { btn.disabled = false; });
     return;
   }
-  // Rather than a second copy of the join flow, go to where it already lives.
-  // Turning edit mode on is what puts the Boat tab into its editor, and the
-  // Syncing section with "Turn on syncing" is in there.
+  // Rather than a second copy of the join flow, go to where it already lives:
+  // the Syncing section on Settings. No longer turns edit mode on — syncing
+  // stopped being behind Edit when Settings split off the Boat tab.
   if (e.target && e.target.id === "join-btn"){
-    if (!EDIT) toggleEdit();
-    S.filter = "boat";
-    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.f === "boat"));
+    S.filter = "settings";
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.f === "settings"));
     renderCurrent(); syncTabStrip();
     const el = document.querySelector(".mg-sync, [data-mact='sync-on']");
     if (el && el.scrollIntoView) el.scrollIntoView({ behavior:"smooth", block:"center" });
@@ -3933,10 +3998,8 @@ function addEntry(){
 }
 
 // ── Category and priority editor ──────────────────────────────────────────
-/** The Boat tab. Reading is the default, as everywhere else — the vessel's own
- *  details are reference material you look up, not just settings you configure.
- *  Turning on edit mode swaps the same tab for the full editor, so there is one
- *  place the boat lives rather than a hidden mode behind a button. */
+/** The Help tab — the whole app explained in one place, so nothing depends on
+ *  a README the reader does not have. */
 function renderHelp(){
   const box = document.getElementById("log-content");
   const bar = document.getElementById("sysbar");
@@ -3955,7 +4018,9 @@ function renderHelp(){
       stuck and why.</p>
       <p><b>All Work</b> is everything, oldest first, grouped by year. The coloured
       chips under the tabs filter by system — tap one, tap it again to clear.</p>
-      <p><b>Boat</b> is the vessel's own details. <b>Voyages</b> is trips.
+      <p><b>Boat</b> is the vessel's own details, with its categories and
+      priorities. <b>Settings</b> is how the log itself is set up — syncing,
+      passwords, categories, priorities, labels. <b>Voyages</b> is trips.
       <b>Updates</b> is what's changed in the log.</p>
       <p>Tap any job to open it.</p>
     </div>
@@ -4015,15 +4080,19 @@ function renderHelp(){
     <div class="hp">
       <p>Press <b>Edit</b>, top right. The header turns amber so you can tell at a
       glance. Press <b>Done editing</b> to go back.</p>
-      <p>Everything then becomes editable where it already sits — there is no
-      separate settings screen to go and find.</p>
+      <p>Everything then becomes editable where it already sits.</p>
       <p><b>+ New job</b> appears at the top of Focus and All Work. Open any job
       while editing and you can change its title, category, priority, dates, and
       every line in it.</p>
       <p>The round button on the left of each line cycles it:
       <b>note → task to do → task done</b>.</p>
-      <p>The <b>Boat</b> tab becomes the editor for the vessel's details, the
-      categories and the passwords.</p>
+      <p>The <b>Boat</b> tab becomes the editor for the vessel's own details —
+      name, make, model, year, home port, and the picture used as its icon.</p>
+      <p>The <b>Settings</b> tab is everything else — syncing, passwords, the
+      categories, the priorities and how the log is labelled. <b>None of it needs
+      edit mode</b>: it can be changed as it stands, and <b>Undo</b> appears at the
+      top the moment there is anything to take back. The categories and priorities
+      are on the Boat tab as well, since they are worth reading there.</p>
       <p>The plan at the top of <b>Focus</b> has an <b>Edit the plan</b> button
       while editing, which opens whichever job it comes from.</p>
       <p>One job can be <b>pinned to the top of Focus as the plan</b> — a goal, a
@@ -4072,16 +4141,16 @@ function renderHelp(){
       <b>read-only</b> one just looks. Hand out the read-only one — someone using
       it can't alter anything, and that's enforced by the server rather than by the
       app being polite about it.
-      <p>Both are on the Boat tab while editing. There is no password reset;
-      the recovery code issued at setup is the way back in.</p></div>
+      <p>Both are on the <b>Settings</b> tab, under Passwords. There is no
+      password reset; the recovery code issued at setup is the way back in.</p></div>
 
     <div class="up-sec">Sharing and other devices</div>
     <div class="hp">Any device: open this same address, type a password, and add it
       to your home screen. Install <i>first</i>, then sign in from the icon —
       iOS keeps the installed app's login separate from Safari's.
-      <p><b>iPhone / iPad:</b> it has to be Safari; iOS does not let other browsers
-      install a web app. Share button, then <b>Add to Home Screen</b> — it is
-      already named for the boat. <b>Android:</b> Chrome, menu, <b>Install app</b>.</p>
+      <p><b>iPhone / iPad:</b> whatever browser you use — Share button, then
+      <b>Add to Home Screen</b>. It is already named for the boat.
+      <b>Android:</b> Chrome, menu, <b>Install app</b>.</p>
       <p>Do it once with a good connection. After that it opens like any other app
       and works with no signal at all.</p>
       <p>Sync isn't instant. It catches up when the app opens or comes back to the
@@ -4120,8 +4189,98 @@ function renderHelp(){
   document.getElementById("meta").innerHTML = "How this works";
 }
 
+/** The categories, rendered from ONE place for both tabs that show them.
+ *
+ *  Chris, 16 Aug 2026: "in the old boat tab the systems section was playing
+ *  double duty." It was, and the two duties are genuinely different questions —
+ *
+ *    the chips answer  "how much work is sitting in each system?"
+ *    the editor answers "what systems are there, and what are they called?"
+ *
+ *  Splitting Boat from Settings took one answer away from each side. So both
+ *  sides now carry both, and they come from this function rather than from two
+ *  copies that would drift the first time either changed.
+ *
+ *  The chips deliberately list only categories that HAVE jobs — that is what
+ *  makes them a picture of the workload rather than of the setup. The editor
+ *  lists every category including the empty ones, because you cannot rename or
+ *  delete what is not on screen. */
+function categoriesSection(editable){
+  const count   = id => DOC.entries.filter(e => e.system === id).length;
+  const ordered = [...DOC.systems].sort((a,b)=>(a.order??0)-(b.order??0));
+  const parents = DOC.systems.filter(s => !s.parent);
+  const inUse   = ordered.filter(s => count(s.id));
+
+  let h = `<div class="bt-sys">${inUse.map(s => `<span class="bt-chip">
+        <span class="dot" style="background:${esc(s.color || "#94A3B8")}"></span>
+        ${esc(s.name)} <span class="ct">${count(s.id)}</span></span>`).join("")
+    || `<div class="bt-empty">No categories in use yet.</div>`}</div>`;
+
+  if (!editable){
+    const spare = ordered.length - inUse.length;
+    if (spare) h += `<div class="up-intro" style="margin-top:8px;color:#6E93B0">and ${
+      spare} with no jobs in ${spare === 1 ? "it" : "them"} yet</div>`;
+    return h;
+  }
+
+  h += `<div class="up-intro" style="margin-top:14px">Every category, including the
+      empty ones. The number is how many jobs use it — one still in use cannot be
+      deleted, so move those jobs first. Nesting is one level deep.</div>
+    <div class="mg-list">${ordered.map((s, i) => `
+      <div class="mg-row" data-sys="${esc(s.id)}">
+        <input type="color" data-mact="color" value="${esc(s.color || "#94A3B8")}">
+        <input class="ed-in" data-mact="name" value="${esc(s.name)}">
+        <select class="ed-in" data-mact="parent">
+          <option value=""${s.parent?"":" selected"}>— top level —</option>
+          ${parents.filter(p => p.id !== s.id).map(p =>
+            `<option value="${esc(p.id)}"${s.parent===p.id?" selected":""}>under ${esc(p.name)}</option>`).join("")}
+        </select>
+        <span class="mg-ct">${count(s.id)}</span>
+        <button data-mact="up"${i===0?" disabled":""}>↑</button>
+        <button data-mact="down"${i===ordered.length-1?" disabled":""}>↓</button>
+        <button data-mact="del" class="danger">×</button>
+      </div>`).join("")}</div>
+    <div class="ed-add"><button data-mact="add">+ Add a category</button></div>`;
+  return h;
+}
+
+/** The priorities, mirrored onto both tabs the same way the categories are.
+ *  Same two questions, same answer: chips for reading, rows for changing.
+ *
+ *  There is no add or delete here on purpose. The four groups ARE the Focus
+ *  tab's layout — the code groups by them — so a fifth would have nowhere to
+ *  render and removing one would strand every job that used it. Renaming and
+ *  recolouring is the whole of what is safe, and it is what is offered. */
+function prioritiesSection(editable){
+  const count = id => DOC.entries.filter(e => e.priority === id).length;
+  const pris  = [...DOC.priorities].sort((a,b)=>(a.order??0)-(b.order??0));
+
+  let h = `<div class="bt-sys">${pris.map(p => `<span class="bt-chip">
+        <span class="dot" style="background:${esc(p.color || "#94A3B8")}"></span>
+        ${esc(p.label)} <span class="ct">${count(p.id)}</span></span>`).join("")
+    || `<div class="bt-empty">No priorities set up.</div>`}</div>`;
+
+  if (!editable) return h;
+
+  h += `<div class="up-intro" style="margin-top:14px">The groups on the Focus tab,
+      in order. Rename or recolour them; they cannot be added to or removed,
+      because the Focus tab is built out of these four.</div>
+    <div class="mg-list">${pris.map(p => `
+      <div class="mg-row" data-pri="${esc(p.id)}">
+        <input type="color" data-mact="pcolor" value="${esc(p.color || "#94A3B8")}">
+        <input class="ed-in" data-mact="plabel" value="${esc(p.label)}">
+        <span class="mg-ct">${count(p.id)}</span>
+      </div>`).join("")}</div>`;
+  return h;
+}
+
+/** The Boat tab. Reading is the default, as everywhere else — the vessel's own
+ *  details are reference material you look up, not settings you configure. The
+ *  things that really were settings moved to their own tab on 16 Aug 2026.
+ *  Turning on edit mode swaps this same tab for the boat's editor, so there is
+ *  one place the boat lives rather than a hidden mode behind a button. */
 function renderBoat(){
-  if (EDIT && !readOnly()) return renderManage();
+  if (EDIT && !readOnly()) return renderBoatEdit();
 
   const box = document.getElementById("log-content");
   const bar = document.getElementById("sysbar");
@@ -4140,11 +4299,6 @@ function renderBoat(){
     voyages: (DOC.voyages || []).length,
     systems: (DOC.systems || []).length,
   };
-
-  const bySystem = [...(DOC.systems || [])]
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .map(sy => ({ sy, n: (DOC.entries || []).filter(e => e.system === sy.id).length }))
-    .filter(x => x.n);
 
   box.innerHTML = `
     <div class="bt-head">
@@ -4176,52 +4330,32 @@ function renderBoat(){
     </div>
 
     <div class="up-sec">Systems</div>
-    <div class="bt-sys">
-      ${bySystem.map(x => `<span class="bt-chip">
-          <span class="dot" style="background:${esc(x.sy.color || "#94A3B8")}"></span>
-          ${esc(x.sy.name)} <span class="ct">${x.n}</span></span>`).join("")
-        || `<div class="bt-empty">No categories in use yet.</div>`}
-    </div>
+    ${categoriesSection(false)}
+
+    <div class="up-sec">Priorities</div>
+    ${prioritiesSection(false)}
 
     <div class="up-intro" style="margin-top:16px">${readOnly()
       ? "You are viewing a read-only share, so none of this can be changed here."
-      : "To change any of this — the details, the categories or the passwords — " +
-        "press <b>Edit</b> at the top. This tab becomes the editor."}</div>`;
+      : "To change the boat's own details, press <b>Edit</b> at the top — this tab " +
+        "becomes the editor. Categories, passwords and syncing are on " +
+        "<b>Settings</b>."}</div>`;
 
   document.getElementById("meta").innerHTML =
     `${esc(v.name || "Boat")} &ensp;·&ensp; ${counts.entries} jobs &ensp;·&ensp; ` +
     `<span class="amber">${counts.tasks} tasks to do</span>`;
 }
 
-function renderManage(){
+/** The Boat tab's editor — the vessel and nothing else.
+ *
+ *  Everything that merely CONFIGURES the log — the labels, the categories, the
+ *  priorities, the passwords, syncing — moved to the Settings tab on 16 Aug
+ *  2026. This tab had quietly become the place every unrelated control ended up,
+ *  which made "the boat's details" the hardest thing on it to find. */
+function renderBoatEdit(){
   const box = document.getElementById("log-content");
   const bar = document.getElementById("sysbar");
   if (bar) bar.style.display = "none";
-
-  const count = id => DOC.entries.filter(e => e.system === id).length;
-  const parents = DOC.systems.filter(s => !s.parent);
-
-  const rows = [...DOC.systems].sort((a,b)=>(a.order??0)-(b.order??0)).map((s, i) => `
-    <div class="mg-row" data-sys="${esc(s.id)}">
-      <input type="color" data-mact="color" value="${esc(s.color || "#94A3B8")}">
-      <input class="ed-in" data-mact="name" value="${esc(s.name)}">
-      <select class="ed-in" data-mact="parent">
-        <option value=""${s.parent?"":" selected"}>— top level —</option>
-        ${parents.filter(p => p.id !== s.id).map(p =>
-          `<option value="${esc(p.id)}"${s.parent===p.id?" selected":""}>under ${esc(p.name)}</option>`).join("")}
-      </select>
-      <span class="mg-ct">${count(s.id)}</span>
-      <button data-mact="up"${i===0?" disabled":""}>↑</button>
-      <button data-mact="down"${i===DOC.systems.length-1?" disabled":""}>↓</button>
-      <button data-mact="del" class="danger">×</button>
-    </div>`).join("");
-
-  const pris = [...DOC.priorities].sort((a,b)=>(a.order??0)-(b.order??0)).map(p => `
-    <div class="mg-row" data-pri="${esc(p.id)}">
-      <input type="color" data-mact="pcolor" value="${esc(p.color || "#94A3B8")}">
-      <input class="ed-in" data-mact="plabel" value="${esc(p.label)}">
-      <span class="mg-ct">${DOC.entries.filter(e=>e.priority===p.id).length}</span>
-    </div>`).join("");
 
   const v = DOC.vessel || {};
   const field = (k, label) =>
@@ -4230,7 +4364,7 @@ function renderManage(){
 
   box.innerHTML = `
     <div class="up-intro" style="margin-bottom:14px">Editing <strong>${
-      esc((DOC.vessel && DOC.vessel.name) || "this boat")}</strong>. Turn editing off
+      esc(v.name || "this boat")}</strong>. Turn editing off
       to go back to reading — press and hold the version badge, or double-click it.</div>
     <div class="up-sec">The vessel</div>
     <div class="mg-icon">
@@ -4247,20 +4381,105 @@ function renderManage(){
     ${field("name","Name")}${field("year","Year")}${field("length","Length")}
     ${field("make","Make")}${field("model","Model")}
     <div class="mg-icon-note" style="margin:-4px 0 10px">The header strip is built
-      from those five, in that order. Write your own below and it is left alone.</div>
+      from those five, in that order. Write your own under
+      <b>Settings → How it is labelled</b> and it is left alone.</div>
     ${field("loa","LOA")}${field("hullType","Hull type")}
     <div class="mg-icon-note" style="margin:-4px 0 10px">LOA is the real
       measurement — kept out of the header, which uses the nominal length the
       builder put on the model.</div>
     ${field("homePort","Home port")}${field("berth","Berth")}${field("currentLocation","Currently")}
-    <div class="up-sec">How it is labelled</div>
-    ${field("logTitle","Log title")}${field("headerLabel","Header strip")}
-    ${(DOC.vessel && DOC.vessel.headerLabelCustom)
-      ? `<div class="ed-add" style="margin:-4px 0 10px"><button data-mact="hdr-auto">Build it from the details again</button></div>`
-      : ""}
-    ${field("footerLabel","Footer")}${field("pageTitle","Browser tab")}${field("appShortName","Home screen name")}
-    ${readOnly() ? "" : `
-    <div class="up-sec">Passwords</div>
+    <div class="up-sec">Systems</div>
+    ${categoriesSection(true)}
+    <div class="up-sec">Priorities</div>
+    ${prioritiesSection(true)}
+    <div class="up-intro" style="margin-top:16px">These same two are on
+      <b>Settings</b>, along with the passwords, syncing and how the log is
+      labelled.</div>`;
+
+  document.getElementById("meta").innerHTML =
+    `Editing ${esc(v.name || "this boat")}`;
+}
+
+/** Settings — what configures the log, as opposed to what describes the boat.
+ *
+ *  NOTHING HERE IS BEHIND EDIT MODE. Write access is the only gate.
+ *
+ *  It was, briefly, for the half of this tab that writes to the document — the
+ *  labels, categories and priorities all went through mutate() like any other
+ *  change to the log, so it seemed to follow that they belonged behind the same
+ *  button. Chris, 16 Aug 2026: "all the catagorie settings should show even
+ *  when not in edit mode." He is right, and the tell is that the OTHER half —
+ *  syncing and passwords — was never gated, because gating it would have been
+ *  obviously absurd. One tab with two rules is a tab nobody can predict.
+ *
+ *  The objection to dropping the gate would be an accidental change with no way
+ *  back, and that objection does not survive contact with updateEditBar(): the
+ *  Undo bar appears whenever there is anything to undo, edit mode or not. That
+ *  was settled when swiping stopped requiring edit mode, for the same reason.
+ *
+ *  Read-only shares see all of it in a looking-but-not-touching form. The
+ *  server would refuse the writes anyway, and an editor that cannot save is
+ *  worse than no editor. */
+function renderSettings(){
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";
+  if (!DOC){ box.innerHTML = ""; return; }
+
+  const ro = readOnly();
+  const canEdit = !ro;          // edit mode is NOT a gate on this tab — see above
+  const v = DOC.vessel || {};
+
+  const field = (k, label) =>
+    `<label class="ed-row"><span>${esc(label)}</span>
+      <input class="ed-in" data-vact="${k}" value="${esc(v[k]||"")}"></label>`;
+  const shown = (label, val) =>
+    `<div class="bt-row"><span class="bt-l">${esc(label)}</span><span class="bt-v">${
+      val ? esc(val) : "<span style='color:#5A7C97'>not set</span>"}</span></div>`;
+
+  let h = "";
+
+  // The one thing worth saying before anything else: what is and is not
+  // reachable right now, and how to change that.
+  if (ro){
+    h += `<div class="up-intro" style="color:#FBBF24">You are viewing a
+      <strong>read-only share</strong>. You can see how this log is set up and
+      how this device is syncing, but nothing here can be changed — that is
+      enforced by the server, not by the buttons being hidden.</div>`;
+  } else {
+    h += `<div class="up-intro">How this log is set up. Everything here can be
+      changed as it stands — this tab does not need <b>Edit</b> turned on, and
+      <b>Undo</b> appears at the top the moment there is anything to take
+      back.</div>`;
+  }
+
+  // ── Syncing ──────────────────────────────────────────────────────────
+  h += `<div class="up-sec">Syncing</div>
+    <div class="up-intro">${SYNC
+      ? `This log lives online and every device you set up shares it. Edits made
+         without a connection are kept here and sent when there is one.`
+      : `This log lives only on this device. Turn syncing on to keep it online and
+         share it across your phone, tablet and computer.`}</div>`;
+  if (SYNC){
+    h += `<div class="mg-sync">
+        <div><span>Server</span><code>${esc(SYNC.url)}</code></div>
+        <div><span>Log id</span><code>${esc(SYNC.logId)}</code></div>
+        <div><span>Can write</span><span>${SYNC.writeKey ? "yes" : "no — read-only"}</span></div>
+        <div><span>State</span><span class="sync-status" id="sync-status"></span></div>
+      </div>
+      <div class="ed-add">
+        <button data-mact="sync-now">Sync now</button>
+        ${ro ? "" : `<button data-mact="sync-kit">Details for another device</button>
+        <button data-mact="sync-share">Share read-only</button>
+        <button data-mact="sync-off" class="danger">Stop syncing</button>`}
+      </div>`;
+  } else if (!ro){
+    h += `<div class="ed-add"><button data-mact="sync-on">Turn on syncing</button></div>`;
+  }
+
+  // ── Passwords ────────────────────────────────────────────────────────
+  if (!ro){
+    h += `<div class="up-sec">Passwords</div>
     <div class="up-intro">Two passwords open this log. The <strong>full</strong> one
       can change it; the <strong>read-only</strong> one can only look. Give out the
       read-only one. Changing either takes effect on every device the next time it
@@ -4276,37 +4495,43 @@ function renderManage(){
         ${(KEYRING && KEYRING.byReadPassphrase)
           ? `<button data-mact="pw-drop-read" class="danger">Remove read-only access</button>` : ""}
       </div>
-    </div>`}
-    <div class="up-sec">Syncing</div>
-    <div class="up-intro">${SYNC
-      ? `This log lives online and every device you set up shares it. Edits made
-         without a connection are kept here and sent when there is one.`
-      : `This log lives only on this device. Turn syncing on to keep it online and
-         share it across your phone, tablet and computer.`}</div>
-    ${SYNC ? `
-      <div class="mg-sync">
-        <div><span>Server</span><code>${esc(SYNC.url)}</code></div>
-        <div><span>Log id</span><code>${esc(SYNC.logId)}</code></div>
-        <div><span>State</span><span class="sync-status" id="sync-status"></span></div>
-      </div>
-      <div class="ed-add">
-        <button data-mact="sync-now">Sync now</button>
-        <button data-mact="sync-kit">Details for another device</button>
-        <button data-mact="sync-share">Share read-only</button>
-        <button data-mact="sync-off" class="danger">Stop syncing</button>
-      </div>`
-      : `<div class="ed-add"><button data-mact="sync-on">Turn on syncing</button></div>`}
-    <div class="up-sec">Categories</div>
-    <div class="up-intro">The number is how many jobs use it. A category still in
-      use cannot be deleted — move those jobs first. Nesting is one level deep.</div>
-    <div class="mg-list">${rows}</div>
-    <div class="ed-add"><button data-mact="add">+ Add a category</button></div>
-    <div class="up-sec">Priorities</div>
-    <div class="up-intro">The groups on the Focus tab, in order.</div>
-    <div class="mg-list">${pris}</div>`;
+    </div>`;
+  }
 
+  // ── How it is labelled ───────────────────────────────────────────────
+  h += `<div class="up-sec">How it is labelled</div>`;
+  if (canEdit){
+    h += `<div class="up-intro">The names this log goes by — in its own header, on
+      the browser tab, and under the icon on a home screen.</div>
+      ${field("logTitle","Log title")}${field("headerLabel","Header strip")}
+      ${v.headerLabelCustom
+        ? `<div class="ed-add" style="margin:-4px 0 10px"><button data-mact="hdr-auto">Build it from the boat's details again</button></div>`
+        : ""}
+      ${field("footerLabel","Footer")}${field("pageTitle","Browser tab")}${field("appShortName","Home screen name")}
+      <div class="mg-icon-note" style="margin:-4px 0 10px">The header strip builds
+        itself from the boat's name, year, length, make and model — set those on
+        the <b>Boat</b> tab. Typing your own here claims it and stops it being
+        rebuilt.</div>`;
+  } else {
+    h += `<div class="bt-table wide">
+      ${shown("Log title", v.logTitle)}${shown("Header strip", v.headerLabel)}
+      ${shown("Footer", v.footerLabel)}${shown("Browser tab", v.pageTitle)}
+      ${shown("Home screen name", v.appShortName)}
+    </div>`;
+  }
+
+  // ── Categories ───────────────────────────────────────────────────────
+  h += `<div class="up-sec">Categories</div>
+    ${categoriesSection(canEdit)}`;
+
+  // ── Priorities ───────────────────────────────────────────────────────
+  h += `<div class="up-sec">Priorities</div>
+    ${prioritiesSection(canEdit)}`;
+
+  box.innerHTML = h;
   document.getElementById("meta").innerHTML =
-    `${DOC.systems.length} categories &ensp;·&ensp; ${DOC.priorities.length} priorities`;
+    `${DOC.systems.length} categories &ensp;·&ensp; ${DOC.priorities.length} priorities` +
+    (SYNC ? ` &ensp;·&ensp; syncing` : ` &ensp;·&ensp; <span class="amber">this device only</span>`);
 }
 
 document.addEventListener("input", function(ev){
@@ -4337,7 +4562,7 @@ document.addEventListener("change", function(ev){
   const row = el.closest(".mg-row");
   const s = DOC.systems.find(x => x.id === row.dataset.sys); if (!s) return;
   mutate(() => { s.parent = el.value || null; });
-  renderManage();
+  renderCurrent();
 });
 
 document.addEventListener("click", function(ev){
@@ -4365,7 +4590,7 @@ document.addEventListener("click", function(ev){
         await publishKeyring();
         setEditStatus(w && r ? "Both passwords updated" : w ? "Full-access password updated"
                                                            : "Read-only password updated");
-        renderManage();
+        renderCurrent();
       } catch (err) { setEditStatus("Could not change them: " + err.message, true); }
     })();
     return;
@@ -4379,7 +4604,7 @@ document.addEventListener("click", function(ev){
         await setAccessPasswords(cur, null, SYNC && SYNC.writeKey);
         await publishKeyring();
         setEditStatus("Read-only access removed");
-        renderManage();
+        renderCurrent();
       } catch (err) { setEditStatus("Could not remove it: " + err.message, true); }
     })();
     return;
@@ -4438,7 +4663,7 @@ document.addEventListener("click", function(ev){
           setEditStatus("Could not reach that server — syncing is on but nothing is sent yet", true);
         }
       }
-      renderManage();
+      renderCurrent();
     })();
     return;
   }
@@ -4453,8 +4678,8 @@ document.addEventListener("click", function(ev){
     const text = [
       "READ-ONLY ACCESS — " + ((DOC && DOC.vessel && DOC.vessel.name) || "boat log"),
       "=".repeat(48), "",
-      "Open the app, go to Boat & categories, turn on syncing,",
-      "and choose to join an existing log. Then enter:",
+      "Open the app, go to Settings, turn on syncing, and choose",
+      "to join an existing log. Then enter:",
       "",
       "  Server:    " + SYNC.url,
       "  Log id:    " + SYNC.logId,
@@ -4479,7 +4704,7 @@ document.addEventListener("click", function(ev){
   if (act === "sync-off"){
     if (!confirm("Stop syncing?\n\nThe copy already on the server stays there, and this\n" +
                  "device keeps its own copy. They will drift apart from now on.")) return;
-    (async () => { await saveSyncConfig(null); SYNC = null; renderManage();
+    (async () => { await saveSyncConfig(null); SYNC = null; renderCurrent();
                    setEditStatus("Syncing off"); })();
     return;
   }
@@ -4487,7 +4712,7 @@ document.addEventListener("click", function(ev){
   if (act === "hdr-auto"){
     mutate(() => { delete DOC.vessel.headerLabelCustom;
                    DOC.vessel.headerLabel = composeHeaderLabel(DOC.vessel); }, { rerender:false });
-    renderBoat();
+    renderCurrent();
     setEditStatus("Header strip built from the boat's details");
     return;
   }
@@ -4506,7 +4731,7 @@ document.addEventListener("click", function(ev){
     const at = document.querySelector('link[rel="apple-touch-icon"]');
     if (at) at.setAttribute("href", "apple-touch-icon.png");
     try { localStorage.removeItem("cs2_icon"); } catch {}
-    renderManage();
+    renderCurrent();
     setEditStatus("Back to the stock icon");
     return;
   }
@@ -4518,7 +4743,7 @@ document.addEventListener("click", function(ev){
     while (DOC.systems.some(s => s.id === id)) id = uid("sys-");
     mutate(() => { DOC.systems.push({ id, name, color:"#94A3B8", parent:null,
                                       order: DOC.systems.length }); }, { rerender:false });
-    renderManage();
+    renderCurrent();
     setEditStatus("Added " + name);
     return;
   }
@@ -4536,7 +4761,7 @@ document.addEventListener("click", function(ev){
     const kids = DOC.systems.filter(x => x.parent === s.id).length;
     if (kids) return setEditStatus(`"${s.name}" has ${kids} sub-categor${kids>1?"ies":"y"} — move them first`, true);
     mutate(() => { DOC.systems.splice(idx,1); }, { rerender:false });
-    renderManage();
+    renderCurrent();
     return;
   }
   if (act === "up" || act === "down"){
@@ -4547,7 +4772,7 @@ document.addEventListener("click", function(ev){
       [arr[idx], arr[j]] = [arr[j], arr[idx]];
       arr.forEach((x, n) => { x.order = n; });
     }, { rerender:false });
-    renderManage();
+    renderCurrent();
   }
 });
 
@@ -4906,7 +5131,7 @@ function applyDocument(d){
       const dataUrl = await readIconFile(f);
       mutate(() => { DOC.vessel.icon = dataUrl; }, { rerender:false });
       applyVesselIcon(dataUrl);
-      renderManage();
+      renderCurrent();
       setEditStatus("Icon updated");
     } catch (err) { setEditStatus("Could not use that image: " + err.message, true); }
   });
@@ -5130,8 +5355,8 @@ function showSyncKit(){
     "",
     "-".repeat(48),
     "These three lines are what another phone, tablet or computer",
-    "needs to join this log. Open the app there, go to Boat &",
-    "categories, turn on syncing, and choose 'join an existing log'.",
+    "needs to join this log. Open the app there, go to Settings,",
+    "turn on syncing, and choose 'join an existing log'.",
     "",
     "The WRITE KEY lets a device change the log. Treat it like the",
     "password. Anyone who has it can overwrite the log, though they",
