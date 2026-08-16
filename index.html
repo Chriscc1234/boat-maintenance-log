@@ -726,7 +726,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.12.1";
+const APP_VERSION = "1.12.2";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -738,6 +738,16 @@ const APP_VERSION = "1.12.1";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.12.2", "16 Aug 2026", "The tab/bookmark icon actually updates now",
+   "1.12.1 cached a custom icon correctly and applied it to the lock screen, "
+ + "but the browser TAB icon still showed the stock one — not an iOS quirk, "
+ + "confirmed in a different browser entirely. Most browsers only read "
+ + "<link rel=\"icon\"> once, when the element is first inserted; changing an "
+ + "EXISTING element's href is silently ignored for the tab chrome even though "
+ + "the DOM is correct. The fix is the standard one: remove the old link and "
+ + "insert a fresh element rather than mutating it in place, which is what "
+ + "actually makes a browser notice."],
+
   ["1.12.1", "15 Aug 2026", "Custom icons now reach the lock screen",
    "The boat's own name was cached so a repeat visit could say it before the "
  + "password was typed — the shell ships generic, one app for any vessel, and "
@@ -3513,14 +3523,28 @@ function setChromeForBoat(label){
 }
 
 function applyVesselIcon(dataUrl){
-  const targets = [
-    ["#lock img", "src"],
-    ['link[rel="apple-touch-icon"]', "href"],
-    ['link[rel="icon"]', "href"],
-  ];
-  for (const [sel, attr] of targets){
-    const el = document.querySelector(sel);
-    if (el && dataUrl) el.setAttribute(attr, dataUrl);
+  if (!dataUrl) return;
+  // #lock img is a real rendered <img> — a browser repaints it the moment `src`
+  // changes, so setAttribute is enough there.
+  const lock = document.querySelector("#lock img");
+  if (lock) lock.setAttribute("src", dataUrl);
+
+  // The tab/bookmark icons are a DIFFERENT matter and this is the bug this fix
+  // is for: most browsers read <link rel="icon"> and rel="apple-touch-icon"
+  // ONCE, at page load (or whenever the element is newly INSERTED), and do not
+  // re-check it just because an existing element's href attribute changed.
+  // `el.setAttribute("href", dataUrl)` on the SAME element is silently a no-op
+  // in the tab chrome on most browsers, iOS Safari included but not iOS-only —
+  // confirmed live, this held even in a completely different browser than the
+  // one that reported it. The fix that actually works everywhere is to REMOVE
+  // the old link and INSERT A FRESH ONE, which forces the browser to notice it
+  // as new rather than treating it as the same element with an updated value.
+  for (const rel of ["icon", "apple-touch-icon"]){
+    const old = document.querySelector(`link[rel="${rel}"]`);
+    const fresh = document.createElement("link");
+    fresh.setAttribute("rel", rel);
+    fresh.setAttribute("href", dataUrl);
+    if (old){ old.replaceWith(fresh); } else { document.head.appendChild(fresh); }
   }
   // Rewrite the manifest so an install started from here picks the icon up.
   // iOS bakes the icon in at "Add to Home Screen" and never revisits it, so an
