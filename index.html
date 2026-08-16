@@ -726,7 +726,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.12.0";
+const APP_VERSION = "1.12.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -738,6 +738,16 @@ const APP_VERSION = "1.12.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.12.1", "15 Aug 2026", "Custom icons now reach the lock screen",
+   "The boat's own name was cached so a repeat visit could say it before the "
+ + "password was typed — the shell ships generic, one app for any vessel, and "
+ + "a padlock over “Maintenance Log” says nothing about whose log it is. "
+ + "The icon never got the same treatment: setting a custom one showed it "
+ + "everywhere ALREADY unlocked, but the lock screen kept the stock icon "
+ + "forever, because it lives inside the encrypted document and the lock "
+ + "screen runs before that is readable. It is cached now, the same way the "
+ + "name already was, and cleared on sign-out or when the icon is removed."],
+
   ["1.12.0", "14 Aug 2026", "Every device on one list",
    "Each device now reports what it is running whenever it syncs, and every "
  + "device can read the list: what it is, which log revision it is on, which "
@@ -884,13 +894,25 @@ const APP_CHANGELOG = [
 ];
 const APP_REPO = "Chriscc1234/boat-maintenance-log";   // enables the update check
 
-// Put the boat's name on the lock screen if this device has seen it before.
-(function nameLockScreen(){
+// Put the boat's name AND icon on the lock screen if this device has seen them
+// before. The icon lives inside the encrypted document, so before the password
+// is typed the app has no way to know it — the lock screen can only ever show
+// what was cached from a previous successful unlock, same as the name already
+// does. Until now the icon had no such cache and the lock screen always showed
+// the generic shipped icon regardless of what had been set — the name updated
+// itself on a repeat visit, the icon never did.
+(function brandLockScreen(){
   try {
     const n = localStorage.getItem("cs2_vessel");
-    if (!n) return;
-    const h = document.getElementById("lock-title");
-    if (h) h.textContent = n;
+    if (n){
+      const h = document.getElementById("lock-title");
+      if (h) h.textContent = n;
+    }
+    const ic = localStorage.getItem("cs2_icon");
+    if (ic){
+      const img = document.querySelector("#lock img");
+      if (img) img.src = ic;
+    }
   } catch {}
 })();
 
@@ -4452,10 +4474,14 @@ document.addEventListener("click", function(ev){
   }
   if (act === "icon-clear"){
     mutate(() => { delete DOC.vessel.icon; }, { rerender:false });
-    // Put the shipped icon back in the places applyVesselIcon overwrote.
+    // Put the shipped icon back in the places applyVesselIcon overwrote, and
+    // drop the cache the lock screen reads before unlocking — without this a
+    // cleared icon still came back after a reload, since the lock screen picks
+    // it from localStorage rather than from the (still-locked) document.
     const lock = document.querySelector("#lock img"); if (lock) lock.src = "icon-192.png";
     const at = document.querySelector('link[rel="apple-touch-icon"]');
     if (at) at.setAttribute("href", "apple-touch-icon.png");
+    try { localStorage.removeItem("cs2_icon"); } catch {}
     renderManage();
     setEditStatus("Back to the stock icon");
     return;
@@ -4542,6 +4568,7 @@ async function signOut(){
     localStorage.removeItem(KEY_STORE);
     localStorage.removeItem(KEY_STORE + "_dk");
     localStorage.removeItem("cs2_vessel");
+    localStorage.removeItem("cs2_icon");
   } catch {}
   DATA_KEY = null; KEYRING = null; SYNC = null; DOC = null;
   LOCAL_EDITS = false; PUSH_PENDING = false; UNDO.length = 0;
@@ -4770,13 +4797,19 @@ function applyDocument(d){
   // The boat's own name, in the five places the shell used to hardcode it.
   const v = d.vessel || {};
   const set = (sel, val) => { const el = document.querySelector(sel); if (el && val) el.textContent = val; };
-  // Cached so the LOCK screen can say the boat's name. The shell ships generic —
-  // it has to, it is one app for any vessel — but a padlock over "Maintenance
-  // Log" tells the owner nothing about whose log they are opening. The name is
-  // the only thing cached, it never leaves the device, and it is already on the
-  // home-screen icon.
+  // Cached so the LOCK screen can say the boat's name AND show its icon. The
+  // shell ships generic — it has to, it is one app for any vessel — but a
+  // padlock over "Maintenance Log" and a blank icon tells the owner nothing
+  // about whose log they are opening. Neither leaves the device: both are
+  // already visible on the home-screen icon and in the header once unlocked,
+  // this only lets the LOCKED screen catch up to what a previous unlock
+  // already showed elsewhere.
   if (!v.headerLabelCustom && composeHeaderLabel(v)) v.headerLabel = composeHeaderLabel(v);
-  try { if (v.name) localStorage.setItem("cs2_vessel", v.name); } catch {}
+  try {
+    if (v.name) localStorage.setItem("cs2_vessel", v.name);
+    if (v.icon) localStorage.setItem("cs2_icon", v.icon);
+    else localStorage.removeItem("cs2_icon");
+  } catch {}
   if (v.name) setChromeForBoat(v.appShortName || v.name);
   applyVesselIcon(v.icon);
   if (v.pageTitle) document.title = v.pageTitle;
