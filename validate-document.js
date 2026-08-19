@@ -89,6 +89,15 @@ function validateDocument(doc) {
         E(`${iat} is a task but done is ${JSON.stringify(it.done)}, expected true or false`);
       if (it.type === "note" && "done" in it && it.done != null)
         W(`${iat} is a note but carries done — it will not render a checkbox`);
+      // doneAt is machine-written — stamped when a task is ticked in the app and
+      // removed when it is unticked. It is the only time signal the log has, so
+      // a wrong one is worse than none: it would be averaged into a rate.
+      if ("doneAt" in it && it.doneAt != null){
+        if (it.type !== "task" || !it.done)
+          W(`${iat} carries doneAt but is not a completed task — it will be ignored`);
+        else if (typeof it.doneAt !== "string" || isNaN(Date.parse(it.doneAt)))
+          E(`${iat}.doneAt is ${JSON.stringify(it.doneAt)}, expected an ISO date string`);
+      }
       if (it.role != null && !["goal","step","bottleneck","after-launch"].includes(it.role))
         E(`${iat}.role "${it.role}" is not a known role`);
       if (it.role === "step" && it.type !== "task")

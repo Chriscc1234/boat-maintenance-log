@@ -560,8 +560,24 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .chev{color:#507490;font-size:10px;flex-shrink:0;transition:transform .18s}
 .entry-body{padding:0 16px 16px;border-top:1px solid #163148;display:none}
 .entry-body.open{display:block}
+.eprog{color:#5E7F9B}
+.eprog.on{color:#86EFAC}
 .ebullets{margin:12px 0 0;padding-left:18px}
 .ebullets li{font-size:13px;line-height:1.65;margin-bottom:3px;color:#C8DCF0}
+/* A task row carries its own checkbox, so it gives up the list marker and the
+   indent that marker needed. Notes keep both — the difference between "a thing
+   to do" and "a thing to know" should be visible without reading either. */
+.ebullets li.btask{list-style:none;margin-left:-18px;display:flex;align-items:flex-start;gap:6px;margin-bottom:0}
+/* 44px of vertical hit area (Apple HIG / Material's 48dp), pulled back in with
+   negative margin so a 12-task job does not become a scroll. The glyph is small;
+   the target is not. Do not "tidy" the margins away — they are the target. */
+.ebullets .tick{background:none;border:0;padding:12px 6px;margin:-11px 0;min-width:30px;
+  font-size:15px;line-height:1.4;color:#5EAEDC;cursor:pointer;flex:0 0 auto}
+.ebullets .tick:disabled{color:#3A5871;cursor:default}
+.ebullets .tick:active{transform:scale(.9)}
+.ebullets li.btask.done .tick{color:#86EFAC}
+.ebullets li.btask.done .btext{color:#5E7F9B;text-decoration:line-through}
+.ebullets .btext{padding-top:1px}
 /* The per-entry update boxes and the add-entry form were styled here until
    11 Aug 2026. Removed with the editing UI — see the v4.1 revision entry. */
 .footer{text-align:center;padding:32px 0 16px;font-size:10px;color:#0F3050;font-family:monospace;letter-spacing:2px}
@@ -731,7 +747,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.14.0";
+const APP_VERSION = "1.15.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -743,6 +759,27 @@ const APP_VERSION = "1.14.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.15.0", "19 Aug 2026", "Tasks tick off where you read them",
+   "Chris: \"make the tasks tick off when theyre done, having a finer metric to "
+ + "measure by is good.\"\n\n"
+ + "You could already tick a task. In 162 tasks across 20 months, nobody ever "
+ + "had — because it meant turning on Edit, opening the job, finding the row and "
+ + "pressing a control that cycles note to task to done to note, so one tap too "
+ + "many turned the task into a note. That is the same mistake 1.5.1 fixed for "
+ + "swiping: a shortcut you have to switch a mode on to reach is slower than the "
+ + "button it was meant to replace. Ticking a box is the most ordinary thing "
+ + "anyone does to a job list, so it now happens where you read the list. Write "
+ + "access is the gate, not edit mode — the rule Settings settled on in 1.14.0.\n\n"
+ + "Each job's row says how far along it is, and each tick is stamped with the "
+ + "time it happened. That stamp is the point of the change rather than a "
+ + "side-effect: completion was recorded per JOB, and a job is months wide, so "
+ + "the log could show what was finished but never how fast anything moves. "
+ + "Tasks are days wide, and a dated tick is the first thing in this log that "
+ + "can answer how much is left in hours rather than in items.\n\n"
+ + "Nothing was backfilled. Every task ticked before today, and every job "
+ + "completed before today, carries no time at all — the log is new, and what "
+ + "went into it about work done earlier is not clear enough about when. An "
+ + "invented date is worse than a missing one, because it looks like evidence."],
   ["1.14.0", "16 Aug 2026", "Settings stops asking you to turn on Edit",
    "Chris: \"mirror the priorities too, also, in the settings tab, all the "
  + "catagorie settings should show even when not in edit mode.\"\n\n"
@@ -1082,6 +1119,63 @@ function load() {
 // ═══════════════════════════════════════════════════════
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
+/** "4 of 11 done" on a job's own row. Counted off BASE's flattened strings,
+ *  which already carry the state in their ☑/☐ prefix — no second source.
+ *
+ *  Hidden on a job with no tasks, and on a completed one, where it can only say
+ *  something either obvious or embarrassing: the log records completion at the
+ *  JOB level and always has, so most finished jobs have tasks that were never
+ *  ticked. That is history, not a mistake to display. */
+function prog(row){
+  const t = (row.b || []).filter(b => /^[☐☑]/.test(b));
+  if (!t.length || row.st !== "active") return "";
+  const d = t.filter(b => b.startsWith("☑")).length;
+  if (!d) return `<span class="eprog">${t.length} task${t.length===1?"":"s"}</span>`;
+  return `<span class="eprog on">${d} of ${t.length} done</span>`;
+}
+
+/** The body of a job in READ mode — and the one place a task can be ticked.
+ *
+ *  It renders from the DOCUMENT's items rather than from BASE's flattened
+ *  strings, because a string cannot be ticked: by the time `b` exists the item
+ *  is `"☐ do the thing"` and the type, the done flag and the index are gone.
+ *
+ *  WHY TICKING LIVES HERE AND NOT IN THE EDITOR. It was in the editor, and in
+ *  162 tasks across 20 months not one was ever ticked. To close a task you had
+ *  to turn on Edit, open the job, find the row and press a control that CYCLES
+ *  note → task → done → note, so one tap too many silently turned the task into
+ *  a note. That is the same mistake 1.5.1 fixed for swiping, written down in
+ *  APP-STATE as: a shortcut you have to switch a mode on to reach is slower than
+ *  the button it was meant to replace. Ticking a box is the single most ordinary
+ *  thing anyone does to a job list; it does not get to be the hardest.
+ *
+ *  Write access is the gate, not edit mode — same rule Settings settled on in
+ *  1.14.0. A read-only share gets boxes it can read and cannot press.
+ *
+ *  Falls back to the flat strings if the document is not open (the payload
+ *  path renders BASE with no DOC behind it). */
+function bulletsHTML(row){
+  const e = DOC ? findEntry(row.id) : null;
+  if (!e || !Array.isArray(e.items))
+    return `<ul class="ebullets">${row.b.map(b =>
+      `<li style="${bStyle(b)}">${esc(b)}</li>`).join("")}</ul>`;
+
+  const canTick = !readOnly();
+  return `<ul class="ebullets">${e.items.map((it, i) => {
+    if (it.type !== "task")
+      return `<li class="bnote">${esc(it.text)}</li>`;
+    return `<li class="btask${it.done ? " done" : ""}">
+      <button class="tick" ${canTick
+        ? `data-tick="${esc(e.id)}" data-i="${i}"`
+        : `disabled aria-disabled="true"`}
+        aria-pressed="${it.done ? "true" : "false"}"
+        title="${it.done ? "Done — tap to reopen" : "Tap when this is done"}">${
+        it.done ? "☑" : "☐"}</button>
+      <span class="btext">${esc(it.text)}</span>
+    </li>`;
+  }).join("")}</ul>`;
+}
+
 function bStyle(b){
   if (b.startsWith("✅")) return "color:#86EFAC";
   if (b.startsWith("⏳")) return "color:#FDE047;opacity:.9";
@@ -1212,6 +1306,7 @@ function renderLog() {
               <span class="edate">${esc(e.date)}</span>
               <span class="esys" style="color:${sc}">${esc(e.sys)}</span>
               ${pm ? `<span class="epri" style="color:${pm.color}">&#9642; ${esc(pm.label)}</span>` : ""}
+              ${prog(e)}
             </div>
           </div>
           <span class="chev" style="${isOpen?"transform:rotate(180deg)":""}">▼</span>
@@ -1221,7 +1316,7 @@ function renderLog() {
         <div class="entry-body${isOpen?" open":""}" id="body-${esc(e.id)}">
           ${EDIT && DOC && isOpen && findEntry(e.id)
             ? entryEditor(findEntry(e.id))
-            : `<ul class="ebullets">${e.b.map(b=>`<li style="${bStyle(b)}">${esc(b)}</li>`).join("")}</ul>`}
+            : bulletsHTML(e)}
         </div>
       </div>`;
     });
@@ -1241,6 +1336,8 @@ function renderLog() {
 // ═══════════════════════════════════════════════════════
 document.getElementById("log-content").addEventListener("click", function(e) {
   if (e.target.closest("[data-addjob]")) { addEntry(); return; }
+  const tk = e.target.closest("[data-tick]");
+  if (tk) { tickTask(tk.dataset.tick, +tk.dataset.i); return; }
   const ord = e.target.closest("[data-ord]");
   if (ord) { moveEntry(ord.dataset.id, ord.dataset.ord); return; }
   const hdr = e.target.closest(".entry-hdr");
@@ -2533,6 +2630,15 @@ function validateDocument(doc) {
         E(`${iat} is a task but done is ${JSON.stringify(it.done)}, expected true or false`);
       if (it.type === "note" && "done" in it && it.done != null)
         W(`${iat} is a note but carries done — it will not render a checkbox`);
+      // doneAt is machine-written — stamped when a task is ticked in the app and
+      // removed when it is unticked. It is the only time signal the log has, so
+      // a wrong one is worse than none: it would be averaged into a rate.
+      if ("doneAt" in it && it.doneAt != null){
+        if (it.type !== "task" || !it.done)
+          W(`${iat} carries doneAt but is not a completed task — it will be ignored`);
+        else if (typeof it.doneAt !== "string" || isNaN(Date.parse(it.doneAt)))
+          E(`${iat}.doneAt is ${JSON.stringify(it.doneAt)}, expected an ISO date string`);
+      }
       if (it.role != null && !["goal","step","bottleneck","after-launch"].includes(it.role))
         E(`${iat}.role "${it.role}" is not a known role`);
       if (it.role === "step" && it.type !== "task")
@@ -3476,6 +3582,34 @@ async function recordRevision(){
                          : "Recorded " + ver + " from the change list — add a line later if you want one");
 }
 
+/** Tick a task off, or put it back. The whole point of 1.15.0.
+ *
+ *  `doneAt` is stamped here and nowhere else. It is what makes this a METRIC
+ *  rather than a checkbox: a tick with no date tells you the state of the job,
+ *  a tick with a date tells you the rate of the work, and the rate is the only
+ *  thing that can ever answer "how long is left". Optional and additive —
+ *  every reader that does not know the field ignores it.
+ *
+ *  Deliberately NOT backfilled onto tasks already ticked, and there is no way
+ *  to enter one by hand. Chris, 19 Aug 2026: the log is new and what went in
+ *  before it "isn't super clear on time, especially the past jobs". A made-up
+ *  date is worse than a missing one — it looks like evidence.
+ *
+ *  Unticking removes the stamp rather than keeping the old one, because the
+ *  task is not done and a date saying otherwise would be a lie sitting in the
+ *  data waiting to be averaged. */
+function tickTask(id, i){
+  if (!DOC || readOnly()) return;
+  const e = findEntry(id); if (!e || !e.items) return;
+  const it = e.items[i];
+  if (!it || it.type !== "task") return;
+  mutate(() => {
+    it.done = !it.done;
+    if (it.done) it.doneAt = new Date().toISOString();
+    else delete it.doneAt;
+  });
+}
+
 function mutate(fn, opts){
   if (!DOC) return;
   UNDO.push(snapshot());
@@ -3961,9 +4095,11 @@ document.addEventListener("click", function(ev){
     const it = e.items[i];
     // Cycles note → open task → done task → note. One control, three states,
     // which is fewer things on screen than a type picker plus a checkbox.
-    if (it.type === "note"){ it.type = "task"; it.done = false; }
-    else if (!it.done){ it.done = true; }
-    else { it.type = "note"; delete it.done; }
+    // Same stamp as tickTask(), for the same reason — two routes to the same
+    // state that disagree about what they record is how the data rots.
+    if (it.type === "note"){ it.type = "task"; it.done = false; delete it.doneAt; }
+    else if (!it.done){ it.done = true; it.doneAt = new Date().toISOString(); }
+    else { it.type = "note"; delete it.done; delete it.doneAt; }
   });
   if (act === "item-up")   mutate(() => { const [x] = e.items.splice(i,1); e.items.splice(i-1,0,x); });
   if (act === "item-down") mutate(() => { const [x] = e.items.splice(i,1); e.items.splice(i+1,0,x); });

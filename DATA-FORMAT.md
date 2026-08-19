@@ -250,6 +250,22 @@ Two kinds:
 `done` is required on tasks and must be a boolean. It is what draws the
 checkbox; the app counts open tasks from it.
 
+**`doneAt` — optional, and not yours to write.** An ISO timestamp the app stamps
+when a task is ticked, and removes when it is unticked. Added 19 Aug 2026, when
+it turned out that ticking was buried in the editor and not one task in 162 had
+ever been closed.
+
+```json
+{ "type": "task", "done": true, "doneAt": "2026-08-19T05:22:41.108Z", "text": "..." }
+```
+
+Leave it alone in both directions: **do not add one** to a task you mark done in
+a delivery, and **do not strip** the ones already there. A date you supply is a
+guess about when work happened, and this field's only value is that it is not a
+guess — it is the log's one measurement of pace, and one invented entry
+contaminates every average taken over it. Ticking a task in a handoff is fine;
+just set `done` and leave the timing to whoever actually does the work.
+
 **Write bullets as facts, decisions or actions — nothing else.** Not commentary,
 not replies to a conversation, not analysis out loud. If a bullet only makes
 sense to someone who was in the discussion, it does not belong.
