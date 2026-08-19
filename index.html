@@ -494,10 +494,6 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .bt-table.wide .bt-l{min-width:140px}
 .bt-v{color:#D6E9F8}
 .bt-empty{font-size:12.5px;color:#507490;padding:6px 0;line-height:1.5}
-.bt-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px}
-.bt-stats>div{background:#0A1B2A;border:1px solid #16324A;border-radius:8px;padding:11px 8px;text-align:center}
-.bt-stats b{display:block;font-size:21px;font-weight:600;color:#38BDF8;line-height:1.1}
-.bt-stats span{display:block;font-size:11px;color:#6E93B0;margin-top:3px}
 .bt-sys{display:flex;flex-wrap:wrap;gap:5px}
 .bt-chip{display:flex;align-items:center;gap:5px;background:none;border:1px solid #163148;
  color:#8FB4CE;border-radius:20px;padding:4px 11px;font-size:11.5px;white-space:nowrap}
@@ -560,6 +556,30 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .chev{color:#507490;font-size:10px;flex-shrink:0;transition:transform .18s}
 .entry-body{padding:0 16px 16px;border-top:1px solid #163148;display:none}
 .entry-body.open{display:block}
+/* ── the pace readout on Updates ─────────────────────────────────────────
+   Deliberately plain. This block exists to be believed, and a dashboard that
+   looks more precise than its inputs is how a rough number gets quoted back as
+   a fact. No gauges, no percentages carried to a decimal. */
+.pace-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:8px;margin:10px 0}
+.pace-stat{background:#0F2438;border:1px solid #1B3A55;border-radius:8px;padding:10px 12px}
+.pace-stat b{display:block;font-size:22px;color:#E8F2FB;line-height:1.1}
+.pace-stat span{font-size:11px;color:#6E93B0;display:block;margin-top:3px}
+.pace-bar{height:8px;border-radius:5px;background:#12293E;overflow:hidden;margin:14px 0 5px}
+.pace-bar span{display:block;height:100%;background:#86EFAC;border-radius:5px;
+  min-width:0;transition:width .3s}
+.pace-cap{font-size:11px;color:#6E93B0;margin-bottom:4px}
+.pace-row{display:flex;gap:12px;padding:11px 0;border-top:1px solid #163148;align-items:baseline}
+.pace-k{flex:0 0 78px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6E93B0}
+.pace-v{flex:1;font-size:13px;line-height:1.6;color:#C8DCF0}
+.pace-v b{color:#E8F2FB}
+.pace-none{color:#FBBF24}
+/* Bars sit on a shared baseline; an empty month is a 2px stub rather than a
+   missing column, because a gap you cannot see reads as a month that never
+   happened. */
+.pace-spark{display:flex;align-items:flex-end;gap:3px;height:36px;margin:8px 0 3px}
+.pace-spark i{flex:1;background:#2C6E9B;border-radius:2px 2px 0 0;min-height:2px}
+.pace-spark i:last-child{background:#5EAEDC}
+.pace-warn{color:#6E93B0;font-size:12px;border-top:1px solid #163148;padding-top:10px}
 .eprog{color:#5E7F9B}
 .eprog.on{color:#86EFAC}
 .ebullets{margin:12px 0 0;padding-left:18px}
@@ -747,7 +767,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.15.0";
+const APP_VERSION = "1.16.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -759,6 +779,26 @@ const APP_VERSION = "1.15.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.16.0", "19 Aug 2026", "The Boat tab says where this stands",
+   "Chris asked how many hours of work were left in the boat, and the honest "
+ + "answer was that the log could not say. It recorded completion per JOB, and "
+ + "a job here is months wide — so three weeks of pulling water out of a hull, "
+ + "assembling a press and curing epoxy showed up as no progress at all.\n\n"
+ + "Where this stands, under the boat's details: how many jobs and tasks are "
+ + "open, how much of the plan is left, and two separate readings of pace. "
+ + "MEASURED counts task ticks by their timestamps — honest to the hour, and "
+ + "empty until ticking has been going a while, which it says rather than "
+ + "filling the space with something weaker. INFERRED counts completed jobs by "
+ + "month, which is available today and worth much less, for the reason above "
+ + "and because dates written before the log existed came from memory.\n\n"
+ + "They are kept apart deliberately. Averaged into one number, the result "
+ + "would rest on the weaker half and look more precise than either. Two rows "
+ + "that can disagree are the point. The projection is a range — current rate "
+ + "to best month on record — and is withheld entirely below three data points, "
+ + "because a projection from one sample is a guess wearing a date.\n\n"
+ + "It replaces \"The log at a glance\", which counted the same things without "
+ + "the time in them. It is on Boat rather than Updates because it describes "
+ + "the vessel's progress, and Updates is the changelog."],
   ["1.15.0", "19 Aug 2026", "Tasks tick off where you read them",
    "Chris: \"make the tasks tick off when theyre done, having a finer metric to "
  + "measure by is good.\"\n\n"
@@ -2059,6 +2099,145 @@ function noteSections(src){
   }
   if (cur) out.push(cur);
   return { preamble: pre.join("\n"), sections: out.map(s => ({ title: s.title, body: s.body.join("\n") })) };
+}
+
+/** "Where this stands" — the burndown and the pace, on the Updates tab.
+ *
+ *  Two clocks, and they are NOT the same measurement. Keeping them apart is the
+ *  whole design:
+ *
+ *    · MEASURED — task ticks carrying `doneAt`. Honest to the hour, and empty
+ *      until ticking has been happening for a while. It says so rather than
+ *      filling the space with something weaker.
+ *    · INFERRED — completed jobs dated by `sortKey`. Available today, and worth
+ *      much less: a job closes when the part is back on the boat, so months of
+ *      real work can show as nothing, and the pre-July dates were backfilled
+ *      when the log was created, so several share a month they did not happen in.
+ *
+ *  Why no single number. Averaged together they would produce one confident
+ *  figure resting on the weaker half, and the weaker half is the one that reads
+ *  "three weeks, no progress" during a fortnight of pulling water out of a hull.
+ *  Two rows that can disagree are the point.
+ *
+ *  The projection is deliberately a RANGE built from the recent rate and the
+ *  best month on record, and it is withheld entirely below three data points.
+ *  A projection from one sample is a guess wearing a date. */
+function paceSection(){
+  if (!DOC || !Array.isArray(DOC.entries)) return "";
+  const ents = DOC.entries;
+  const tasks = e => (e.items || []).filter(i => i.type === "task");
+  const active = ents.filter(e => e.status === "active");
+  const doneJobs = ents.filter(e => e.status === "complete");
+
+  const openT = active.reduce((n, e) => n + tasks(e).filter(t => !t.done).length, 0);
+  const doneT = active.reduce((n, e) => n + tasks(e).filter(t =>  t.done).length, 0);
+  const allT  = openT + doneT;
+
+  // ── measured: ticks with a date on them ────────────────────────────────
+  const now = Date.now(), DAY = 86400000;
+  const stamps = [];
+  for (const e of ents)
+    for (const t of tasks(e))
+      if (t.done && t.doneAt && !isNaN(Date.parse(t.doneAt))) stamps.push(Date.parse(t.doneAt));
+  const since = d => stamps.filter(x => x > now - d * DAY).length;
+  const week = since(7), month = since(30);
+
+  // ── inferred: completed jobs, by the month in their sort key ───────────
+  const months = {};
+  for (const e of doneJobs){
+    const k = String(e.sortKey || "").slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(k)) months[k] = (months[k] || 0) + 1;
+  }
+  // A continuous run of the last 12 months, so an empty month is a gap you can
+  // see rather than a bar that quietly is not there.
+  const bars = [];
+  const d0 = new Date();
+  for (let i = 11; i >= 0; i--){
+    const d = new Date(d0.getFullYear(), d0.getMonth() - i, 1);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    bars.push({ k, label: d.toLocaleString(undefined, { month: "narrow" }), n: months[k] || 0 });
+  }
+  const peak    = Math.max(1, ...bars.map(b => b.n));
+  const last6   = bars.slice(6).reduce((n, b) => n + b.n, 0) / 6;
+  const bestMon = Math.max(...bars.map(b => b.n));
+  const samples = bars.filter(b => b.n).length;
+
+  // ── the plan, which is the only "left to do" that means splash ─────────
+  const steps = (DOC.plan && DOC.plan.steps) || [];
+  const stepOpen = steps.filter(s => {
+    const jobs = (s.entryIds || []).map(findEntry).filter(Boolean);
+    return jobs.length ? !jobs.every(j => j.status === "complete") : !s.done;
+  });
+  const splashJobs = new Set();
+  stepOpen.forEach(s => (s.entryIds || []).forEach(id => {
+    const j = findEntry(id); if (j && j.status !== "complete") splashJobs.add(id);
+  }));
+
+  const months2 = n => n < 1.5 ? "about a month"
+                 : n < 11 ? `about ${Math.round(n)} months`
+                 : `about ${(n / 12).toFixed(1)} years`;
+  const eta = n => {
+    if (samples < 3 || !last6) return null;
+    return { slow: months2(n / last6), fast: bestMon ? months2(n / bestMon) : null };
+  };
+  const splashETA = eta(splashJobs.size), allETA = eta(active.length);
+
+  const pct = allT ? Math.round(doneT / allT * 100) : 0;
+
+  return `<div class="up-sec">Where this stands</div>
+
+    <div class="pace-grid">
+      <div class="pace-stat"><b>${active.length}</b><span>jobs open</span></div>
+      <div class="pace-stat"><b>${doneJobs.length}</b><span>jobs done</span></div>
+      <div class="pace-stat"><b>${openT}</b><span>tasks left</span></div>
+      ${stepOpen.length ? `<div class="pace-stat"><b>${splashJobs.size}</b><span>left on the plan</span></div>` : ""}
+      <div class="pace-stat"><b>${(DOC.voyages || []).length}</b><span>voyage${
+        (DOC.voyages || []).length === 1 ? "" : "s"}</span></div>
+    </div>
+
+    <div class="pace-bar" title="${doneT} of ${allT} tasks on open jobs">
+      <span style="width:${pct}%"></span></div>
+    <div class="pace-cap">${doneT} of ${allT} tasks ticked on the jobs still open${
+      doneT ? ` — ${pct}%` : ""}.</div>
+
+    <div class="pace-row">
+      <div class="pace-k">Measured</div>
+      <div class="pace-v">${stamps.length
+        ? `<b>${week}</b> task${week===1?"":"s"} ticked in the last 7 days,
+           <b>${month}</b> in the last 30.`
+        : `<span class="pace-none">Nothing measured yet.</span> Ticking a task
+           records when, and this line starts reporting the moment it has
+           something real to report. It is the only number here that is not an
+           inference.`}</div>
+    </div>
+
+    <div class="pace-row">
+      <div class="pace-k">Inferred</div>
+      <div class="pace-v">${samples
+        ? `<b>${last6.toFixed(1)}</b> jobs a month over the last six;
+           best month on record <b>${bestMon}</b>.`
+        : `Not enough completed jobs to say.`}
+        <div class="pace-spark">${bars.map(b => `<i style="height:${
+          b.n ? Math.max(9, Math.round(b.n / peak * 34)) : 2}px"
+          title="${b.k}: ${b.n} job${b.n===1?"":"s"}"></i>`).join("")}</div>
+        <div class="pace-cap">Jobs completed, twelve months to now.</div>
+      </div>
+    </div>
+
+    ${splashETA ? `<div class="pace-row">
+      <div class="pace-k">At this rate</div>
+      <div class="pace-v">The ${splashJobs.size} job${splashJobs.size===1?"":"s"}
+        still standing between here and <b>${esc(CP_HEADING)}</b>: <b>${splashETA.slow}</b>${
+        splashETA.fast && splashETA.fast !== splashETA.slow
+          ? ` — <b>${splashETA.fast}</b> if you hold your best month` : ""}.
+        Everything: ${allETA ? allETA.slow : "—"}.</div>
+    </div>` : ""}
+
+    <div class="up-intro pace-warn">Read the two rows separately; they measure
+      different things. A job closes only when the part is back on the boat, so a
+      fortnight of real work can show as no movement at all — and the dates on
+      jobs finished before this log existed were written from memory. Ticks are
+      the honest signal, and they only start from the day you start ticking.</div>`;
 }
 
 function renderUpdates(){
@@ -4427,15 +4606,6 @@ function renderBoat(){
     ? `<div class="bt-row"><span class="bt-l">${esc(label)}</span><span class="bt-v">${esc(val)}</span></div>`
     : "";
 
-  const counts = {
-    entries: (DOC.entries || []).length,
-    open: (DOC.entries || []).filter(e => e.status === "active").length,
-    tasks: (DOC.entries || []).reduce((n, e) =>
-      n + (e.items || []).filter(i => i.type === "task" && !i.done).length, 0),
-    voyages: (DOC.voyages || []).length,
-    systems: (DOC.systems || []).length,
-  };
-
   box.innerHTML = `
     <div class="bt-head">
       <img class="bt-icon" src="${esc(v.icon || "icon-192.png")}" alt="">
@@ -4457,13 +4627,7 @@ function renderBoat(){
              boat's make, model, year and home port.</div>` : ""}
     </div>
 
-    <div class="up-sec">The log at a glance</div>
-    <div class="bt-stats">
-      <div><b>${counts.entries}</b><span>jobs</span></div>
-      <div><b>${counts.open}</b><span>still open</span></div>
-      <div><b>${counts.tasks}</b><span>tasks to do</span></div>
-      <div><b>${counts.voyages}</b><span>voyage${counts.voyages===1?"":"s"}</span></div>
-    </div>
+    ${paceSection()}
 
     <div class="up-sec">Systems</div>
     ${categoriesSection(false)}
