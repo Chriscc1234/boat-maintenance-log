@@ -202,7 +202,12 @@ function validateDocument(doc) {
     }
     if (criticalPaths)
       E(`the document has a plan AND ${criticalPaths} entr${criticalPaths>1?"ies":"y"} ` +
-        `with role "critical-path" — one or the other, not both`);
+        `with role "critical-path" — one or the other, not both.\n` +
+        `             The plan is \`document.plan\`. It stopped being an entry on 16 Aug 2026 ` +
+        `because it is a\n` +
+        `             view over jobs, not a job. If the plan looks missing, look there before ` +
+        `rebuilding it —\n` +
+        `             an entry rebuilt from the revision text loses every steps[].entryIds link.`);
   }
 
   // ── voyages ─────────────────────────────────────────────────────────────

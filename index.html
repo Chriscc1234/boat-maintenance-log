@@ -767,7 +767,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.16.0";
+const APP_VERSION = "1.16.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -779,6 +779,19 @@ const APP_VERSION = "1.16.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.16.1", "22 Aug 2026", "The plan-rebuilt error explains itself",
+   "A document arrived carrying both a plan and an entry with role "
+ + "\"critical-path\" — the critical path rebuilt as a job by someone who "
+ + "looked for the role, did not find it, and concluded the plan had been "
+ + "deleted. It had not: it moved into document.plan on 16 August, and the "
+ + "Focus tab has pinned it from there ever since. That was the second time.\n\n"
+ + "The check that catches it already existed and did its job. What it did not "
+ + "do was say anything useful — it stated a rule and stopped. It now says "
+ + "where the plan lives, when it moved and why, and that an entry rebuilt from "
+ + "the revision text loses every steps[].entryIds link, which is what makes a "
+ + "step tick when its jobs do.\n\n"
+ + "An error message that only refuses leaves the reader to guess, and this one "
+ + "is read at exactly the moment somebody has guessed wrong already."],
   ["1.16.0", "19 Aug 2026", "The Boat tab says where this stands",
    "Chris asked how many hours of work were left in the boat, and the honest "
  + "answer was that the log could not say. It recorded completion per JOB, and "
@@ -2922,7 +2935,12 @@ function validateDocument(doc) {
     }
     if (criticalPaths)
       E(`the document has a plan AND ${criticalPaths} entr${criticalPaths>1?"ies":"y"} ` +
-        `with role "critical-path" — one or the other, not both`);
+        `with role "critical-path" — one or the other, not both.\n` +
+        `             The plan is \`document.plan\`. It stopped being an entry on 16 Aug 2026 ` +
+        `because it is a\n` +
+        `             view over jobs, not a job. If the plan looks missing, look there before ` +
+        `rebuilding it —\n` +
+        `             an entry rebuilt from the revision text loses every steps[].entryIds link.`);
   }
 
   // ── voyages ─────────────────────────────────────────────────────────────

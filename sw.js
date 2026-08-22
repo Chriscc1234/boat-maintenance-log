@@ -18,7 +18,7 @@
 // So a release that does not change this string cannot reach an installed
 // device that is never force-quit. The fix is not to remember — it is to make
 // the string a function of the version, which build-app.sh now does.
-const CACHE_NAME = "boatlog-1.16.0";   // stamped at build
+const CACHE_NAME = "boatlog-1.16.1";   // stamped at build
 
 // NO data.enc. It belongs to the retired published-file design and 404s on a
 // synced deployment — and cache.addAll REJECTS THE WHOLE LIST if any single
