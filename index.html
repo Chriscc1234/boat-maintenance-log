@@ -580,6 +580,15 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .pace-spark i{flex:1;background:#2C6E9B;border-radius:2px 2px 0 0;min-height:2px}
 .pace-spark i:last-child{background:#5EAEDC}
 .pace-warn{color:#6E93B0;font-size:12px;border-top:1px solid #163148;padding-top:10px}
+/* What is set RIGHT NOW, above the boxes that change it. The old form showed
+   only empty inputs, so "did that work?" had no answer on screen — which is how
+   a password change that did the wrong thing went unnoticed. */
+.pw-now{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  padding:7px 0;border-bottom:1px solid #163148;font-size:12px}
+.pw-now span{color:#6E93B0}
+.pw-now b{color:#C8DCF0;text-align:right}
+.pw-now b.ok{color:#86EFAC}
+.pw-now b.warn{color:#FBBF24;font-weight:500}
 .eprog{color:#5E7F9B}
 .eprog.on{color:#86EFAC}
 .ebullets{margin:12px 0 0;padding-left:18px}
@@ -767,7 +776,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.16.1";
+const APP_VERSION = "1.17.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -779,6 +788,27 @@ const APP_VERSION = "1.16.1";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.17.0", "22 Aug 2026", "Changing a password can no longer change the wrong one",
+   "SECURITY. Changing only the read-only password prompted for the current "
+ + "full-access one and then never checked it — whatever was typed became the "
+ + "new full-access password. Chris hit it the obvious way: he had just typed "
+ + "his new guest password into the box above, the prompt appeared, and he typed "
+ + "it again. Both wraps ended up under the same string, so the guest password "
+ + "opened his log with full write access and the real full password opened "
+ + "nothing at all.\n\n"
+ + "The current password is now PROVEN before anything is written — it has to "
+ + "unwrap the data key, and if it does not, nothing changes. A new password is "
+ + "only ever something typed twice into a box that says it is new; it is never "
+ + "a value that was collected to prove identity. A read-only password equal to "
+ + "the full one is refused outright, because that is the exact state the bug "
+ + "produced.\n\n"
+ + "A second silent loss in the same function: changing only the full password "
+ + "DELETED the read-only one. Every wrap seals the same unchanged data key, so "
+ + "a box left blank now means leave it exactly as it is.\n\n"
+ + "The form shows what is set before it offers to change it, says which "
+ + "passwords actually changed, and clears itself afterwards. And a log with no "
+ + "recovery code is issued one — neither live log had ever had one, so a "
+ + "mistyped password was one afternoon away from losing the log for good."],
   ["1.16.1", "22 Aug 2026", "The plan-rebuilt error explains itself",
    "A document arrived carrying both a plan and an entry with role "
  + "\"critical-path\" — the critical path rebuilt as a job by someone who "
@@ -3148,10 +3178,30 @@ async function setAccessPasswords(writePass, readPass, writeKey){
   kr.protection = "password";
   kr.byPassphrase = await wrapDataKey(DATA_KEY, writePass, kr.iterations);
 
-  if (readPass){
+  // THREE STATES, because two was a data-loss bug. `readPass` used to be a
+  // string or nothing, and nothing meant DELETE — so changing only the full
+  // password silently removed read-only access from a log that had it, with no
+  // warning and nothing on screen about it. Every wrap here seals the same
+  // unchanged DATA KEY, so "leave it alone" is not just safe, it is free.
+  //
+  //   string  → set it to this
+  //   null    → leave whatever is there untouched
+  //   false   → remove read-only access (what the Remove button means)
+  if (typeof readPass === "string" && readPass){
     kr.byReadPassphrase = await wrapDataKey(DATA_KEY, readPass, kr.iterations);
-  } else {
+  } else if (readPass === false){
     delete kr.byReadPassphrase;
+  }
+
+  // A recovery code wraps the same data key, so it survives any number of
+  // password changes — but neither live log had one, because nothing on this
+  // path ever created it and only first-run setup did. A log whose only way in
+  // is a password somebody can mistype is one bad afternoon from being gone.
+  // Issued here if absent; the caller shows it, once.
+  let issuedCode = null;
+  if (!kr.byRecovery){
+    issuedCode = makeRecoveryCode();
+    kr.byRecovery = await wrapDataKey(DATA_KEY, normaliseCode(issuedCode), kr.iterations);
   }
 
   // The write key is wrapped by the WRITE password only. That single asymmetry
@@ -3170,7 +3220,7 @@ async function setAccessPasswords(writePass, readPass, writeKey){
   delete kr.plainKey;
   await idbPut(KEYRING_KEY, kr);
   KEYRING = kr;
-  return kr;
+  return { kr, issuedCode };
 }
 
 async function setPassphrase(newPassphrase){
@@ -4799,20 +4849,39 @@ function renderSettings(){
   if (!ro){
     h += `<div class="up-sec">Passwords</div>
     <div class="up-intro">Two passwords open this log. The <strong>full</strong> one
-      can change it; the <strong>read-only</strong> one can only look. Give out the
-      read-only one. Changing either takes effect on every device the next time it
-      syncs.</div>
+      can change it; the <strong>read-only</strong> one can only look, and that is
+      enforced by the server rather than by hiding buttons. Give out the read-only
+      one. Changing either takes effect on every device the next time it syncs.</div>
     <div class="mg-pw">
-      <label class="ed-row"><span>Full access password</span>
-        <input class="ed-in" type="password" id="pw-write" placeholder="leave blank to keep the current one"></label>
-      <label class="ed-row"><span>Read-only password</span>
-        <input class="ed-in" type="password" id="pw-read" placeholder="${
-          (KEYRING && KEYRING.byReadPassphrase) ? "set — type to replace" : "not set"}"></label>
+      <div class="pw-now"><span>Full access</span><b>set</b></div>
+      <div class="pw-now"><span>Read-only</span><b class="${
+        (KEYRING && KEYRING.byReadPassphrase) ? "ok" : "warn"}">${
+        (KEYRING && KEYRING.byReadPassphrase) ? "set" : "not set"}</b></div>
+      <div class="pw-now"><span>Recovery code</span><b class="${
+        (KEYRING && KEYRING.byRecovery) ? "ok" : "warn"}">${
+        (KEYRING && KEYRING.byRecovery) ? "issued" : "none — no way back in if the password is lost"}</b></div>
+
+      <label class="ed-row"><span>Current full-access password</span>
+        <input class="ed-in" type="password" id="pw-cur" placeholder="required — proves it is you"></label>
+
+      <label class="ed-row"><span>New full-access password</span>
+        <input class="ed-in" type="password" id="pw-write" placeholder="leave blank to keep it"></label>
+      <label class="ed-row"><span>&nbsp;&nbsp;repeat it</span>
+        <input class="ed-in" type="password" id="pw-write2" placeholder="only if changing"></label>
+
+      <label class="ed-row"><span>New read-only password</span>
+        <input class="ed-in" type="password" id="pw-read" placeholder="leave blank to keep it"></label>
+      <label class="ed-row"><span>&nbsp;&nbsp;repeat it</span>
+        <input class="ed-in" type="password" id="pw-read2" placeholder="only if changing"></label>
+
       <div class="ed-add">
         <button data-mact="pw-save">Save passwords</button>
         ${(KEYRING && KEYRING.byReadPassphrase)
           ? `<button data-mact="pw-drop-read" class="danger">Remove read-only access</button>` : ""}
       </div>
+      <div class="mg-icon-note">The current password is checked before anything is
+        written. Nothing changes unless it is right, and a box left blank keeps the
+        password it belongs to exactly as it is.</div>
     </div>`;
   }
 
@@ -4888,26 +4957,83 @@ document.addEventListener("click", function(ev){
   if (!btn || !DOC) return;
   const act = btn.dataset.mact;
 
+  /** Change one or both passwords.
+   *
+   *  THE BUG THIS REPLACES, because it is worth not reinventing. The old version
+   *  read `const current = w || prompt("Confirm the CURRENT full-access
+   *  password:")` and handed whatever came back straight to setAccessPasswords()
+   *  as the NEW full password. It was never checked against anything.
+   *
+   *  So changing only the read-only password prompted for the current full one,
+   *  and typing the wrong thing SILENTLY MADE THAT THE FULL PASSWORD. Chris hit
+   *  it on 22 Aug 2026 the obvious way — he had just typed his new guest password
+   *  into the box above, the prompt appeared, and he typed it again. Both wraps
+   *  ended up under the same string, so the guest password opened the log with
+   *  full write access, and the real full password opened nothing.
+   *
+   *  Two rules come out of it, and both are cheap:
+   *    · PROVE first. Unwrap the data key with the current password before
+   *      writing anything. A password change is the one operation where getting
+   *      it wrong is unrecoverable, so it is the last place to trust input.
+   *    · A NEW password is only ever what someone typed TWICE, in a box that
+   *      says it is new. It is never a value collected to prove identity. */
   if (act === "pw-save"){
-    const w = document.getElementById("pw-write").value;
-    const r = document.getElementById("pw-read").value;
-    if (!w && !r) return setEditStatus("Nothing to change — both boxes are empty");
+    const cur = document.getElementById("pw-cur").value;
+    const w   = document.getElementById("pw-write").value;
+    const w2  = document.getElementById("pw-write2").value;
+    const r   = document.getElementById("pw-read").value;
+    const r2  = document.getElementById("pw-read2").value;
+
+    if (!cur) return setEditStatus("Type your current full-access password first", true);
+    if (!w && !r) return setEditStatus("Nothing to change — both new-password boxes are empty");
+    if (w && w !== w2) return setEditStatus("The two full-access boxes do not match", true);
+    if (r && r !== r2) return setEditStatus("The two read-only boxes do not match", true);
     if (w && w.length < 6) return setEditStatus("The full-access password needs at least 6 characters", true);
     if (r && r.length < 6) return setEditStatus("The read-only password needs at least 6 characters", true);
+
     (async () => {
-      // Changing the FULL password rewraps the write key, so it has to be known.
+      const kr = KEYRING || await idbGet(KEYRING_KEY);
+      if (!kr || !kr.byPassphrase)
+        return setEditStatus("This device has no keyring to check against", true);
+
+      // PROVE IT. Nothing below this line runs on an unverified password.
+      try {
+        await unwrapDataKey(kr.byPassphrase, cur, kr.iterations || KDF_ITERATIONS);
+      } catch {
+        return setEditStatus("That is not the current full-access password — nothing was changed", true);
+      }
+
+      // Changing the FULL password rewraps the write key, so it has to be here.
       // Without it this device would keep working and every other one would
       // quietly lose the ability to write.
       const wk = SYNC && SYNC.writeKey;
-      if (w && !wk) return setEditStatus("This device has no write key, so the full password cannot be changed here", true);
-      const current = w || prompt("Confirm the CURRENT full-access password:");
-      if (!current) return setEditStatus("Cancelled");
+      if (w && !wk)
+        return setEditStatus("This device has no write key, so the full password cannot be changed here", true);
+
+      // One string that is both passwords is not two passwords. This is the
+      // state the old bug produced, so it is now refused outright.
+      const newWrite = w || cur;
+      const newRead  = r || null;
+      if (newRead && newRead === newWrite)
+        return setEditStatus("The read-only password cannot be the same as the full-access one — "
+                           + "that is exactly what gives a guest write access", true);
+
       try {
-        const keepRead = r || null;
-        await setAccessPasswords(current, keepRead, wk);
+        const { issuedCode } = await setAccessPasswords(newWrite, newRead, wk);
         await publishKeyring();
-        setEditStatus(w && r ? "Both passwords updated" : w ? "Full-access password updated"
-                                                           : "Read-only password updated");
+        for (const id of ["pw-cur","pw-write","pw-write2","pw-read","pw-read2"]){
+          const el = document.getElementById(id); if (el) el.value = "";
+        }
+        const changed = [w ? "full-access" : null, r ? "read-only" : null].filter(Boolean);
+        setEditStatus(`Saved. Changed: the ${changed.join(" and ")} password`
+                    + `${changed.length > 1 ? "s" : ""}. Everything else is as it was, and every `
+                    + `other device will ask for the new one the next time it syncs.`);
+        // Shown once and never again — it is not stored anywhere in readable form.
+        if (issuedCode)
+          alert("This log had no recovery code. One has been created:\n\n" + issuedCode +
+                "\n\nWrite it down and keep it somewhere other than the boat. It is the only " +
+                "way back in if the password is ever lost — nobody can reset it for you, and " +
+                "you will not be shown it again.");
         renderCurrent();
       } catch (err) { setEditStatus("Could not change them: " + err.message, true); }
     })();
@@ -4916,12 +5042,21 @@ document.addEventListener("click", function(ev){
   if (act === "pw-drop-read"){
     if (!confirm("Remove read-only access?\n\nAnyone using the read-only password will\nstop being able to open this log.")) return;
     (async () => {
-      const cur = prompt("Confirm the full-access password:");
+      // Same rule as pw-save: the current password is CHECKED, never adopted.
+      // This path used to pass whatever was typed here as the new full password.
+      const cur = document.getElementById("pw-cur").value
+               || prompt("Type the current full-access password to confirm:");
       if (!cur) return setEditStatus("Cancelled");
+      const kr = KEYRING || await idbGet(KEYRING_KEY);
       try {
-        await setAccessPasswords(cur, null, SYNC && SYNC.writeKey);
+        await unwrapDataKey(kr.byPassphrase, cur, kr.iterations || KDF_ITERATIONS);
+      } catch {
+        return setEditStatus("That is not the current full-access password — nothing was changed", true);
+      }
+      try {
+        await setAccessPasswords(cur, false, SYNC && SYNC.writeKey);
         await publishKeyring();
-        setEditStatus("Read-only access removed");
+        setEditStatus("Read-only access removed. The full-access password is unchanged.");
         renderCurrent();
       } catch (err) { setEditStatus("Could not remove it: " + err.message, true); }
     })();
