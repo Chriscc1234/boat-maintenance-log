@@ -583,6 +583,11 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 /* What is set RIGHT NOW, above the boxes that change it. The old form showed
    only empty inputs, so "did that work?" had no answer on screen — which is how
    a password change that did the wrong thing went unnoticed. */
+.pw-code{border:2px solid #FBBF24;border-radius:10px;padding:14px;margin:12px 0;background:#2A2008}
+.pw-code-h{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#FBBF24;margin-bottom:8px}
+.pw-code-v{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:19px;letter-spacing:.06em;
+  color:#FDE68A;word-break:break-all;-webkit-user-select:all;user-select:all;margin-bottom:9px}
+.pw-code-t{font-size:12px;line-height:1.6;color:#D6C79A}
 .pw-now{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   padding:7px 0;border-bottom:1px solid #163148;font-size:12px}
 .pw-now span{color:#6E93B0}
@@ -776,7 +781,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.17.0";
+const APP_VERSION = "1.17.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -788,6 +793,19 @@ const APP_VERSION = "1.17.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.17.1", "22 Aug 2026", "The recovery code is shown in the page, not in an alert",
+   "Chris, on the 1.17.0 recovery code: \"the screen resized after i hit ok, i "
+ + "had to go home and come back.\" A native alert() over an installed iOS app "
+ + "resizes the standalone viewport behind it, and dismissing it leaves the app "
+ + "on a broken layout that only going to the home screen and back will clear. A "
+ + "modal that breaks the page it is warning you about is worse than no modal.\n\n"
+ + "The code now appears in the page, in a bordered panel above the password "
+ + "boxes, and stays until you press \"I have written it down\". It can be "
+ + "selected and copied, which an alert on iOS does not reliably allow.\n\n"
+ + "It also fixes something the alert was hiding: it blocked before the re-render, "
+ + "so the boxes still held what had been typed and the rows above still read "
+ + "\"Read-only: not set\" and \"Recovery code: none\" — the page appeared to say "
+ + "the change had not happened, at the exact moment it had."],
   ["1.17.0", "22 Aug 2026", "Changing a password can no longer change the wrong one",
    "SECURITY. Changing only the read-only password prompted for the current "
  + "full-access one and then never checked it — whatever was typed became the "
@@ -3248,6 +3266,13 @@ async function setPassphrase(newPassphrase){
 // app: the published copy was encrypted while the working copy — the one with
 // the newest edits — sat readable in the browser's database. Fixed here.
 // ═══════════════════════════════════════════════════════
+// Held between saving a password and the next render, so the recovery code can
+// be shown IN THE PAGE. It was an alert() for exactly one day: on an installed
+// iOS app a native dialog over a standalone window resized the viewport behind
+// it, and dismissing it left the app on a broken layout that only going to the
+// home screen and back would clear. A modal that breaks the page it is warning
+// you about is worse than no modal.
+let PENDING_RECOVERY_CODE = null;
 let LOCAL_EDITS = false;
 let SAVE_TIMER = null;
 
@@ -4852,6 +4877,15 @@ function renderSettings(){
       can change it; the <strong>read-only</strong> one can only look, and that is
       enforced by the server rather than by hiding buttons. Give out the read-only
       one. Changing either takes effect on every device the next time it syncs.</div>
+    ${PENDING_RECOVERY_CODE ? `<div class="pw-code">
+      <div class="pw-code-h">Write this down before you close it</div>
+      <div class="pw-code-v">${esc(PENDING_RECOVERY_CODE)}</div>
+      <div class="pw-code-t">This log had no recovery code, so one has been created. It is the
+        only way back in if the password is ever lost — nobody can reset it for you, not even
+        the person who wrote this app. Keep it somewhere other than the boat.
+        <strong>You will not be shown it again.</strong></div>
+      <div class="ed-add"><button data-mact="rc-done">I have written it down</button></div>
+    </div>` : ""}
     <div class="mg-pw">
       <div class="pw-now"><span>Full access</span><b>set</b></div>
       <div class="pw-now"><span>Read-only</span><b class="${
@@ -5029,16 +5063,14 @@ document.addEventListener("click", function(ev){
                     + `${changed.length > 1 ? "s" : ""}. Everything else is as it was, and every `
                     + `other device will ask for the new one the next time it syncs.`);
         // Shown once and never again — it is not stored anywhere in readable form.
-        if (issuedCode)
-          alert("This log had no recovery code. One has been created:\n\n" + issuedCode +
-                "\n\nWrite it down and keep it somewhere other than the boat. It is the only " +
-                "way back in if the password is ever lost — nobody can reset it for you, and " +
-                "you will not be shown it again.");
+        if (issuedCode) PENDING_RECOVERY_CODE = issuedCode;
         renderCurrent();
       } catch (err) { setEditStatus("Could not change them: " + err.message, true); }
     })();
     return;
   }
+  if (act === "rc-done"){ PENDING_RECOVERY_CODE = null; renderCurrent(); return; }
+
   if (act === "pw-drop-read"){
     if (!confirm("Remove read-only access?\n\nAnyone using the read-only password will\nstop being able to open this log.")) return;
     (async () => {
