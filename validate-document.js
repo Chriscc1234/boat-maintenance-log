@@ -211,6 +211,31 @@ function validateDocument(doc) {
   }
 
   // ── voyages ─────────────────────────────────────────────────────────────
+  // `log` is the in-passage ship's-log stream, added in app 1.18.0. Optional,
+  // and lenient by design: unknown kinds and missing times warn rather than
+  // fail, because "not recorded" is a valid state for a hand-kept log.
+  const VLOG_KINDS = ["fix","event","weather","engine","watch","note"];
+  const checkVLog = (log, at) => {
+    if (log == null) return;
+    if (!Array.isArray(log)) return E(`${at}.log is not an array`);
+    log.forEach((r, j) => {
+      const rat = `${at}.log[${j}]`;
+      if (r === null || typeof r !== "object") return E(`${rat} is not an object`);
+      if (r.type != null && !VLOG_KINDS.includes(r.type))
+        W(`${rat}.type "${r.type}" is not a known kind (${VLOG_KINDS.join("/")}) — it renders as a plain note`);
+      for (const f of ["at","text","cog","sog","wind","baro"])
+        if (f in r && r[f] != null && typeof r[f] !== "string")
+          E(`${rat}.${f} is ${JSON.stringify(r[f])}, expected a string`);
+      for (const [f, lo, hi] of [["lat",-90,90],["lon",-180,180]])
+        if (f in r && r[f] != null){
+          if (typeof r[f] !== "number" || !isFinite(r[f])) E(`${rat}.${f} is ${JSON.stringify(r[f])}, expected a number`);
+          else if (r[f] < lo || r[f] > hi) E(`${rat}.${f} ${r[f]} is out of range ${lo}..${hi}`);
+        }
+      if (("lat" in r) !== ("lon" in r))
+        W(`${rat} has one of lat/lon without the other — it cannot be plotted`);
+    });
+  };
+
   const vids = new Set();
   doc.voyages.forEach((v, i) => {
     const at = `voyages[${i}]` + (v && v.id ? ` ("${v.id}")` : "");
@@ -221,6 +246,7 @@ function validateDocument(doc) {
     vids.add(v.id);
     if (!v.sortKey) E(`${at} has no sortKey`);
     checkItems(v.items, at, false);
+    checkVLog(v.log, at);
   });
 
   // ── revisions ───────────────────────────────────────────────────────────

@@ -236,6 +236,43 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .voy-nt{margin:8px 0 0;padding-left:18px}
 .voy-nt li{font-size:13px;color:#A8C6E0;margin-bottom:4px;line-height:1.5}
 .voy-auto{margin-top:10px;padding-top:9px;border-top:1px dashed #163148;font-size:11px;color:#507490;font-style:italic}
+.voy-dur{font-size:11px;font-weight:600;color:#34D399;background:rgba(52,211,153,.1);border:1px solid #1c4e3c;border-radius:20px;padding:1px 9px}
+.voy-edithint{font-size:10px;color:#507490;margin-left:auto}
+.voy[data-id]{cursor:default}
+.addvoy{display:block;width:100%;margin:0 0 12px;padding:11px;cursor:pointer;background:#0B2135;border:1px dashed #24567A;color:#7FB2D8;border-radius:8px;font-size:13px;font-weight:600}
+.addvoy:hover{background:#0E2A44;border-color:#38BDF8}
+/* Plotted track */
+.vtrack-wrap{margin:12px 0 4px}
+.vtrack{display:block;width:100%;max-width:360px;height:auto;border-radius:6px}
+.vtrack-cap{font-size:10px;color:#507490;margin-top:4px}
+/* In-passage log — view */
+.vlog-sec{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6E93B0;margin:14px 0 7px;font-weight:600}
+.vlog{border-left:2px solid #163148;margin-left:4px}
+.vlog-row{display:flex;gap:8px;align-items:baseline;padding:5px 0 5px 12px;position:relative}
+.vlog-row+.vlog-row{border-top:1px solid #0f2436}
+.vlog-at{font-size:12px;color:#7FB2D8;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:38px}
+.vlog-k{flex-shrink:0;width:18px;text-align:center;font-size:13px;color:#507490}
+.vlog-k-fix{color:#34D399}.vlog-k-event{color:#FB923C}.vlog-k-weather{color:#38BDF8}
+.vlog-k-engine{color:#F87171}.vlog-k-watch{color:#A78BFA}
+.vlog-body{min-width:0}
+.vlog-tx{font-size:13px;color:#C8DCF0;line-height:1.45}
+.vlog-nav{font-size:11px;color:#7FA6C4;font-variant-numeric:tabular-nums;margin-top:2px}
+/* Voyage editor */
+.veditor .ed-hint,.ed-hint{font-size:11px;color:#6E93B0;line-height:1.5;margin:-2px 0 8px}
+.vl-list{display:flex;flex-direction:column;gap:8px}
+.vl-row{background:#0A1B2A;border:1px solid #16324A;border-radius:8px;padding:8px 9px}
+.vl-top{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.vl-at{width:70px;flex-shrink:0;background:#0A1D2E;border:1px solid #204A6B;color:#E4F2FF;border-radius:6px;padding:6px 7px;font-size:13px}
+.vl-type{flex:1;min-width:0;background:#0A1D2E;border:1px solid #204A6B;color:#E4F2FF;border-radius:6px;padding:6px 7px;font-size:13px}
+.vl-fix{flex-shrink:0;background:#0B2A1E;border:1px solid #1c6b47;color:#4ADE80;border-radius:6px;padding:6px 9px;font-size:12px;font-weight:600;cursor:pointer}
+.vl-fix:hover{background:#0f3a29}
+.vl-del{flex-shrink:0;width:28px;background:none;border:1px solid #5a2130;border-radius:6px;padding:6px 0;cursor:pointer}
+.vl-tx{width:100%;box-sizing:border-box;margin-bottom:6px}
+.vl-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:5px}
+.vl-nav input{width:100%;box-sizing:border-box;background:#0A1D2E;border:1px solid #1B3E5A;color:#C8DCF0;border-radius:5px;padding:5px 6px;font-size:12px}
+.vl-nav input:focus{outline:none;border-color:#0EA5E9}
+.vl-pos{font-size:11px;color:#7FB2D8;margin-top:5px;font-variant-numeric:tabular-nums}
+button.danger{color:#F87171}
 /* Updates tab — check-for-updates bar */
 .upd-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#0C1F30;border:1px solid #163148;border-radius:8px;padding:12px 16px;margin-bottom:20px}
 .upd-cur{font-size:12px;color:#8FB4CE}
@@ -781,7 +818,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.17.1";
+const APP_VERSION = "1.18.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -793,6 +830,25 @@ const APP_VERSION = "1.17.1";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.18.0", "24 Aug 2026", "The Voyages tab is a real ship's log",
+   "Voyages were the last read-only corner of the app — you could see a passage "
+ + "but not write one, and every card ended with a promise that NMEA 2000 would "
+ + "fill in the rest one day. That day is not coming, and a log you cannot write "
+ + "at the helm is half a log. This makes it a proper ship's log.\n\n"
+ + "You can now add, edit and delete voyages in the app, the same way as jobs. "
+ + "Each one carries a passage summary — from and to, departed and arrived (type "
+ + "both as full times and the duration works itself out), distance, engine "
+ + "hours, fuel, wind, barometer, sea state, weather and crew.\n\n"
+ + "The heart of it is the ship's log itself: a running list of entries you make "
+ + "under way — a fix, an event, a weather change, an engine reading, a watch "
+ + "change, a note — each stamped with the time. The 📍 Fix button reads this "
+ + "device's own GPS, so it works with no signal at all: one tap drops your "
+ + "position, speed and heading into the log. Once a voyage has a couple of "
+ + "fixes, the tab plots them as a track — north up, your own positions joined "
+ + "in order. It is a track, not a chart: sea charts need a connection the app "
+ + "cannot count on, and the whole point is that this works offline.\n\n"
+ + "Old voyages are untouched and still valid; the new fields are all optional, "
+ + "and \"not recorded\" stays a perfectly good answer."],
   ["1.17.1", "22 Aug 2026", "The recovery code is shown in the page, not in an alert",
    "Chris, on the 1.17.0 recovery code: \"the screen resized after i hit ok, i "
  + "had to go home and come back.\" A native alert() over an installed iOS app "
@@ -1437,6 +1493,9 @@ function renderLog() {
 // ═══════════════════════════════════════════════════════
 document.getElementById("log-content").addEventListener("click", function(e) {
   if (e.target.closest("[data-addjob]")) { addEntry(); return; }
+  if (e.target.closest("[data-addvoy]")) { addVoyage(); return; }
+  const ov = e.target.closest("[data-openvoy]");
+  if (ov && !e.target.closest("[data-vact]")) { S.expanded[ov.dataset.openvoy] = true; renderVoyages(); return; }
   const tk = e.target.closest("[data-tick]");
   if (tk) { tickTask(tk.dataset.tick, +tk.dataset.i); return; }
   const ord = e.target.closest("[data-ord]");
@@ -2026,8 +2085,111 @@ document.addEventListener("click", function(ev){
 // ═══════════════════════════════════════════════════════
 // VOYAGE LOG RENDERING
 // ═══════════════════════════════════════════════════════
+// The voyages tab is a full ship's log, not a trip summary: a per-voyage
+// summary, a plotted track of GPS fixes, and — the part that makes it a log
+// rather than a record — a timestamped stream of entries made DURING the
+// passage (fixes, events, weather, engine, watch, notes). It reads and writes
+// DOC.voyages directly, exactly the way the rest of the app edits DOC.entries,
+// so the derived VOYAGES array is no longer the source here.
+const pad2 = n => String(n).padStart(2, "0");
+const nowHM = () => { const d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); };
+
+// The log-line kinds. `key` is stored; the rest is presentation.
+const VLOG_KINDS = [
+  { key:"fix",     label:"Fix",     glyph:"◎" },
+  { key:"event",   label:"Event",   glyph:"⚑" },
+  { key:"weather", label:"Weather", glyph:"☁" },
+  { key:"engine",  label:"Engine",  glyph:"⚙" },
+  { key:"watch",   label:"Watch",   glyph:"⏱" },
+  { key:"note",    label:"Note",    glyph:"·" },
+];
+const vlogKind = k => VLOG_KINDS.find(x => x.key === k) || VLOG_KINDS[5];
+
 function allVoyages(){
-  return [...VOYAGES, ...(S.customVoyages||[])].sort((a,b)=>b.sk.localeCompare(a.sk)); // newest first
+  return (DOC && Array.isArray(DOC.voyages) ? DOC.voyages.slice() : [])
+    .sort((a,b) => String(b.sortKey||"").localeCompare(String(a.sortKey||""))); // newest first
+}
+function findVoyage(id){ return (DOC.voyages||[]).find(v => v.id === id); }
+function nextVoyageId(){
+  // Never reuse an id, deleted ones included — same rule as entries.
+  let max = 0;
+  for (const v of (DOC.voyages||[])){ const m = /^v(\d+)$/.exec(v.id||""); if (m) max = Math.max(max, parseInt(m[1],10)); }
+  return "v" + String(max+1).padStart(3, "0");
+}
+
+/** Duration for the header chip: the typed `underway` if given, else computed
+ *  from departAt/arriveAt when both parse as real datetimes. Free text that is
+ *  not a date simply yields nothing, which is correct — a guess would be worse. */
+function voyDuration(v){
+  if (v.underway) return v.underway;
+  const a = Date.parse(v.departAt), b = Date.parse(v.arriveAt);
+  if (isFinite(a) && isFinite(b) && b >= a){
+    const h = (b - a) / 3.6e6;
+    if (h < 1)  return Math.round(h*60) + " min";
+    if (h < 48) return h.toFixed(1) + " hrs";
+    return (h/24).toFixed(1) + " days";
+  }
+  return "";
+}
+
+/** Position as degrees-and-decimal-minutes, the form a paper log uses. */
+function fmtPos(lat, lon){
+  if (!isFinite(lat) || !isFinite(lon)) return "";
+  const one = (v, pos, neg) => {
+    const hemi = v < 0 ? neg : pos; v = Math.abs(v);
+    const deg = Math.floor(v), min = ((v - deg) * 60).toFixed(1);
+    return `${deg}°${min}′${hemi}`;
+  };
+  return one(lat, "N", "S") + " " + one(lon, "E", "W");
+}
+
+/** A plotted track of the voyage's GPS fixes. Deliberately NOT a chart: the app
+ *  must work with no signal, and map tiles need a network it cannot assume, so
+ *  this is the fixes joined in order over a plain frame, north up. Local
+ *  equirectangular projection — longitude squeezed by cos(latitude) so distances
+ *  are not distorted at these latitudes. */
+function voyTrack(v){
+  const fixes = (v.log||[]).filter(r => isFinite(r.lat) && isFinite(r.lon));
+  if (fixes.length < 2) return "";
+  const lats = fixes.map(f=>f.lat), lons = fixes.map(f=>f.lon);
+  const minLa=Math.min(...lats), maxLa=Math.max(...lats), minLo=Math.min(...lons), maxLo=Math.max(...lons);
+  const k = Math.cos(((minLa+maxLa)/2) * Math.PI/180) || 1;
+  const W=320, H=190, P=16;
+  const spanX = Math.max((maxLo-minLo)*k, 1e-4), spanY = Math.max(maxLa-minLa, 1e-4);
+  const sc = Math.min((W-2*P)/spanX, (H-2*P)/spanY);
+  const ox = (W - spanX*sc)/2, oy = (H - spanY*sc)/2;
+  const X = lo => ox + ((lo-minLo)*k)*sc;
+  const Y = la => H - (oy + (la-minLa)*sc);   // flip so north is up
+  const pts = fixes.map(f => `${X(f.lon).toFixed(1)},${Y(f.lat).toFixed(1)}`).join(" ");
+  const a = fixes[0], b = fixes[fixes.length-1];
+  return `<div class="vtrack-wrap">
+    <svg class="vtrack" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Plotted track of ${fixes.length} fixes">
+      <rect x="0.5" y="0.5" width="${W-1}" height="${H-1}" fill="#08131E" stroke="#163148"/>
+      <polyline points="${pts}" fill="none" stroke="#38BDF8" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${X(a.lon).toFixed(1)}" cy="${Y(a.lat).toFixed(1)}" r="4.5" fill="#34D399"/>
+      <circle cx="${X(b.lon).toFixed(1)}" cy="${Y(b.lat).toFixed(1)}" r="4.5" fill="#FB923C"/>
+    </svg>
+    <div class="vtrack-cap">${fixes.length} fixes plotted, north up — a track, not a chart</div>
+  </div>`;
+}
+
+/** One line of the in-passage log, view mode. */
+function vlogLine(r){
+  const kind = vlogKind(r.type);
+  const pos = fmtPos(r.lat, r.lon);
+  const nav = [pos, r.cog ? "COG "+esc(r.cog) : "", r.sog ? "SOG "+esc(r.sog)+" kn" : "",
+               r.wind ? "Wind "+esc(r.wind) : "", r.baro ? "Baro "+esc(r.baro) : ""]
+              .filter(Boolean).join(" · ");
+  return `<div class="vlog-row">
+    <span class="vlog-at">${esc(r.at||"—")}</span>
+    <span class="vlog-k vlog-k-${kind.key}" title="${esc(kind.label)}">${kind.glyph}</span>
+    <div class="vlog-body">
+      ${r.text ? `<div class="vlog-tx">${esc(r.text)}</div>` : ""}
+      ${nav ? `<div class="vlog-nav">${nav}</div>` : ""}
+    </div>
+  </div>`;
 }
 
 function renderVoyages(){
@@ -2036,9 +2198,13 @@ function renderVoyages(){
   const bar = document.getElementById("sysbar");
   if (bar) bar.style.display = "none";           // categories don't apply to voyages
 
+  const canEdit = !!DOC && EDIT && !readOnly();
+  const addBtn = canEdit ? `<button class="addvoy" data-addvoy="1">+ New voyage</button>` : "";
+
   if (!vs.length){
-    box.innerHTML = `<div style="text-align:center;color:#507490;padding:60px 20px;font-size:13px">
-      No voyages logged yet.<br><span style="font-size:12px">Runs and journeys are recorded here, ship's-log style.</span></div>`;
+    box.innerHTML = addBtn + `<div style="text-align:center;color:#507490;padding:48px 20px;font-size:13px">
+      No voyages logged yet.<br><span style="font-size:12px">Runs and passages are recorded here, ship's-log style —
+      ${canEdit ? "start one above" : "turn on Edit to start one"}.</span></div>`;
     document.getElementById("meta").innerHTML = "0 voyages";
     return;
   }
@@ -2046,36 +2212,274 @@ function renderVoyages(){
   const fld = (label, val) => `<div class="voy-f"><span class="voy-fl">${esc(label)}</span>`
     + `<span class="voy-fv${val?"":" empty"}">${val?esc(val):"—"}</span></div>`;
 
-  let h = "";
-  let yr = null;
+  let h = addBtn, yr = null;
   for (const v of vs){
-    if (v.yr !== yr){
-      yr = v.yr;
-      h += `<div class="yr-div"><span class="yr-lbl">${esc(yr)}</span><div class="yr-rule"></div></div>`;
+    if (v.year !== yr){
+      yr = v.year;
+      h += `<div class="yr-div"><span class="yr-lbl">${esc(yr||"—")}</span><div class="yr-rule"></div></div>`;
     }
-    h += `<div class="voy">
-      <div class="voy-hd">
-        <span class="voy-rt">${esc(v.from)} &rarr; ${esc(v.to)}</span>
-        <span class="voy-dt">${esc(v.date)}</span>
+
+    if (canEdit && S.expanded[v.id]){
+      h += voyageEditor(v);
+      continue;
+    }
+
+    const dur = voyDuration(v);
+    const log = (v.log||[]).filter(r => r && typeof r === "object");
+    // Engine hours: show a single row for a one-engine boat, two for twins.
+    const engine = (v.hoursPort || v.hoursStbd)
+      ? (v.hoursStbd ? [fld("Hrs port", v.hoursPort), fld("Hrs stbd", v.hoursStbd)].join("")
+                     : fld("Engine hrs", v.hoursPort))
+      : fld("Engine hrs", "");
+    h += `<div class="voy" data-id="${esc(v.id)}">
+      <div class="voy-hd"${canEdit ? ` data-openvoy="${esc(v.id)}"` : ""}>
+        <span class="voy-rt">${esc(v.from||"—")} &rarr; ${esc(v.to||"—")}</span>
+        <span class="voy-dt">${esc(v.dateLabel||"")}</span>
+        ${dur ? `<span class="voy-dur">${esc(dur)}</span>` : ""}
+        ${canEdit ? `<span class="voy-edithint">tap to edit</span>` : ""}
       </div>
       ${v.purpose ? `<div class="voy-pp">${esc(v.purpose)}</div>` : ""}
       <div class="voy-grid">
+        ${fld("Departed", v.departAt)}
+        ${fld("Arrived", v.arriveAt)}
         ${fld("Distance", v.distance)}
-        ${fld("Underway", v.underway)}
+        ${engine}
         ${fld("Fuel used", v.fuelUsed)}
-        ${fld("Hrs port", v.hoursPort)}
-        ${fld("Hrs stbd", v.hoursStbd)}
-        ${fld("Weather", v.weather)}
+        ${fld("Wind", v.windMax)}
+        ${fld("Barometer", v.baro)}
         ${fld("Sea state", v.seaState)}
+        ${fld("Weather", v.weather)}
         ${fld("Crew", v.crew)}
       </div>
-      ${(v.notes&&v.notes.length) ? `<ul class="voy-nt">${v.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>` : ""}
-      <div class="voy-auto">Speed, RPM profile, burn rate and track will populate from the NMEA 2000 logging layer once it is running.</div>
+      ${voyTrack(v)}
+      ${log.length ? `<div class="vlog-sec">Ship's log</div><div class="vlog">${log.map(vlogLine).join("")}</div>` : ""}
+      ${(v.items&&v.items.length) ? `<div class="vlog-sec">Remarks</div>
+        <ul class="voy-nt">${v.items.map(it =>
+          `<li>${it.type==="task" ? (it.done?"☑ ":"☐ ") : ""}${esc(it.text)}</li>`).join("")}</ul>` : ""}
     </div>`;
   }
   box.innerHTML = h;
   document.getElementById("meta").innerHTML = `${vs.length} voyage${vs.length!==1?"s":""} logged`;
 }
+
+/** New blank voyage, dated today, opened for editing. */
+function addVoyage(){
+  const id = nextVoyageId();
+  const today = new Date().toISOString().slice(0,10);
+  mutate(() => {
+    DOC.voyages = DOC.voyages || [];
+    DOC.voyages.push({
+      id, sortKey: today, year: today.slice(0,4),
+      dateLabel: new Date().toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}),
+      from:"", to:"", purpose:"", crew:"",
+      departAt:"", arriveAt:"", distance:"", underway:"",
+      hoursPort:"", hoursStbd:"", fuelUsed:"",
+      windMax:"", baro:"", seaState:"", weather:"",
+      log:[], items:[],
+    });
+  });
+  S.expanded[id] = true;
+  renderVoyages();
+  const el = document.querySelector(`.veditor[data-id="${id}"]`);
+  if (el && el.scrollIntoView) el.scrollIntoView({ behavior:"smooth", block:"center" });
+  setEditStatus("Added " + id);
+}
+
+/** The in-passage log editor — one row per line. */
+function vlogRow(r, i){
+  const kindOpts = VLOG_KINDS.map(kd =>
+    `<option value="${kd.key}"${(r.type||"note")===kd.key?" selected":""}>${kd.label}</option>`).join("");
+  return `<div class="vl-row" data-i="${i}">
+    <div class="vl-top">
+      <input class="vl-at" data-vact="log-at" value="${esc(r.at||"")}" placeholder="hh:mm" inputmode="numeric">
+      <select class="vl-type" data-vact="log-type">${kindOpts}</select>
+      <button class="vl-fix" data-vact="log-fix" title="Log this device's GPS position and time">📍 Fix</button>
+      <button class="vl-del danger" data-vact="log-del" title="delete line">×</button>
+    </div>
+    <textarea class="vl-tx ed-text" data-vact="log-text" rows="1" placeholder="what happened / remark">${esc(r.text||"")}</textarea>
+    <div class="vl-nav">
+      <input data-vact="log-lat" value="${r.lat!=null?esc(String(r.lat)):""}" placeholder="lat" inputmode="decimal">
+      <input data-vact="log-lon" value="${r.lon!=null?esc(String(r.lon)):""}" placeholder="lon" inputmode="decimal">
+      <input data-vact="log-cog" value="${esc(r.cog||"")}" placeholder="COG">
+      <input data-vact="log-sog" value="${esc(r.sog||"")}" placeholder="SOG kn">
+      <input data-vact="log-wind" value="${esc(r.wind||"")}" placeholder="wind">
+      <input data-vact="log-baro" value="${esc(r.baro||"")}" placeholder="baro">
+    </div>
+    ${fmtPos(r.lat,r.lon) ? `<div class="vl-pos">${fmtPos(r.lat,r.lon)}</div>` : ""}
+  </div>`;
+}
+
+function voyageEditor(v){
+  const row = (label, act, val, ph) =>
+    `<label><span>${esc(label)}</span><input class="ed-in" data-vact="${act}" value="${esc(val||"")}"${
+      ph?` placeholder="${esc(ph)}"`:""}></label>`;
+  const log = (v.log||[]).map((r,i) => vlogRow(r,i)).join("");
+  const items = (v.items||[]).map((it,i) => `
+    <div class="ed-item" data-i="${i}">
+      <button class="ed-chk${it.type==="task"?"":" off"}" data-vact="rem-type" title="task or note">${
+        it.type==="task" ? (it.done?"☑":"☐") : "·"}</button>
+      <div class="ed-itemmain"><textarea class="ed-text" data-vact="rem-text" rows="1">${esc(it.text)}</textarea></div>
+      <div class="ed-itembtns"><button data-vact="rem-del" class="danger" title="delete">×</button></div>
+    </div>`).join("");
+
+  return `<div class="veditor editor" data-id="${esc(v.id)}">
+    <div class="ed-grid">
+      ${row("From","from",v.from,"Port Townsend")}
+      ${row("To","to",v.to,"Friday Harbor")}
+    </div>
+    ${row("Purpose","purpose",v.purpose,"why the trip")}
+    ${row("Crew","crew",v.crew,"who was aboard")}
+    <div class="ed-grid">
+      ${row("Departed","departAt",v.departAt,"2026-08-24 09:15")}
+      ${row("Arrived","arriveAt",v.arriveAt,"2026-08-24 14:40")}
+    </div>
+    <div class="ed-hint">Give departed &amp; arrived as full dates/times and the duration is worked out for you; otherwise type it in “Underway”.</div>
+    <div class="ed-grid">
+      ${row("Underway","underway",v.underway,"e.g. 5.4 hrs")}
+      ${row("Distance","distance",v.distance,"e.g. 31 nm")}
+      ${row("Fuel used","fuelUsed",v.fuelUsed,"")}
+    </div>
+    <div class="ed-grid">
+      ${row("Hrs port","hoursPort",v.hoursPort,"engine hrs")}
+      ${row("Hrs stbd","hoursStbd",v.hoursStbd,"twin only")}
+    </div>
+    <div class="ed-grid">
+      ${row("Wind","windMax",v.windMax,"e.g. SW 10–15")}
+      ${row("Barometer","baro",v.baro,"e.g. 1014 steady")}
+      ${row("Sea state","seaState",v.seaState,"e.g. slight")}
+      ${row("Weather","weather",v.weather,"")}
+    </div>
+
+    <div class="ed-sec">Ship's log — entries made under way</div>
+    <div class="vl-list">${log || '<div class="ed-empty">No log lines yet. Add a fix, an event, or a note as they happen.</div>'}</div>
+    <div class="ed-add">
+      <button data-vact="add-fix">📍 Fix (GPS)</button>
+      <button data-vact="add-event">+ Event</button>
+      <button data-vact="add-weather">+ Weather</button>
+      <button data-vact="add-note">+ Note</button>
+    </div>
+
+    <div class="ed-sec">Remarks</div>
+    <div class="ed-items">${items || '<div class="ed-empty">Nothing here yet.</div>'}</div>
+    <div class="ed-add">
+      <button data-vact="rem-add-note">+ Remark</button>
+      <button data-vact="rem-add-task">+ Task</button>
+    </div>
+
+    <div class="ed-sec">Filing</div>
+    <div class="ed-grid">
+      ${row("Sort key","sortKey",v.sortKey,"YYYY-MM-DD")}
+      ${row("Year","year",v.year,"")}
+      ${row("Date shown","dateLabel",v.dateLabel,"")}
+    </div>
+    <div class="ed-add">
+      <button data-vact="voy-done">Done</button>
+      <button data-vact="voy-del" class="danger">Delete this voyage</button>
+    </div>
+  </div>`;
+}
+
+/** GPS one-tap: fills a log line's position, speed and heading, and stamps the
+ *  time. `idx` targets an existing line; -1 pushes a new fix. Uses the device's
+ *  own sensor, so it works with no data connection. */
+function logGpsFix(vid, idx){
+  if (!navigator.geolocation) return setEditStatus("This device has no GPS", true);
+  setEditStatus("Getting a fix…");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const c = pos.coords;
+    mutate(() => {
+      const v = findVoyage(vid); if (!v) return;
+      v.log = v.log || [];
+      const r = (idx >= 0 && v.log[idx]) ? v.log[idx] : (v.log.push({ type:"fix", text:"" }), v.log[v.log.length-1]);
+      r.type = r.type || "fix";
+      if (!r.at) r.at = nowHM();
+      r.lat = +c.latitude.toFixed(5);
+      r.lon = +c.longitude.toFixed(5);
+      if (c.speed   != null && isFinite(c.speed))   r.sog = (c.speed * 1.94384).toFixed(1);   // m/s → kn
+      if (c.heading != null && isFinite(c.heading)) r.cog = pad2(Math.round(c.heading));
+    });
+    setEditStatus("Fix logged");
+  }, err => setEditStatus("No fix: " + err.message, true),
+     { enableHighAccuracy:true, timeout:15000, maximumAge:10000 });
+}
+
+// ── Voyage editor: delegated text input (no re-render, to keep the caret) ────
+document.addEventListener("input", function(ev){
+  const el = ev.target.closest && ev.target.closest("[data-vact]");
+  if (!el || !EDIT) return;
+  const wrap = el.closest(".veditor"); if (!wrap) return;
+  const v = findVoyage(wrap.dataset.id); if (!v) return;
+  const act = el.dataset.vact;
+  const VF = ["from","to","purpose","crew","departAt","arriveAt","underway","distance",
+              "fuelUsed","hoursPort","hoursStbd","windMax","baro","seaState","weather",
+              "sortKey","year","dateLabel"];
+  if (VF.includes(act)) return mutate(() => { v[act] = el.value; }, { rerender:false });
+
+  const lrow = el.closest(".vl-row"); const li = lrow ? +lrow.dataset.i : -1;
+  if (li >= 0 && v.log && v.log[li]){
+    const r = v.log[li];
+    if (act === "log-at")   return mutate(() => { r.at = el.value; }, { rerender:false });
+    if (act === "log-text") return mutate(() => { r.text = el.value; }, { rerender:false });
+    if (act === "log-cog")  return mutate(() => { r.cog = el.value; }, { rerender:false });
+    if (act === "log-sog")  return mutate(() => { r.sog = el.value; }, { rerender:false });
+    if (act === "log-wind") return mutate(() => { r.wind = el.value; }, { rerender:false });
+    if (act === "log-baro") return mutate(() => { r.baro = el.value; }, { rerender:false });
+    if (act === "log-lat")  return mutate(() => { const n=parseFloat(el.value); if (el.value==="") delete r.lat; else if (isFinite(n)) r.lat=n; }, { rerender:false });
+    if (act === "log-lon")  return mutate(() => { const n=parseFloat(el.value); if (el.value==="") delete r.lon; else if (isFinite(n)) r.lon=n; }, { rerender:false });
+  }
+  const rrow = el.closest(".ed-item"); const ri = rrow ? +rrow.dataset.i : -1;
+  if (act === "rem-text" && ri >= 0 && v.items && v.items[ri])
+    return mutate(() => { v.items[ri].text = el.value; }, { rerender:false });
+});
+
+// ── Voyage editor: selects fire "change" ────────────────────────────────────
+document.addEventListener("change", function(ev){
+  const el = ev.target.closest && ev.target.closest("[data-vact]");
+  if (!el || !EDIT) return;
+  const wrap = el.closest(".veditor"); if (!wrap) return;
+  const v = findVoyage(wrap.dataset.id); if (!v) return;
+  if (el.dataset.vact === "log-type"){
+    const lrow = el.closest(".vl-row"); const li = lrow ? +lrow.dataset.i : -1;
+    if (li >= 0 && v.log[li]) mutate(() => { v.log[li].type = el.value; });
+  }
+});
+
+// ── Voyage editor: buttons ──────────────────────────────────────────────────
+document.addEventListener("click", function(ev){
+  const btn = ev.target.closest && ev.target.closest("[data-vact]");
+  if (!btn || !EDIT || btn.tagName !== "BUTTON") return;
+  const wrap = btn.closest(".veditor"); if (!wrap) return;
+  const v = findVoyage(wrap.dataset.id); if (!v) return;
+  const act = btn.dataset.vact;
+  const lrow = btn.closest(".vl-row"); const li = lrow ? +lrow.dataset.i : -1;
+  const rrow = btn.closest(".ed-item"); const ri = rrow ? +rrow.dataset.i : -1;
+
+  const pushLine = (type) => mutate(() => { v.log = v.log||[]; v.log.push({ at:nowHM(), type, text:"" }); });
+
+  if (act === "add-fix")      { logGpsFix(v.id, -1); return; }
+  if (act === "add-event")    return pushLine("event");
+  if (act === "add-weather")  return pushLine("weather");
+  if (act === "add-note")     return pushLine("note");
+  if (act === "log-fix" && li >= 0) { logGpsFix(v.id, li); return; }
+  if (act === "log-del" && li >= 0) return mutate(() => { v.log.splice(li,1); });
+
+  if (act === "rem-add-note") return mutate(() => { v.items = v.items||[]; v.items.push({type:"note",text:"",role:null}); });
+  if (act === "rem-add-task") return mutate(() => { v.items = v.items||[]; v.items.push({type:"task",done:false,text:"",role:null}); });
+  if (act === "rem-type" && ri >= 0) return mutate(() => {
+    const it = v.items[ri];
+    if (it.type === "note"){ it.type="task"; it.done=false; }
+    else if (!it.done){ it.done = true; }
+    else { it.type="note"; delete it.done; delete it.doneAt; }
+  });
+  if (act === "rem-del" && ri >= 0) return mutate(() => { v.items.splice(ri,1); });
+
+  if (act === "voy-done") { S.expanded[v.id] = false; renderVoyages(); return; }
+  if (act === "voy-del"){
+    if (!confirm(`Delete the ${v.from||"—"} → ${v.to||"—"} voyage?\n\nThis can be undone.`)) return;
+    mutate(() => { DOC.voyages = DOC.voyages.filter(x => x.id !== v.id); });
+    return;
+  }
+});
 
 // ═══════════════════════════════════════════════════════
 // UPDATES — revision history, plus notes from the build/publish side
@@ -2992,6 +3396,32 @@ function validateDocument(doc) {
   }
 
   // ── voyages ─────────────────────────────────────────────────────────────
+  // `log` is the in-passage ship's-log stream (app 1.18.0). Optional and
+  // lenient: unknown kinds and missing times warn rather than fail.
+  const VLOG_KINDS = ["fix","event","weather","engine","watch","note"];
+  const checkVLog = (log, at) => {
+    if (log == null) return;
+    if (!Array.isArray(log)) return E(`${at}.log is not an array`);
+    log.forEach((r, j) => {
+      const rat = `${at}.log[${j}]`;
+      if (r === null || typeof r !== "object") return E(`${rat} is not an object`);
+      if (r.type != null && !VLOG_KINDS.includes(r.type))
+        W(`${rat}.type "${r.type}" is not a known kind — it renders as a plain note`);
+      for (const f of ["at","text","cog","sog","wind","baro"])
+        if (f in r && r[f] != null && typeof r[f] !== "string")
+          E(`${rat}.${f} is ${JSON.stringify(r[f])}, expected a string`);
+      for (const spec of [["lat",-90,90],["lon",-180,180]]){
+        const f = spec[0];
+        if (f in r && r[f] != null){
+          if (typeof r[f] !== "number" || !isFinite(r[f])) E(`${rat}.${f} is ${JSON.stringify(r[f])}, expected a number`);
+          else if (r[f] < spec[1] || r[f] > spec[2]) E(`${rat}.${f} ${r[f]} is out of range`);
+        }
+      }
+      if (("lat" in r) !== ("lon" in r))
+        W(`${rat} has one of lat/lon without the other — it cannot be plotted`);
+    });
+  };
+
   const vids = new Set();
   doc.voyages.forEach((v, i) => {
     const at = `voyages[${i}]` + (v && v.id ? ` ("${v.id}")` : "");
@@ -3002,6 +3432,7 @@ function validateDocument(doc) {
     vids.add(v.id);
     if (!v.sortKey) E(`${at} has no sortKey`);
     checkItems(v.items, at, false);
+    checkVLog(v.log, at);
   });
 
   // ── revisions ───────────────────────────────────────────────────────────

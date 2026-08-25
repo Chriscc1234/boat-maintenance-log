@@ -350,10 +350,12 @@ you delete a job from inside it.
 
 ---
 
-## `voyages` — runs and journeys
+## `voyages` — runs and journeys, ship's-log style
 
 Separate from entries on purpose: a voyage is an event that completes on tie-up,
-not a job that stays open.
+not a job that stays open. Since app 1.18.0 the Voyages tab is a full ship's log
+— editable in the app, with a per-passage summary, an in-passage log stream, and
+a plotted track of GPS fixes.
 
 ```json
 {
@@ -365,20 +367,58 @@ not a job that stays open.
   "to": "Port Townsend",
   "purpose": "Shakedown after the winter",
   "crew": "not recorded",
+  "departAt": "2024-11-03 08:20",
+  "arriveAt": "2024-11-03 13:35",
   "distance": "~38 nm",
   "underway": "~5 hrs",
   "hoursPort": "not recorded",
   "hoursStbd": "not recorded",
   "fuelUsed": "not recorded",
+  "windMax": "SW 10–15",
+  "baro": "1014 steady",
   "weather": "not recorded",
   "seaState": "not recorded",
+  "log": [
+    { "at": "08:20", "type": "event", "text": "Slipped lines, Shilshole." },
+    { "at": "09:05", "type": "fix", "lat": 47.7601, "lon": -122.4419, "cog": "340", "sog": "6.1" },
+    { "at": "11:30", "type": "weather", "text": "Wind up to 18, short chop.", "wind": "SW 18", "baro": "1012" }
+  ],
   "items": [ ... ]
 }
 ```
 
-Every field except `id`, `sortKey` and `items` is free text and may be empty.
-`"not recorded"` is a perfectly good value and is better than a guess — an empty
-field reads as "not filled in yet", which is a different claim.
+### The summary fields
+
+Every summary field except `id`, `sortKey`, `log` and `items` is free text and
+may be empty. `"not recorded"` is a perfectly good value and is better than a
+guess — an empty field reads as "not filled in yet", which is a different claim.
+
+- `departAt` / `arriveAt` — if **both** parse as real datetimes (e.g.
+  `"2024-11-03 13:35"` or full ISO), the app shows the duration for you.
+  Otherwise put the duration in `underway` as free text.
+- `hoursPort` / `hoursStbd` — engine hours. A single-engine boat uses
+  `hoursPort` alone and the app labels it "Engine hrs"; a twin fills both.
+- `windMax`, `baro`, `weather`, `seaState` — the passage's conditions, free text.
+
+### `log` — the in-passage stream (optional)
+
+An ordered list of entries made **under way**, each a small object. All fields
+are optional; a line with just `at` and `text` is fine.
+
+| field | meaning |
+|---|---|
+| `at` | time as free text, usually `"HH:MM"` |
+| `type` | one of `fix` · `event` · `weather` · `engine` · `watch` · `note`. An unknown value renders as a plain note (a warning, not an error). |
+| `text` | the remark |
+| `lat` / `lon` | **numbers**, decimal degrees (N and E positive). Present together or not at all. Two or more fixes draw the track. |
+| `cog` / `sog` / `wind` / `baro` | short free-text strings — course over ground, speed over ground (kn), wind, barometer |
+
+The app's **📍 Fix** button writes `lat`/`lon`/`sog`/`cog` from the device GPS,
+so hand-editing these is rarely needed — but if you do, keep `lat`/`lon` as
+numbers, not strings, and in range (±90 / ±180), or the validator objects.
+
+The **track** the app plots is the fixes joined in order, north up — a track,
+not a chart (the app must work offline, where chart tiles cannot load).
 
 Voyages sort newest-first; entries sort oldest-first.
 
