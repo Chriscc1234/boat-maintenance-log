@@ -818,7 +818,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.18.0";
+const APP_VERSION = "1.18.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -830,6 +830,24 @@ const APP_VERSION = "1.18.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.18.1", "27 Aug 2026", "The server keeps one step of undo, and a bare write is refused",
+   "Two changes behind the scenes. Nothing looks different; both are about not "
+ + "losing work.\n\n"
+ + "The server kept exactly one copy of a log, and a write replaced it. So a bad "
+ + "push — a forced write over a conflict, a bug, a merge someone got wrong — "
+ + "destroyed the only copy the server had of what was there a moment earlier, "
+ + "and getting it back depended entirely on somebody having exported recently. "
+ + "Every write now parks the outgoing copy alongside the new one before storing "
+ + "it, so the previous revision can always be read back. Parking it is "
+ + "best-effort: if that fails the real write still goes through, because losing "
+ + "the undo is annoying and refusing an edit over it would be worse.\n\n"
+ + "The other one was a gap in the conflict check. Every write says which "
+ + "revision it was based on, and the server refuses it if the log has moved on "
+ + "since. But that check only ran when the field was actually sent — so a write "
+ + "that left it out was indistinguishable from one that deliberately meant to "
+ + "overwrite, and went straight through. A log that already exists now requires "
+ + "it. Forcing is still possible and still occasionally right; it just has to be "
+ + "said out loud instead of happening by omission."],
   ["1.18.0", "24 Aug 2026", "The Voyages tab is a real ship's log",
    "Voyages were the last read-only corner of the app — you could see a passage "
  + "but not write one, and every card ended with a promise that NMEA 2000 would "
@@ -4042,7 +4060,13 @@ async function pushRemote(opts){
     const res = await fetch(syncUrl("/log/" + SYNC.logId), {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + SYNC.writeKey },
-      body: JSON.stringify({ blob, baseRev: (opts && opts.force) ? undefined : REMOTE_REV,
+      // Forcing says so explicitly now. It used to work by OMITTING baseRev,
+      // which the server could not tell apart from a client that simply forgot
+      // the field — so a bug that dropped it would have overwritten silently.
+      // The server refuses a bare write on an existing log (428); force is a
+      // word, not an absence.
+      body: JSON.stringify({ blob,
+                             ...((opts && opts.force) ? { force: true } : { baseRev: REMOTE_REV }),
                              label: (DOC.vessel && DOC.vessel.name) || null }),
     });
 
@@ -5165,9 +5189,20 @@ function renderBoat(){
         "becomes the editor. Categories, passwords and syncing are on " +
         "<b>Settings</b>."}</div>`;
 
+  // `counts` was never defined — this line threw a ReferenceError every single
+  // time the Boat tab rendered, on both boats, in production. The tab's body had
+  // already been written by then, so the damage was invisible: the content
+  // appeared, the meta line silently kept whatever the previous tab had put
+  // there, and the exception went to a console nobody has open on a phone.
+  // Counted from DOC directly, the way the other renderers do it.
+  const jobCount  = (DOC && DOC.entries) ? DOC.entries.length : 0;
+  const taskCount = (DOC && DOC.entries)
+    ? DOC.entries.reduce((n, e) =>
+        n + (e.items || []).filter(it => it.type === "task" && !it.done).length, 0)
+    : 0;
   document.getElementById("meta").innerHTML =
-    `${esc(v.name || "Boat")} &ensp;·&ensp; ${counts.entries} jobs &ensp;·&ensp; ` +
-    `<span class="amber">${counts.tasks} tasks to do</span>`;
+    `${esc(v.name || "Boat")} &ensp;·&ensp; ${jobCount} job${jobCount !== 1 ? "s" : ""} &ensp;·&ensp; ` +
+    `<span class="amber">${taskCount} task${taskCount !== 1 ? "s" : ""} to do</span>`;
 }
 
 /** The Boat tab's editor — the vessel and nothing else.
