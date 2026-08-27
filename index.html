@@ -454,6 +454,23 @@ button.danger{color:#F87171}
 .edit-status{font-size:11px;color:#6E93B0;flex:1;min-width:100%}
 .edit-status.bad{color:#FCA5A5;font-weight:600}
 .editing .entry-hdr{cursor:pointer}
+/* In-page dialogs — the replacement for every native alert/prompt/confirm.
+   A native dialog over an installed iOS app resizes the standalone viewport and
+   blocks before the re-render; these do neither. */
+.dlg-overlay{position:fixed;inset:0;background:rgba(2,10,18,.72);z-index:200;
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.dlg{background:#0C1F30;border:1px solid #24567A;border-radius:12px;max-width:420px;width:100%;
+  padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.dlg-title{font-size:15px;font-weight:600;color:#E4F2FF;margin-bottom:8px}
+.dlg-body{font-size:13px;color:#B8D4E8;line-height:1.55;white-space:pre-line;margin-bottom:14px}
+.dlg-in{width:100%;box-sizing:border-box;background:#0A1D2E;border:1px solid #204A6B;color:#E4F2FF;
+  border-radius:7px;padding:9px 11px;font-size:14px;margin:-4px 0 14px}
+.dlg-in:focus{outline:none;border-color:#0EA5E9}
+.dlg-btns{display:flex;gap:8px;justify-content:flex-end}
+.dlg-btns button{border-radius:7px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.dlg-ok{background:#0B2A44;border:1px solid #2E6DA0;color:#CFE8FF}
+.dlg-ok.danger{background:#2A0F16;border:1px solid #7A2436;color:#FCA5A5}
+.dlg-cancel{background:none;border:1px solid #1B3E5A;color:#8FB4CE}
 .editor{padding:2px 0 4px}
 .ed-row{display:block;margin:0 0 8px}
 .ed-row>span,.ed-grid label>span{display:block;font-size:10px;letter-spacing:.5px;
@@ -818,7 +835,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.18.1";
+const APP_VERSION = "1.19.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -830,6 +847,23 @@ const APP_VERSION = "1.18.1";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.19.0", "27 Aug 2026", "No more native dialogs, and the validator cannot drift",
+   "Every alert(), prompt() and confirm() in the app — twenty-one of them — is "
+ + "replaced by one in-page dialog. The native ones had two problems this app "
+ + "kept paying for: on an installed iOS app they resize the standalone "
+ + "viewport and leave the layout broken until the app is backgrounded (the "
+ + "1.17.1 recovery-code fix was one instance of a hazard every native dialog "
+ + "carries), and they block BEFORE the re-render, so the page showed stale "
+ + "state at the exact moment a change succeeded. The replacements are ordinary "
+ + "page elements: they resize nothing, they never show markup from a message, "
+ + "destructive confirmations get a red button that says what it does "
+ + "(\"Delete\", \"Sign out anyway\") instead of OK, and Escape backs out.\n\n"
+ + "Behind the scenes, the document validator is now machine-copied from "
+ + "validate-document.js into the app at build time. The two copies were "
+ + "maintained by hand and had ALREADY drifted when this was automated. And the "
+ + "project finally has a test suite — small on purpose: the validator rules "
+ + "and the keyring crypto, the two places where a silent regression loses data "
+ + "rather than polish."],
   ["1.18.1", "27 Aug 2026", "The server keeps one step of undo, and a bare write is refused",
    "Two changes behind the scenes. Nothing looks different; both are about not "
  + "losing work.\n\n"
@@ -1293,6 +1327,77 @@ function load() {
 // RENDER LOG
 // ═══════════════════════════════════════════════════════
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// ═══════════════════════════════════════════════════════
+// IN-PAGE DIALOGS — every native alert/prompt/confirm goes through here.
+//
+// Why: on an installed iOS app a native dialog resizes the standalone viewport
+// and leaves the layout broken until the app is backgrounded — the 1.17.1
+// recovery-code fix was one instance of a hazard every native dialog carries.
+// It also blocks BEFORE the re-render, so the page shows stale state at the
+// exact moment the change succeeds. These do neither: they are ordinary DOM,
+// and they return a Promise instead of blocking, so callers await them.
+//
+//   await askConfirm("Delete it?\n\nThis can be undone.")        → true | false
+//   await askPrompt("Name?", { value: "old" })                   → string | null
+//   await askAlert("Something you must read.")                   → (undefined)
+//
+// Same semantics as the natives: prompt's Cancel is null and its empty-OK is
+// "", which recordRevision relies on. One dialog at a time — opening a second
+// resolves the first as a cancel, which cannot happen from the UI (the overlay
+// swallows clicks) but keeps a code path from wedging the page.
+// ═══════════════════════════════════════════════════════
+let DLG_CLOSE = null;
+function askDialog(o){
+  return new Promise(resolve => {
+    if (DLG_CLOSE) DLG_CLOSE(o.input ? null : false);
+    const wrap = document.createElement("div");
+    wrap.className = "dlg-overlay";
+    wrap.innerHTML =
+      `<div class="dlg" role="${o.alertOnly ? "alertdialog" : "dialog"}" aria-modal="true">
+        ${o.title ? `<div class="dlg-title">${esc(o.title)}</div>` : ""}
+        <div class="dlg-body"></div>
+        ${o.input ? `<input class="dlg-in" type="${esc(o.inputType || "text")}"
+                            placeholder="${esc(o.placeholder || "")}">` : ""}
+        <div class="dlg-btns">
+          ${o.alertOnly ? "" : `<button class="dlg-cancel">${esc(o.cancelLabel || "Cancel")}</button>`}
+          <button class="dlg-ok${o.danger ? " danger" : ""}">${esc(o.okLabel || "OK")}</button>
+        </div>
+      </div>`;
+    // textContent, not innerHTML: the body routinely interpolates titles and
+    // server messages, and a dialog is the worst place for markup injection.
+    wrap.querySelector(".dlg-body").textContent = o.body || "";
+    const inp = wrap.querySelector(".dlg-in");
+    if (inp && o.value != null) inp.value = o.value;
+
+    const close = result => {
+      DLG_CLOSE = null;
+      document.removeEventListener("keydown", onKey, true);
+      wrap.remove();
+      resolve(result);
+    };
+    DLG_CLOSE = close;
+    const ok     = () => close(o.input ? (inp ? inp.value : "") : true);
+    const cancel = () => close(o.input ? null : false);
+
+    wrap.querySelector(".dlg-ok").addEventListener("click", ok);
+    const c = wrap.querySelector(".dlg-cancel");
+    if (c) c.addEventListener("click", cancel);
+    // Clicking the dark surround cancels — but only a click that STARTED there,
+    // so a drag that slips off a button does not throw the answer away.
+    wrap.addEventListener("mousedown", e => { if (e.target === wrap && !o.alertOnly) cancel(); });
+    const onKey = e => {
+      if (e.key === "Escape" && !o.alertOnly){ e.preventDefault(); cancel(); }
+      if (e.key === "Enter" && (o.input ? e.target === inp : true)){ e.preventDefault(); ok(); }
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.body.appendChild(wrap);
+    (inp || wrap.querySelector(".dlg-ok")).focus();
+  });
+}
+const askConfirm = (body, opts) => askDialog({ body, ...(opts || {}) });
+const askPrompt  = (body, opts) => askDialog({ body, input: true, ...(opts || {}) });
+const askAlert   = (body, opts) => askDialog({ body, alertOnly: true, ...(opts || {}) }).then(() => undefined);
 
 /** "4 of 11 done" on a job's own row. Counted off BASE's flattened strings,
  *  which already carry the state in their ☑/☐ prefix — no second source.
@@ -2028,7 +2133,7 @@ function planEditor(p){
 /** Plan edits. Kept apart from the entry editor's delegation because the plan is
  *  not an entry — sharing that handler would mean every branch of it asking
  *  which of the two it was looking at. */
-function planAct(el, ev){
+async function planAct(el, ev){
   if (!DOC || readOnly()) return;
   const act = el.dataset.pact;
   const P = () => (DOC.plan = DOC.plan || blankPlan());
@@ -2066,7 +2171,8 @@ function planAct(el, ev){
     return mutate(() => { const t = st[i]; st[i] = st[j]; st[j] = t; });
   }
   if (act === "plan-del"){
-    if (!confirm("Delete the plan?\n\nThe jobs it points at are not touched. This can be undone."))
+    if (!(await askConfirm("Delete the plan?\n\nThe jobs it points at are not touched. This can be undone.",
+                           { okLabel: "Delete", danger: true })))
       return;
     mutate(() => { delete DOC.plan; });
     PLAN_EDITING = false;
@@ -2463,7 +2569,7 @@ document.addEventListener("change", function(ev){
 });
 
 // ── Voyage editor: buttons ──────────────────────────────────────────────────
-document.addEventListener("click", function(ev){
+document.addEventListener("click", async function(ev){
   const btn = ev.target.closest && ev.target.closest("[data-vact]");
   if (!btn || !EDIT || btn.tagName !== "BUTTON") return;
   const wrap = btn.closest(".veditor"); if (!wrap) return;
@@ -2493,7 +2599,8 @@ document.addEventListener("click", function(ev){
 
   if (act === "voy-done") { S.expanded[v.id] = false; renderVoyages(); return; }
   if (act === "voy-del"){
-    if (!confirm(`Delete the ${v.from||"—"} → ${v.to||"—"} voyage?\n\nThis can be undone.`)) return;
+    if (!(await askConfirm(`Delete the ${v.from||"—"} → ${v.to||"—"} voyage?\n\nThis can be undone.`,
+                           { okLabel: "Delete", danger: true }))) return;
     mutate(() => { DOC.voyages = DOC.voyages.filter(x => x.id !== v.id); });
     return;
   }
@@ -2972,7 +3079,8 @@ async function checkForUpdate(quiet){
       const msg = `A newer log is published (${theirs}), but this device has ` +
                   `unpublished edits.\n\nReplace them with the published copy?\n\n` +
                   `Cancel keeps your edits. Export a backup first if you are unsure.`;
-      if (!confirm(msg)){
+      if (!(await askConfirm(msg, { okLabel: "Replace my edits", danger: true,
+                                    cancelLabel: "Keep my edits" }))){
         if (!quiet) setUpdStatus("Kept your local edits — the published copy was not applied.", "ok");
         return;
       }
@@ -3209,14 +3317,18 @@ document.addEventListener("click", function(e){
 });
 
 // ═══════════════════════════════════════════════════════
-// DOCUMENT VALIDATION — kept identical to validate-document.js
-// The command line and the app must agree about what a valid document is; two
-// implementations would drift and the disagreement would surface as "it passed
-// the validator but the app rejected it".
+// DOCUMENT VALIDATION — machine-copied from validate-document.js by
+// build-app.sh. The command line and the app must agree about what a valid
+// document is, and two hand-maintained copies were ALREADY drifting when this
+// was automated (renamed constants, diverged messages). Do not edit here; edit
+// validate-document.js and run the build.
 // ═══════════════════════════════════════════════════════
+// ── SHARED CORE — this exact region is injected into site/index.html by
+// build-app.sh. EDIT THE VALIDATOR HERE and nowhere else; the copy in the shell
+// is machine-written and any hand edit to it is overwritten by the next build.
 const SCHEMA_VERSION = 1;
-const V_HEX = /^#[0-9a-fA-F]{6}$/;
-const V_SORTKEY = /^\d{4}-\d{2}-\d{2}[a-z]?$/;
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const SORTKEY = /^\d{4}-\d{2}-\d{2}[a-z]?$/;
 
 function validateDocument(doc) {
   const errors = [], warnings = [];
@@ -3252,7 +3364,7 @@ function validateDocument(doc) {
     if (sysIds.has(s.id)) E(`${at}: duplicate system id "${s.id}"`);
     sysIds.add(s.id);
     if (!s.name) E(`${at} ("${s.id}") has no name`);
-    if (s.color != null && !V_HEX.test(s.color)) E(`${at} ("${s.id}") colour "${s.color}" is not #RRGGBB`);
+    if (s.color != null && !HEX.test(s.color)) E(`${at} ("${s.id}") colour "${s.color}" is not #RRGGBB`);
   });
   doc.systems.forEach((s, i) => {
     if (s.parent == null) return;
@@ -3273,7 +3385,7 @@ function validateDocument(doc) {
     if (priIds.has(p.id)) E(`${at}: duplicate priority id "${p.id}"`);
     priIds.add(p.id);
     if (!p.label) E(`${at} ("${p.id}") has no label`);
-    if (p.color != null && !V_HEX.test(p.color)) E(`${at} ("${p.id}") colour "${p.color}" is not #RRGGBB`);
+    if (p.color != null && !HEX.test(p.color)) E(`${at} ("${p.id}") colour "${p.color}" is not #RRGGBB`);
   });
 
   // ── entries ─────────────────────────────────────────────────────────────
@@ -3329,7 +3441,7 @@ function validateDocument(doc) {
     if (e.priority != null && !priIds.has(e.priority))
       E(`${at} priority "${e.priority}" does not exist in priorities`);
     if (!e.sortKey) E(`${at} has no sortKey — it cannot be placed in the log`);
-    else if (!V_SORTKEY.test(e.sortKey))
+    else if (!SORTKEY.test(e.sortKey))
       W(`${at} sortKey "${e.sortKey}" is not YYYY-MM-DD with an optional letter suffix`);
 
     if (e.role != null && e.role !== "critical-path")
@@ -3414,8 +3526,9 @@ function validateDocument(doc) {
   }
 
   // ── voyages ─────────────────────────────────────────────────────────────
-  // `log` is the in-passage ship's-log stream (app 1.18.0). Optional and
-  // lenient: unknown kinds and missing times warn rather than fail.
+  // `log` is the in-passage ship's-log stream, added in app 1.18.0. Optional,
+  // and lenient by design: unknown kinds and missing times warn rather than
+  // fail, because "not recorded" is a valid state for a hand-kept log.
   const VLOG_KINDS = ["fix","event","weather","engine","watch","note"];
   const checkVLog = (log, at) => {
     if (log == null) return;
@@ -3424,17 +3537,15 @@ function validateDocument(doc) {
       const rat = `${at}.log[${j}]`;
       if (r === null || typeof r !== "object") return E(`${rat} is not an object`);
       if (r.type != null && !VLOG_KINDS.includes(r.type))
-        W(`${rat}.type "${r.type}" is not a known kind — it renders as a plain note`);
+        W(`${rat}.type "${r.type}" is not a known kind (${VLOG_KINDS.join("/")}) — it renders as a plain note`);
       for (const f of ["at","text","cog","sog","wind","baro"])
         if (f in r && r[f] != null && typeof r[f] !== "string")
           E(`${rat}.${f} is ${JSON.stringify(r[f])}, expected a string`);
-      for (const spec of [["lat",-90,90],["lon",-180,180]]){
-        const f = spec[0];
+      for (const [f, lo, hi] of [["lat",-90,90],["lon",-180,180]])
         if (f in r && r[f] != null){
           if (typeof r[f] !== "number" || !isFinite(r[f])) E(`${rat}.${f} is ${JSON.stringify(r[f])}, expected a number`);
-          else if (r[f] < spec[1] || r[f] > spec[2]) E(`${rat}.${f} ${r[f]} is out of range`);
+          else if (r[f] < lo || r[f] > hi) E(`${rat}.${f} ${r[f]} is out of range ${lo}..${hi}`);
         }
-      }
       if (("lat" in r) !== ("lon" in r))
         W(`${rat} has one of lat/lon without the other — it cannot be plotted`);
     });
@@ -3475,6 +3586,7 @@ function validateDocument(doc) {
 
   return { errors, warnings };
 }
+// ── END SHARED CORE ──
 
 // ═══════════════════════════════════════════════════════
 // LOCAL STORE — IndexedDB
@@ -4108,7 +4220,7 @@ function queuePush(){
   PUSH_TIMER = setTimeout(() => pushRemote(), 1200);
 }
 
-function showConflict(server){
+async function showConflict(server){
   const when = t => { try { return new Date(t).toLocaleString(); } catch { return t; } };
   const msg =
     "This log was changed on another device.\n\n" +
@@ -4117,7 +4229,8 @@ function showConflict(server){
     "OK    — keep THIS device's version and overwrite the server\n" +
     "Cancel — discard this device's unsent changes and take the server's\n\n" +
     "Export a backup first if you are unsure; nothing is lost until you choose.";
-  if (confirm(msg)){
+  if (await askConfirm(msg, { okLabel: "Keep this device's", danger: true,
+                              cancelLabel: "Take the server's" })){
     pushRemote({ force: true });
   } else {
     REMOTE_REV = server.rev - 1;   // force the next pull to apply
@@ -4283,7 +4396,7 @@ async function recordRevision(){
   if (!DOC) return;
   if (!pendingCount()) return setEditStatus("Nothing has changed since the last revision");
   const draft = draftRevisionText();
-  const typed = prompt(
+  const typed = await askPrompt(
     "One line: what changed, and why.\n\n" +
     "This is the part nothing can work out on its own, and it is what makes the\n" +
     "history worth reading in five years. Leave it EMPTY and press OK to record\n" +
@@ -4576,7 +4689,7 @@ function importDocument(file){
   };
   const rd = new FileReader();
   rd.onerror = () => say("Could not read that file", true);
-  rd.onload = () => {
+  rd.onload = async () => {
     let incoming;
     try { incoming = JSON.parse(rd.result); }
     catch (err) { return say("Not valid JSON — " + err.message, true); }
@@ -4588,10 +4701,11 @@ function importDocument(file){
     }
     const n = incoming.entries.length;
     const was = DOC ? DOC.entries.length : 0;
-    if (!confirm(`Replace the whole log?\n\nIncoming: ${n} entries, ` +
+    if (!(await askConfirm(`Replace the whole log?\n\nIncoming: ${n} entries, ` +
                  `${incoming.systems.length} categories, revision ` +
                  `${(incoming.document||{}).revision || "unknown"}.\n` +
-                 `Current: ${was} entries.\n\nThis can be undone.`)) return say("Import cancelled");
+                 `Current: ${was} entries.\n\nThis can be undone.`,
+                 { okLabel: "Replace", danger: true }))) return say("Import cancelled");
 
     mutate(() => { DOC = incoming; });
     say(`Imported ${n} entries` + (warnings.length ? ` (${warnings.length} warning${warnings.length>1?"s":""})` : ""));
@@ -4809,7 +4923,7 @@ document.addEventListener("change", function(ev){
   }
 });
 
-document.addEventListener("click", function(ev){
+document.addEventListener("click", async function(ev){
   const btn = ev.target.closest && ev.target.closest("[data-act]");
   if (!btn || !EDIT || btn.tagName !== "BUTTON") return;
   const wrap = btn.closest(".editor"); if (!wrap) return;
@@ -4834,7 +4948,8 @@ document.addEventListener("click", function(ev){
   if (act === "add-task")  mutate(() => { e.items.push({type:"task",done:false,text:"",role:null}); });
   if (act === "add-note")  mutate(() => { e.items.push({type:"note",text:"",role:null}); });
   if (act === "entry-del"){
-    if (!confirm(`Delete "${e.title}"?\n\nThis can be undone.`)) return;
+    if (!(await askConfirm(`Delete "${e.title}"?\n\nThis can be undone.`,
+                           { okLabel: "Delete", danger: true }))) return;
     mutate(() => { DOC.entries = DOC.entries.filter(x => x.id !== e.id); });
   }
 });
@@ -5452,7 +5567,7 @@ document.addEventListener("change", function(ev){
   renderCurrent();
 });
 
-document.addEventListener("click", function(ev){
+document.addEventListener("click", async function(ev){
   const btn = ev.target.closest && ev.target.closest("button[data-mact]");
   if (!btn || !DOC) return;
   const act = btn.dataset.mact;
@@ -5538,12 +5653,14 @@ document.addEventListener("click", function(ev){
   if (act === "rc-done"){ PENDING_RECOVERY_CODE = null; renderCurrent(); return; }
 
   if (act === "pw-drop-read"){
-    if (!confirm("Remove read-only access?\n\nAnyone using the read-only password will\nstop being able to open this log.")) return;
     (async () => {
+      if (!(await askConfirm("Remove read-only access?\n\nAnyone using the read-only password will\nstop being able to open this log.",
+                             { okLabel: "Remove access", danger: true }))) return;
       // Same rule as pw-save: the current password is CHECKED, never adopted.
       // This path used to pass whatever was typed here as the new full password.
       const cur = document.getElementById("pw-cur").value
-               || prompt("Type the current full-access password to confirm:");
+               || await askPrompt("Type the current full-access password to confirm:",
+                                  { inputType: "password" });
       if (!cur) return setEditStatus("Cancelled");
       const kr = KEYRING || await idbGet(KEYRING_KEY);
       try {
@@ -5562,27 +5679,27 @@ document.addEventListener("click", function(ev){
   }
 
   if (act === "sync-on"){
-    const url = prompt(
+    const url = await askPrompt(
       "Address of the sync service.\n\n" +
       "If this app is hosted on Cloudflare Pages the default below is right and\n" +
       "you can just press OK. Change it only to join a log kept somewhere else.",
       (SYNC && SYNC.url) || (location.origin + "/api"));
     if (!url) return;
-    const join = confirm(
+    const join = await askConfirm(
       "Is this a log that already exists online?\n\n" +
       "OK     — yes, join an existing log (you will need its id and write key)\n" +
       "Cancel — no, put THIS device's log online as a new one");
     (async () => {
       let cfg;
       if (join){
-        const logId = prompt("Log id:");
+        const logId = await askPrompt("Log id:");
         if (!logId) return;
-        const writeKey = prompt(
+        const writeKey = await askPrompt(
           "Write key.\n\n" +
           "Leave this EMPTY for read-only — you will see the log and every update\n" +
           "to it, but cannot change it. Paste the key for full access.", "");
         if (writeKey === null) return;
-        const pass = prompt("Password for that log:");
+        const pass = await askPrompt("Password for that log:", { inputType: "password" });
         if (!pass) return;
         cfg = { url: url.trim(), logId: logId.trim() };
         if (writeKey.trim()) cfg.writeKey = writeKey.trim();
@@ -5653,10 +5770,12 @@ document.addEventListener("click", function(ev){
     return;
   }
   if (act === "sync-off"){
-    if (!confirm("Stop syncing?\n\nThe copy already on the server stays there, and this\n" +
-                 "device keeps its own copy. They will drift apart from now on.")) return;
-    (async () => { await saveSyncConfig(null); SYNC = null; renderCurrent();
-                   setEditStatus("Syncing off"); })();
+    (async () => {
+      if (!(await askConfirm("Stop syncing?\n\nThe copy already on the server stays there, and this\n" +
+                             "device keeps its own copy. They will drift apart from now on.",
+                             { okLabel: "Stop syncing", danger: true }))) return;
+      await saveSyncConfig(null); SYNC = null; renderCurrent();
+      setEditStatus("Syncing off"); })();
     return;
   }
 
@@ -5688,7 +5807,8 @@ document.addEventListener("click", function(ev){
   }
 
   if (act === "add"){
-    const name = prompt("Name for the new category?");
+    (async () => {
+    const name = await askPrompt("Name for the new category?");
     if (!name) return;
     let id = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || uid("sys-");
     while (DOC.systems.some(s => s.id === id)) id = uid("sys-");
@@ -5696,6 +5816,7 @@ document.addEventListener("click", function(ev){
                                       order: DOC.systems.length }); }, { rerender:false });
     renderCurrent();
     setEditStatus("Added " + name);
+    })();
     return;
   }
 
@@ -5744,21 +5865,22 @@ async function signOut(){
   const localOnly = !SYNC;
 
   if (localOnly && !EXPORTED_THIS_SESSION){
-    alert(
+    await askAlert(
       "This log is not synced to a server, so the copy on this device is the " +
       "only one there is.\n\n" +
       "Signing out would delete it.\n\n" +
       "Press Export first, then sign out.");
     return;
   }
-  if (unsent && !confirm(
+  if (unsent && !(await askConfirm(
       "There are changes on this device that have NOT reached the server yet.\n\n" +
-      "Signing out now loses them.\n\n" +
-      "OK to sign out anyway, Cancel to stay and let them sync.")) return;
-  if (!confirm(
+      "Signing out now loses them.",
+      { okLabel: "Sign out anyway", danger: true, cancelLabel: "Stay" }))) return;
+  if (!(await askConfirm(
       "Sign out of " + ((DOC && DOC.vessel && DOC.vessel.name) || "this log") + "?\n\n" +
       "This device forgets the log and the password. The log itself stays on the " +
-      "server and you can sign back in any time.")) return;
+      "server and you can sign back in any time.",
+      { okLabel: "Sign out" }))) return;
 
   try {
     await idbDel(DOC_KEY);
@@ -6226,7 +6348,8 @@ async function attemptUnlock(passphrase, remember){
     } catch {
       return (err.textContent = "That code does not match. Check for mistyped characters.");
     }
-    const pw = prompt("Recovered. Choose a new password (at least 6 characters):");
+    const pw = await askPrompt("Recovered. Choose a new password (at least 6 characters):",
+                               { inputType: "password" });
     if (!pw || pw.length < 6) return (err.textContent = "Cancelled — password unchanged.");
     const fresh = await setPassphrase(pw);
     err.textContent = "";
@@ -6343,7 +6466,7 @@ function showRecoveryKit(code, opts){
   document.getElementById("kit-copy").onclick = async () => {
     try { await navigator.clipboard.writeText(code); taken = true; done.disabled = false;
           done.textContent = "I have saved it — continue"; }
-    catch { alert("Copy failed — use Download instead, or write the code down."); }
+    catch { await askAlert("Copy failed — use Download instead, or write the code down."); }
   };
   done.onclick = () => {
     if (!taken) return;

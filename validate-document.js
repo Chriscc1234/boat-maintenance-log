@@ -11,6 +11,9 @@
 // Exported as a function so the shell can use the identical logic rather than a
 // second, drifting copy — one implementation, two callers.
 
+// ── SHARED CORE — this exact region is injected into site/index.html by
+// build-app.sh. EDIT THE VALIDATOR HERE and nowhere else; the copy in the shell
+// is machine-written and any hand edit to it is overwritten by the next build.
 const SCHEMA_VERSION = 1;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SORTKEY = /^\d{4}-\d{2}-\d{2}[a-z]?$/;
@@ -271,6 +274,7 @@ function validateDocument(doc) {
 
   return { errors, warnings };
 }
+// ── END SHARED CORE ──
 
 // ── CLI ───────────────────────────────────────────────────────────────────
 if (typeof module !== "undefined" && require.main === module) {
