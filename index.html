@@ -184,6 +184,16 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .fcard.blocked{border-left:3px solid #FB923C;opacity:.82}
 .fcard.later{border-left:3px solid #64748B;opacity:.6}
 .fct{font-size:14px;font-weight:600;color:#E4F2FF;margin-bottom:3px}
+.fct-row{display:flex;align-items:flex-start;gap:10px}
+.fct-row .fct{flex:1;min-width:0}
+/* Small to look at, big to hit: the ::after widens the target to about 44px
+   without making every card taller. It stays inside the card's own padding. */
+.fmove{position:relative;flex:none;margin-top:-2px;background:#0A1D2E;border:1px solid #1E4466;
+ color:#8FC9EE;border-radius:6px;padding:4px 10px;font:600 11px/1.2 inherit;font-family:inherit;
+ letter-spacing:.4px;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.fmove::after{content:"";position:absolute;inset:-9px -7px}
+.fmove:hover{border-color:#2E6DA0}
+.fmove:active{filter:brightness(1.25)}
 .fcm{font-size:11px;color:#6E93B0;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
 .fcw{color:#FB923C;font-style:italic}
 .fcn{font-size:12px;color:#8FB4CE;margin-top:7px;line-height:1.5}
@@ -222,6 +232,15 @@ h1{font-size:20px;font-weight:700;color:#E4F2FF;letter-spacing:-.3px;margin-bott
 .cpath ol{margin:0;padding-left:20px}
 .cpath li{font-size:13px;color:#C8DCF0;margin-bottom:5px;line-height:1.5}
 .cpath li.cp-done{color:#4B6B84;text-decoration:line-through;text-decoration-color:#2E5470}
+/* Finished steps, folded into one line under the ones still to do. */
+.cp-donelist{margin-top:4px;font-size:12px;color:#5E7F99;line-height:1.5}
+.cp-donelist summary{cursor:pointer;list-style:none;padding:3px 0;
+ -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.cp-donelist summary::-webkit-details-marker{display:none}
+.cp-donelist summary::before{content:"\25B8\00A0";color:#2E5470}
+.cp-donelist[open] summary::before{content:"\25BE\00A0"}
+.cp-dn{color:#34D399;font-weight:600}
+.cp-donelist ol{margin:6px 0 0;padding-left:20px}
 .cp-note{margin-top:9px;padding-top:8px;border-top:1px solid #14425F;font-size:12px;color:#FB923C;font-style:italic}
 .voy{background:#0C1F30;border:1px solid #163148;border-left:3px solid #0EA5E9;border-radius:0 8px 8px 0;padding:16px 18px;margin-bottom:10px}
 .voy-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
@@ -451,13 +470,22 @@ button.danger{color:#F87171}
  background:transparent;border:1px dashed #3F2D06;border-radius:8px;
  color:#F59E0B;font-size:12.5px;font-weight:600;font-family:inherit;text-align:center}
 .addjob:hover{background:#14100A;border-color:#F59E0B}
-.edit-status{font-size:11px;color:#6E93B0;flex:1;min-width:100%}
+.edit-status{font-size:11px;color:#6E93B0;flex:1;min-width:100%;transition:opacity .5s}
+.edit-status.faded{opacity:0;visibility:hidden;transition:opacity .5s,visibility 0s .5s}
 .edit-status.bad{color:#FCA5A5;font-weight:600}
 .editing .entry-hdr{cursor:pointer}
 /* In-page dialogs — the replacement for every native alert/prompt/confirm.
    A native dialog over an installed iOS app resizes the standalone viewport and
    blocks before the re-render; these do neither. */
-.dlg-overlay{position:fixed;inset:0;background:rgba(2,10,18,.72);z-index:200;
+/* z-index 3000: ABOVE the lock screen (2000) and the setup/recovery-kit screens
+   (2100). It was 200 from 1.19.0 until 1.20.0, which put every dialog raised
+   FROM those screens underneath them — invisible, while still holding the
+   keyboard. The recovery flow asks for the new password from the lock screen,
+   so password recovery could not be finished; the kit's "Copy failed" warning
+   never showed either. A native prompt() always drew on top, which is why this
+   arrived with the swap to in-page dialogs and not before. A dialog is modal by
+   definition: it has to be the top layer, whatever it was opened from. */
+.dlg-overlay{position:fixed;inset:0;background:rgba(2,10,18,.72);z-index:3000;
   display:flex;align-items:center;justify-content:center;padding:20px}
 .dlg{background:#0C1F30;border:1px solid #24567A;border-radius:12px;max-width:420px;width:100%;
   padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
@@ -471,6 +499,18 @@ button.danger{color:#F87171}
 .dlg-ok{background:#0B2A44;border:1px solid #2E6DA0;color:#CFE8FF}
 .dlg-ok.danger{background:#2A0F16;border:1px solid #7A2436;color:#FCA5A5}
 .dlg-cancel{background:none;border:1px solid #1B3E5A;color:#8FB4CE}
+/* A list of choices, one per row, each edged in the colour of where it goes —
+   so a Move reads like the Focus groups it lands in. 44px per HIG: this is
+   thumbed at the yard. */
+.dlg-choices{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.dlg-choice{display:flex;align-items:center;justify-content:space-between;gap:10px;
+ min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #1B3E5A;
+ border-left:4px solid var(--c);background:#0A1D2E;color:#E4F2FF;font:600 14px/1.2 inherit;
+ font-family:inherit;text-align:left;cursor:pointer}
+.dlg-choice:active{filter:brightness(1.2)}
+.dlg-choice:focus-visible{outline:2px solid #0EA5E9;outline-offset:2px}
+.dlg-choice.cur{opacity:.5;cursor:default}
+.dlg-here{font-size:11px;font-weight:600;color:#8FB4CE;letter-spacing:.3px}
 .editor{padding:2px 0 4px}
 .ed-row{display:block;margin:0 0 8px}
 .ed-row>span,.ed-grid label>span{display:block;font-size:10px;letter-spacing:.5px;
@@ -835,7 +875,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.19.0";
+const APP_VERSION = "1.20.0";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -847,6 +887,57 @@ const APP_VERSION = "1.19.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.20.0", "28 Sep 2026", "Move a job between Focus groups from its card",
+   "Every card on Focus now has a Move button. Tap it and choose where the job "
+ + "goes: any of the log's groups, in the log's own order, or off Focus "
+ + "altogether. The group it is already in is shown greyed out.\n\n"
+ + "Until now the quick ways to move a job only went ON and OFF Focus — swipe "
+ + "left for To Focus, Postpone or Off Focus. Moving between groups, which is "
+ + "the move you make most, meant turning on Edit, opening the job and using a "
+ + "dropdown. Promoting something from Next up to Working on now is now two "
+ + "taps, and Undo takes it back.\n\n"
+ + "Choosing Blocked asks what the job is waiting on, filled in with whatever "
+ + "it said before, because a blocked card exists to say why. Cancel there and "
+ + "nothing moves.\n\n"
+ + "A related fix: a card in Working on now or Next up no longer shows a "
+ + "\"waiting on\" line. On those groups it could only be a reason left over "
+ + "from before the job was unblocked. The reason is kept in the log rather "
+ + "than deleted — a job that goes back to Blocked often goes back for the "
+ + "same reason — it just is not shown where it would be wrong.\n\n"
+ + "Also: the help said postponing a job needed the editor, three paragraphs "
+ + "after describing the swipe button that does it. Corrected.\n\n"
+ + "A more serious fix, found while testing this one. Since 1.19.0 replaced the "
+ + "phone's own pop-ups with in-page dialogs, a dialog opened from the lock "
+ + "screen or the setup screens drew UNDERNEATH them — invisible, while still "
+ + "catching the keyboard. The worst case was password recovery: after a correct "
+ + "recovery code the app asks for a new password, and that question could not "
+ + "be seen, so recovery could not be finished. The recovery kit's \"copy "
+ + "failed\" warning was hidden the same way. Dialogs now always draw on top.\n\n"
+ + "Two more from an iPhone usability pass. The message under Undo (\"moved to "
+ + "Working on now\") used to vanish after four seconds and take its line with "
+ + "it, so the whole list jumped up a row — four seconds after your last tap, "
+ + "just as you aimed at the next thing. It ticked the wrong task twice in a "
+ + "row. The message now fades but keeps its place; nothing moves unless you "
+ + "moved it. And those messages name the job — \"Replace impellers\" moved to "
+ + "Working on now — instead of a bare job number that only means something to "
+ + "whoever built the log.\n\n"
+ + "The plan on Focus is less cluttered. Finished steps fold into one line under "
+ + "the steps still to do — \"3 done\", with their names — and a tap opens them. "
+ + "They were drawn in full, struck through, so the least useful thing on the "
+ + "screen took the most room: on a phone the plan ran past the bottom of the "
+ + "first screen and no job was visible when the app opened. A finished step "
+ + "whose job is still open says so on the folded line, so that warning is not "
+ + "hidden by the fold. The job buttons on each step are quieter too: just the "
+ + "job, with a tick when it is finished, instead of \"· open\" on every one."],
+  ["1.19.1", "19 Sep 2026", "A new home-screen icon reaches installed devices",
+   "Nothing about how the app works changed. The version moved so that new "
+ + "home-screen artwork on a deployment would actually reach devices that "
+ + "already had the app installed: the offline cache is named after the "
+ + "version, and swapping files under an unchanged name is exactly how a change "
+ + "fails to arrive.\n\n"
+ + "An icon already on a phone's home screen is a different matter. iOS copies "
+ + "it when you choose Add to Home Screen and does not update it afterwards, so "
+ + "a new one needs the app removing from the home screen and adding again."],
   ["1.19.0", "27 Aug 2026", "No more native dialogs, and the validator cannot drift",
    "Every alert(), prompt() and confirm() in the app — twenty-one of them — is "
  + "replaced by one in-page dialog. The native ones had two problems this app "
@@ -1350,7 +1441,10 @@ function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 let DLG_CLOSE = null;
 function askDialog(o){
   return new Promise(resolve => {
-    if (DLG_CLOSE) DLG_CLOSE(o.input ? null : false);
+    // Cancel whatever is already open. It is told nothing: each dialog knows its
+    // OWN cancel value, and this used to pass one computed from the NEW dialog's
+    // options — so an open prompt could resolve as false instead of null.
+    if (DLG_CLOSE) DLG_CLOSE();
     const wrap = document.createElement("div");
     wrap.className = "dlg-overlay";
     wrap.innerHTML =
@@ -1359,9 +1453,13 @@ function askDialog(o){
         <div class="dlg-body"></div>
         ${o.input ? `<input class="dlg-in" type="${esc(o.inputType || "text")}"
                             placeholder="${esc(o.placeholder || "")}">` : ""}
+        ${o.choices ? `<div class="dlg-choices">${o.choices.map((c, i) =>
+          `<button class="dlg-choice${c.current ? " cur" : ""}" data-ci="${i}"${c.current ? " disabled" : ""}
+             style="--c:${esc(c.color || "#334155")}"><span>${esc(c.label)}</span>${
+             c.current ? `<span class="dlg-here">here now</span>` : ""}</button>`).join("")}</div>` : ""}
         <div class="dlg-btns">
           ${o.alertOnly ? "" : `<button class="dlg-cancel">${esc(o.cancelLabel || "Cancel")}</button>`}
-          <button class="dlg-ok${o.danger ? " danger" : ""}">${esc(o.okLabel || "OK")}</button>
+          ${o.choices ? "" : `<button class="dlg-ok${o.danger ? " danger" : ""}">${esc(o.okLabel || "OK")}</button>`}
         </div>
       </div>`;
     // textContent, not innerHTML: the body routinely interpolates titles and
@@ -1376,11 +1474,17 @@ function askDialog(o){
       wrap.remove();
       resolve(result);
     };
-    DLG_CLOSE = close;
     const ok     = () => close(o.input ? (inp ? inp.value : "") : true);
-    const cancel = () => close(o.input ? null : false);
+    const cancel = () => close(o.input || o.choices ? null : false);
+    DLG_CLOSE = cancel;
 
-    wrap.querySelector(".dlg-ok").addEventListener("click", ok);
+    // A list of choices has no OK: picking one IS the answer, and it resolves
+    // with that choice's value. The one marked current is disabled — choosing
+    // where something already is would be a move that does nothing.
+    const okBtn = wrap.querySelector(".dlg-ok");
+    if (okBtn) okBtn.addEventListener("click", ok);
+    wrap.querySelectorAll(".dlg-choice").forEach(b =>
+      b.addEventListener("click", () => close(o.choices[+b.dataset.ci].value)));
     const c = wrap.querySelector(".dlg-cancel");
     if (c) c.addEventListener("click", cancel);
     // Clicking the dark surround cancels — but only a click that STARTED there,
@@ -1388,16 +1492,20 @@ function askDialog(o){
     wrap.addEventListener("mousedown", e => { if (e.target === wrap && !o.alertOnly) cancel(); });
     const onKey = e => {
       if (e.key === "Escape" && !o.alertOnly){ e.preventDefault(); cancel(); }
-      if (e.key === "Enter" && (o.input ? e.target === inp : true)){ e.preventDefault(); ok(); }
+      // With choices, Enter is left to the browser: it presses the focused choice.
+      if (e.key === "Enter" && !o.choices && (o.input ? e.target === inp : true)){ e.preventDefault(); ok(); }
     };
     document.addEventListener("keydown", onKey, true);
     document.body.appendChild(wrap);
-    (inp || wrap.querySelector(".dlg-ok")).focus();
+    (inp || okBtn || wrap.querySelector(".dlg-choice:not([disabled])")
+         || wrap.querySelector(".dlg-cancel")).focus();
   });
 }
 const askConfirm = (body, opts) => askDialog({ body, ...(opts || {}) });
 const askPrompt  = (body, opts) => askDialog({ body, input: true, ...(opts || {}) });
 const askAlert   = (body, opts) => askDialog({ body, alertOnly: true, ...(opts || {}) }).then(() => undefined);
+//   await askChoice("Move it", [{ value, label, color, current }])   → value | null
+const askChoice  = (body, choices, opts) => askDialog({ body, choices, ...(opts || {}) });
 
 /** "4 of 11 done" on a job's own row. Counted off BASE's flattened strings,
  *  which already carry the state in their ☑/☐ prefix — no second source.
@@ -1501,8 +1609,82 @@ const priorityLabel = id => {
 };
 /** The priority a job gets when a swipe puts it back on Focus, or null if this
  *  log has no priorities at all — in which case Focus cannot be joined. */
+/** A job as a person names it, for status messages. A bare job number "moved to
+ *  Working on now" meant nothing to anyone who did not build the log — the
+ *  usability pass asked what the number was. setEditStatus writes textContent,
+ *  so a title is safe. (No example id here on purpose: build-app.sh refuses any
+ *  entry id in the shell but the seed's, and an example looks exactly like a
+ *  leaked one.) */
+const jobName = e => "\u201C" + ((e && (e.title || e.id)) || "") + "\u201D";
 const focusPriority = () => hasPriority(FOCUS_DEFAULT) ? FOCUS_DEFAULT
   : ((DOC && (DOC.priorities || [])[0] || {}).id || null);
+
+/** Move a job to any Focus group, or off Focus — the Move button on each card.
+ *
+ *  The swipe drawer only moves a job ON and OFF Focus, and down to Postponed.
+ *  Moving BETWEEN groups — Next up to Working on now, the commonest move there
+ *  is — took Edit, the job, and a dropdown. Chris, 28 Sep 2026: "need a way to
+ *  easily move a job from next up to focus." This is that: every group the log
+ *  defines, in the log's own order, one tap to open and one to choose.
+ *
+ *  Choosing Blocked asks what it is waiting on, filled in with whatever is
+ *  there already, because a blocked card exists to say why — the validator
+ *  warns about a blocked job with no reason. Cancelling that question cancels
+ *  the move.
+ *
+ *  Leaving Blocked does NOT clear the reason. Clearing it looks tidy and loses
+ *  real data in an ordinary sequence: a job sits off Focus still waiting on
+ *  something; put it on Focus (it lands in Next up), then block it, and a
+ *  cleared reason would already be gone. So the log keeps it, and Focus just
+ *  does not show it on the two ready groups (see renderFocus).
+ *
+ *  The job is looked up again AFTER each question, by id. A sync or an Undo can
+ *  replace the document while a dialog is open, and writing to the object
+ *  fetched before it would change a copy nothing is looking at any more. */
+const BLOCKED_ID = "blocked";
+async function moveJob(id){
+  if (!DOC || readOnly()) return;
+  const e = findEntry(id);
+  if (!e || e.status !== "active") return;
+  const pris = [...(DOC.priorities || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  if (!pris.length) return;
+
+  const cur = e.priority == null ? "" : e.priority;       // "" stands for Off Focus
+  const choices = pris.map(p => ({ value: p.id, label: p.label, color: p.color,
+                                   current: p.id === cur }))
+    .concat([{ value: "", label: "Off Focus", color: "#334155", current: cur === "" }]);
+  const to = await askChoice(e.title, choices, { title: "Move to" });
+  if (to == null || to === cur) return;
+
+  if (to === ""){
+    mutate(d => { const x = (d.entries || []).find(y => y.id === id); if (x) x.priority = null; });
+    return setEditStatus(`${jobName(e)} taken off Focus — still here in All Work`);
+  }
+  if (!hasPriority(to)) return;
+
+  let why;
+  if (to === BLOCKED_ID){
+    const now = findEntry(id);
+    const had = (now && now.waitingOn) || "";
+    // A reason kept from an earlier block is not shown on a ready card, so it
+    // can come back here looking like the app guessed. The usability pass
+    // called it "spooky". Say where it came from.
+    why = await askPrompt("What is it waiting on?\n\nThe card shows this while the job is "
+      + "blocked. Leave it empty if there is nothing to name."
+      + (had ? "\n\nFilled in with what it was waiting on last time." : ""),
+      { title: e.title, value: had, okLabel: "Block it" });
+    if (why == null) return;
+    why = why.trim();
+  }
+  mutate(d => {
+    const x = (d.entries || []).find(y => y.id === id);
+    if (!x) return;
+    x.priority = to;
+    if (to === BLOCKED_ID) x.waitingOn = why || null;      // the editor stores empty as null too
+  });
+  setEditStatus(`${jobName(e)} moved to ${priorityLabel(to)}`
+    + (to === BLOCKED_ID && why ? ` — waiting on ${why}` : ""));
+}
 
 /** The action panel behind one swipeable row, built once for both the All Work
  *  rows and the Focus cards so the two cannot drift apart.
@@ -1776,7 +1958,7 @@ document.getElementById("log-content").addEventListener("click", function(e) {
     if (right){
       const nowComplete = e.status !== "complete";
       mutate(() => { e.status = nowComplete ? "complete" : "active"; });
-      setEditStatus(`${e.id} marked ${nowComplete ? "complete" : "active"}`);
+      setEditStatus(`${jobName(e)} marked ${nowComplete ? "complete" : "active"}`);
     }
   };
   document.addEventListener("pointerup", finish);
@@ -1793,16 +1975,16 @@ document.getElementById("log-content").addEventListener("click", function(e) {
     if (!e) return;
     if (b.dataset.swact === "off"){
       mutate(() => { e.priority = null; });
-      setEditStatus(`${e.id} taken off Focus — still here in All Work`);
+      setEditStatus(`${jobName(e)} taken off Focus — still here in All Work`);
     } else if (b.dataset.swact === "later"){
       if (!hasPriority(POSTPONE_ID)) return;
       mutate(() => { e.priority = POSTPONE_ID; });
-      setEditStatus(`${e.id} postponed — still on Focus, at the bottom`);
+      setEditStatus(`${jobName(e)} postponed — still on Focus, at the bottom`);
     } else {
       const to = focusPriority();
       if (!to) return;
       mutate(() => { e.priority = to; });
-      setEditStatus(`${e.id} back on Focus, under ${priorityLabel(to)}`);
+      setEditStatus(`${jobName(e)} back on Focus, under ${priorityLabel(to)}`);
     }
   }, true);
 
@@ -1942,8 +2124,13 @@ const blankPlan = () => ({ heading: CP_HEADING, goal: "", steps: [], bottleneck:
  *  the other is not. */
 function planStepHTML(s){
   const jobs = (s.entryIds || []).map(findEntry).filter(Boolean);
+  // The chip names the job and marks it only when it is FINISHED. It used to
+  // say "· open" too, which on an unticked step is implied, and was the extra
+  // width that wrapped most chips onto a line of their own — roughly doubling
+  // the height of the plan on a phone.
   const chips = jobs.map(j => `<button class="cp-job" data-jump="${esc(j.id)}"
-        title="${esc(j.title)}">${esc(j.id)} · ${j.status === "complete" ? "done" : "open"}</button>`).join("");
+        title="${esc(j.title)}" aria-label="Open ${esc(j.title)}${j.status === "complete" ? " (complete)" : ""}"
+        >${esc(j.id)}${j.status === "complete" ? " \u2713" : ""}</button>`).join("");
   // With several jobs behind one step, "the job disagrees" needs a rule. ALL of
   // them have to be complete before the step could honestly be ticked, so that
   // is what is compared — a step ticked with two of three jobs still open is
@@ -1956,6 +2143,39 @@ function planStepHTML(s){
             ? "both jobs are complete" : openN === jobs.length && jobs.length === 1
             ? "job is still open" : openN + " of " + jobs.length + " still open"}</span>` : "")
        + `</li>`;
+}
+
+/** The plan's steps: what is left as the numbered list, what is done folded
+ *  into one line underneath.
+ *
+ *  Every step used to be drawn in full, done or not, so the finished ones — the
+ *  least useful thing on the screen — took the most room: struck-through
+ *  paragraphs with their chips, three of the first nine lines. On a phone the
+ *  plan ran to 1.4 screens and no Focus card was visible on opening the app
+ *  (measured 29 Sep 2026: 972px of an 812px screen). Done steps are the record
+ *  of progress, so they are kept one tap away rather than dropped.
+ *
+ *  A done step whose job disagrees with it (the "still open" warning) would be
+ *  hidden by the fold, and that warning exists to be seen — so the folded line
+ *  carries it too. */
+const stepName = t => {
+  const s = String(t || "").split(/\s+[\u2014\u2013-]\s+|\.\s/)[0].replace(/\.$/, "").trim();
+  return s.length > 48 ? s.slice(0, 46).trimEnd() + "\u2026" : s;
+};
+function planStepsHTML(steps){
+  const open = steps.filter(s => !s.done), done = steps.filter(s => s.done);
+  let h = open.length ? `<ol>${open.map(planStepHTML).join("")}</ol>` : "";
+  if (done.length){
+    const drifting = done.filter(s => {
+      const jobs = (s.entryIds || []).map(findEntry).filter(Boolean);
+      return jobs.length && !jobs.every(j => j.status === "complete");
+    }).length;
+    h += `<details class="cp-donelist"><summary><span class="cp-dn">\u2713 ${done.length} done</span>`
+       + ` \u2014 ${done.map(s => esc(stepName(s.text))).join(" \u00B7 ")}`
+       + (drifting ? `<span class="cp-drift">${drifting === 1 ? "1 has" : drifting + " have"} a job still open</span>` : "")
+       + `</summary><ol>${done.map(planStepHTML).join("")}</ol></details>`;
+  }
+  return h;
 }
 
 function renderFocus(){
@@ -1980,7 +2200,7 @@ function renderFocus(){
     h += `<div class="cpath"><h3>${esc(CP_HEADING)}${
            canEditPlan ? `<button class="cp-edit" data-planedit="1">Edit the plan</button>` : ""}</h3>`
        + (plan.goal ? `<div class="goal">${esc(plan.goal)}</div>` : "")
-       + `<ol>${(plan.steps||[]).map(s => planStepHTML(s)).join("")}</ol>`
+       + planStepsHTML(plan.steps || [])
        + (plan.bottleneck ? `<div class="cp-note">${esc(plan.bottleneck)}</div>` : "")
        + (plan.notes||[]).map(n => `<div class="cp-plain">${esc(n)}</div>`).join("")
        + `</div>`;
@@ -2013,12 +2233,19 @@ function renderFocus(){
       const todo = e.b.filter(b => b.indexOf("\u2610") === 0);
       const nextStep = todo.length ? todo[0].replace(/^\u2610\s*/, "") : "";
       const sc = SYS_COLORS[e.sys] || "#94A3B8";
+      // "Waiting on" is the reason a job is NOT being worked. On the two groups
+      // that mean ready — Working on now and Next up — it can only be a reason
+      // left behind when the job was unblocked, so it is not shown there. It is
+      // not deleted either: see moveJob for why the log keeps it.
+      const showWait = e.waitOn && key !== "now" && key !== "next";
       const card = `<div class="fcard ${key}" data-jump="${esc(e.id)}">
-        <div class="fct">${esc(e.title)}</div>
+        <div class="fct-row"><div class="fct">${esc(e.title)}</div>${canSwipe
+          ? `<button class="fmove" data-move="${esc(e.id)}"
+               aria-label="Move ${esc(e.title)} to another group">Move</button>` : ""}</div>
         <div class="fcm">
           <span style="color:${sc}">&#9679; ${esc(e.sys)}</span>
           <span>${todo.length} open</span>
-          ${e.waitOn ? `<span class="fcw">waiting on ${esc(e.waitOn)}</span>` : ""}
+          ${showWait ? `<span class="fcw">waiting on ${esc(e.waitOn)}</span>` : ""}
         </div>
         ${nextStep ? `<div class="fcn"><span class="box">next &rsaquo;</span> ${esc(nextStep)}</div>` : ""}
       </div>`;
@@ -2200,8 +2427,12 @@ document.addEventListener("change", ev => {
   if (pa && pa.tagName === "SELECT") planAct(pa, ev);
 });
 
-// Tapping a focus card — or the job chip on a plan step — opens that job.
+// Tapping a focus card — or the job chip on a plan step — opens that job. The
+// Move button sits INSIDE the card, so it is claimed first and the card's own
+// tap never fires underneath it.
 document.addEventListener("click", function(ev){
+  const mv = ev.target.closest && ev.target.closest("[data-move]");
+  if (mv){ ev.preventDefault(); moveJob(mv.dataset.move); return; }
   const t = ev.target.closest && ev.target.closest(".fcard, .cp-job");
   if (t) jumpToEntry(t.dataset.jump);
 });
@@ -4731,8 +4962,19 @@ function setEditStatus(msg, bad){
   // The bar is now conditional on having something to show, and a status
   // message is one of those things — so setting or clearing one has to re-ask.
   updateEditBar();
+  el.classList.remove("faded");
+  // Layout may change because you tapped something, never because a timer ran
+  // out. This used to empty the message after 4 s, and the message sits on its
+  // own line, so the whole list jumped up a row 4 s after your last action —
+  // just as you were aiming at the next one. An iPhone usability pass on 28 Sep
+  // 2026 ticked the wrong task twice in a row that way. So when the bar is
+  // staying up anyway (there is something to undo), the message fades but
+  // keeps its line, and the next message replaces it in place. Only when the
+  // message was the bar's sole reason to exist does it go, bar and all.
   if (msg && !bad) setTimeout(() => {
-    if (el.textContent === msg){ el.textContent = ""; updateEditBar(); }
+    if (el.textContent !== msg) return;
+    if (UNDO.length) el.classList.add("faded");
+    else { el.textContent = ""; updateEditBar(); }
   }, 4000);
 }
 
@@ -5032,6 +5274,17 @@ function renderHelp(){
       swipe is a shortcut rather than the only way.</p>
     </div>
 
+    <div class="up-sec">Moving a job between groups</div>
+    <div class="hp">Every card on <b>Focus</b> has a <b>Move</b> button. Tap it and
+      pick where the job goes — any of the groups, or off Focus altogether. The
+      group it is in now is greyed out.
+      <p>Choosing <i>Blocked</i> asks what it is waiting on, already filled in if
+      it said before. That line is what the card shows. Cancel there and nothing
+      moves.</p>
+      <p>A move is undoable like any other change. The button only appears when
+      you can edit the log.</p>
+    </div>
+
     <div class="up-sec">What puts a job on the Focus tab</div>
     <div class="hp">A job appears on <b>Focus</b> when it is still open
       <i>and</i> it has a <b>priority</b>. That is the whole rule.
@@ -5047,9 +5300,9 @@ function renderHelp(){
         <li><b>Complete</b> — off Focus whatever its priority, and over in
           Completed.</li>
       </ul>
-      <p>Swiping left is the quick way in and out of that third state. To park a
-      job in <i>Postponed</i> instead — on the list, just not now — open it while
-      editing and set <b>Priority</b>.</p>
+      <p>Swiping left is the quick way in and out of that third state, and down to
+      <i>Postponed</i>. To move a job <i>between</i> groups — <i>Next up</i> to
+      <i>Working on now</i>, say — tap <b>Move</b> on its card on Focus.</p>
       <p>The priority shows on each row in All Work, so you can see which jobs
       are on your Focus list without changing tab.</p>
     </div>
