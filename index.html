@@ -511,6 +511,63 @@ button.danger{color:#F87171}
 .dlg-choice:focus-visible{outline:2px solid #0EA5E9;outline-offset:2px}
 .dlg-choice.cur{opacity:.5;cursor:default}
 .dlg-here{font-size:11px;font-weight:600;color:#8FB4CE;letter-spacing:.3px}
+/* ── Documents tab ── */
+.docs{display:flex;flex-direction:column;gap:12px;max-width:720px}
+.doc-card{background:#0C1F30;border:1px solid #163148;border-radius:8px;padding:14px 16px}
+.doc-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.doc-title{font-size:15px;font-weight:600;color:#E4F2FF}
+.doc-ver{font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:2px 8px;border-radius:4px}
+.doc-ver.ok{color:#34D399;background:rgba(52,211,153,.12)}
+.doc-ver.old{color:#FBBF24;background:rgba(251,191,36,.12)}
+.doc-ver.none{color:#7FA8C8;background:rgba(100,116,139,.18)}
+.doc-blurb{font-size:12.5px;color:#9FC0D8;line-height:1.5}
+.doc-meta{font-size:11.5px;color:#6E93B0;margin-top:6px}
+.doc-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.doc-btn{min-height:40px;padding:0 14px;border-radius:7px;background:#0B2A44;border:1px solid #2E6DA0;
+ color:#CFE8FF;font:600 13px/1 inherit;font-family:inherit;cursor:pointer}
+.doc-btn:active{filter:brightness(1.2)}
+.doc-btn.quiet{background:none;border-color:#1B3E5A;color:#8FB4CE}
+.doc-btn.danger{color:#FCA5A5;border-color:#7A2436}
+.doc-help{font-size:12px;color:#6E93B0;line-height:1.55;padding:2px 2px 8px}
+/* ── the printable log: paper over the app; printing hides the app ── */
+#printview{position:fixed;inset:0;z-index:2500;background:#DCE3E9;overflow:auto;
+ -webkit-overflow-scrolling:touch;color-scheme:light}
+.pv-bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;padding:10px 14px;
+ padding-top:max(10px, env(safe-area-inset-top));background:#0C1F30;border-bottom:1px solid #163148}
+.pv-bar button{min-height:40px;padding:0 16px;border-radius:7px;background:#0B2A44;border:1px solid #2E6DA0;
+ color:#CFE8FF;font:600 13px/1 inherit;font-family:inherit;cursor:pointer}
+.pv-bar button.quiet{background:none;border-color:#1B3E5A;color:#8FB4CE}
+.pv-hint{font-size:12px;color:#7FA8C8;margin-left:auto}
+.pv-paper{background:#fff;color:#111;max-width:780px;margin:16px auto 40px;padding:32px 34px;
+ box-shadow:0 1px 6px rgba(0,0,0,.25);font:13px/1.5 Georgia,"Times New Roman",serif}
+.pv-head{border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px}
+.pv-boat{font:600 11px/1.2 system-ui,sans-serif;letter-spacing:2.5px;text-transform:uppercase;color:#444}
+.pv-paper h1{font-size:20px;margin:4px 0 2px}
+/* The app styles its own headings for a dark page, and that reached in here:
+   the title came out pale blue on white, nearly invisible. Paper is black ink. */
+.pv-paper h1,.pv-paper h2,.pv-paper h3{color:#111}
+.pv-sub{font:12px/1.4 system-ui,sans-serif;color:#555}
+.pv-year{font-size:15px;margin:22px 0 8px;padding-bottom:3px;border-bottom:1px solid #999}
+.pv-job{margin:0 0 14px}
+.pv-job h3{font-size:14px;margin:0 0 1px}
+.pv-meta{font:11px/1.4 system-ui,sans-serif;color:#555;margin-bottom:4px}
+.pv-job ul{margin:4px 0 0;padding-left:18px}
+.pv-job li{margin:2px 0}
+.pv-task{list-style:none;margin-left:-16px}
+@media print{
+  body.printing > *:not(#printview){display:none !important}
+  /* The page behind the paper too, not just the body. The app's dark colour
+     scheme painted the printer's margins near-black — a frame of ink round
+     every sheet. color-scheme is what does it, so it is turned off here;
+     verified by printing the page to PDF with and without. */
+  :root{color-scheme:light !important}
+  html,body.printing{background:#fff !important}
+  .pv-job{break-inside:avoid}     /* a short job stays on one page; a long one still breaks */
+  #printview{position:static;overflow:visible;background:#fff}
+  #printview .pv-bar{display:none}
+  .pv-paper{box-shadow:none;margin:0;max-width:none;padding:0}
+  .pv-year,.pv-job h3,.pv-meta{break-after:avoid}
+}
 .editor{padding:2px 0 4px}
 .ed-row{display:block;margin:0 0 8px}
 .ed-row>span,.ed-grid label>span{display:block;font-size:10px;letter-spacing:.5px;
@@ -639,6 +696,10 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 .entry-main{flex:1;min-width:0}
 .entry-name{font-size:14px;font-weight:600;color:#D4E8FF;margin-bottom:3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .abadge{font-size:10px;font-weight:700;letter-spacing:1.5px;color:#F59E0B;background:rgba(245,158,11,.12);padding:2px 7px;border-radius:4px}
+/* The same badge for the other two states — blue to match a finished job's
+   blue edge, grey to match Focus's Postponed group. */
+.abadge.done{color:#38BDF8;background:rgba(14,165,233,.12)}
+.abadge.post{color:#94A3B8;background:rgba(100,116,139,.18)}
 .entry-sub{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .edate{font-size:11px;font-family:monospace;color:#507490}
 .esys{font-size:11px;font-weight:500;padding:1px 8px;border-radius:3px;background:rgba(0,0,0,.35)}
@@ -732,6 +793,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
     <button class="tab" data-f="complete">Completed</button>
     <button class="tab" data-f="voyages">Voyages</button>
     <button class="tab" data-f="boat">Boat</button>
+    <button class="tab" data-f="docs">Documents</button>
     <button class="tab" data-f="settings">Settings</button>
     <button class="tab" data-f="updates">Updates</button>
     <button class="tab" data-f="help">Help</button>
@@ -875,7 +937,7 @@ button.danger{border-color:#7F1D1D!important;color:#FCA5A5!important}
 // belongs to whoever keeps the log. An update must never renumber someone's
 // history, and a log bump must never look like an app release.
 // ═══════════════════════════════════════════════════════
-const APP_VERSION = "1.20.0";
+const APP_VERSION = "1.21.1";
 
 /** The APP's history — which is not the log's history, and never was.
  *
@@ -887,6 +949,42 @@ const APP_VERSION = "1.20.0";
  *
  *  Newest first. Add a row in the same commit that bumps APP_VERSION. */
 const APP_CHANGELOG = [
+  ["1.21.1", "22 Nov 2026", "Documents stay on the phone through a server hiccup",
+   "A safety fix for the Documents tab. A phone removes its saved copy of a "
+ + "document when that document has been removed from the log — but it was "
+ + "deciding that from the server's list of files, and that list can briefly "
+ + "lag behind after an upload. A phone that checked at the wrong moment could "
+ + "have thrown away a perfectly good manual, the copy that exists for when "
+ + "there is no signal. It now removes a saved document only when the server "
+ + "says that specific document is gone."],
+  ["1.21.0", "28 Oct 2026", "A Documents tab: the printed copies, on the phone",
+   "A new Documents tab holds the boat's paper documents so they can be read, "
+ + "printed or taken to a print shop from the phone or tablet, with no signal.\n\n"
+ + "The printed maintenance log is built on the device from the log itself: "
+ + "every completed job, as the cabinet copy always was. It is never out of "
+ + "date, needs no download, and opens as a clean white page with a Print "
+ + "button.\n\n"
+ + "The systems manual and its one-page Quick Reference are PDFs kept with the "
+ + "log on the server — encrypted with the log's own key before they leave the "
+ + "device, exactly like the log, so the server never sees what is in them. "
+ + "Every device keeps its own copy once it has seen one, which is what makes "
+ + "them work offline. Share / Print hands a PDF to the phone's share sheet, "
+ + "where Print and Save to Files are. Each card shows which log revision the "
+ + "document was made for, and says so plainly when the log has moved on past "
+ + "it. With Edit on, a PDF can be added or replaced from the tab itself.\n\n"
+ + "Fixed: Turn on syncing (Settings) showed an empty address box, under text "
+ + "saying the default was right and to just press OK — and OK on the empty "
+ + "box did nothing. The default is filled in again. It had been broken since "
+ + "1.19.0 for anyone not already syncing."],
+  ["1.20.1", "1 Oct 2026", "Every job in the list says what state it is in",
+   "Jobs in All Work carried an ACTIVE badge, and nothing else ever. A finished "
+ + "job had no word at all, and a postponed one read as ACTIVE at a glance — "
+ + "the only sign it was postponed was small grey text on the line below.\n\n"
+ + "Now every row has one badge naming its state: COMPLETE in blue, matching "
+ + "the blue edge finished jobs already had; POSTPONED in grey, matching the "
+ + "Postponed group on Focus (and using whatever name your log gives that "
+ + "group); ACTIVE as before for everything else that is open. A postponed "
+ + "job no longer repeats it on the line underneath."],
   ["1.20.0", "28 Sep 2026", "Move a job between Focus groups from its card",
    "Every card on Focus now has a Move button. Tap it and choose where the job "
  + "goes: any of the log's groups, in the log's own order, or off Focus "
@@ -1750,7 +1848,19 @@ function renderLog() {
       // my Focus list?" without changing tab, which is the question the whole
       // priority field exists to answer. Completed jobs keep theirs hidden —
       // Focus does not show them either way, so it would be noise on a long list.
-      const pm = (isA && e.pri) ? PRI_META[e.pri] : null;
+      //
+      // One badge per row, always naming the state. It used to say ACTIVE on
+      // open jobs and nothing at all otherwise, so a finished job had no word
+      // for it and a postponed one read as ACTIVE at a glance — its "Postponed"
+      // was small grey text on the line below. Chris, 1 Oct 2026: "we have an
+      // active notation, but not a closed or postponed notation". Postponed
+      // takes the log's own name for that group (priorities can be renamed),
+      // and is then not repeated on the line below.
+      const isPost = isA && e.pri === POSTPONE_ID && hasPriority(POSTPONE_ID);
+      const badge = !isA ? `<span class="abadge done">COMPLETE</span>`
+        : isPost ? `<span class="abadge post">${esc(priorityLabel(POSTPONE_ID).toUpperCase())}</span>`
+        : `<span class="abadge">ACTIVE</span>`;
+      const pm = (isA && e.pri && !isPost) ? PRI_META[e.pri] : null;
 
       html += `<div class="entry" id="entry-${esc(e.id)}" style="border-left:3px solid ${accent}">
         <div class="sw-row">
@@ -1763,7 +1873,7 @@ function renderLog() {
         <button class="entry-hdr" data-id="${esc(e.id)}">
           <div class="edot" style="background:${accent};${isA?`box-shadow:0 0 8px ${accent}80`:""}"></div>
           <div class="entry-main">
-            <div class="entry-name">${esc(e.title)}${isA?'<span class="abadge">ACTIVE</span>':''}</div>
+            <div class="entry-name">${esc(e.title)}${badge}</div>
             <div class="entry-sub">
               <span class="edate">${esc(e.date)}</span>
               <span class="esys" style="color:${sc}">${esc(e.sys)}</span>
@@ -2071,13 +2181,10 @@ document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   t.scrollIntoView({block:"nearest", inline:"nearest"});
   syncTabStrip();
   S.filter=t.dataset.f;
-  if (S.filter==="help"){ renderHelp(); }
-  else if (S.filter==="boat"){ renderBoat(); }
-  else if (S.filter==="settings"){ renderSettings(); }
-  else if (S.filter==="voyages"){ renderVoyages(); }
-  else if (S.filter==="updates"){ renderUpdates(); }
-  else if (S.filter==="focus"){ renderFocus(); }
-  else { const b=document.getElementById("sysbar"); if(b) b.style.display=""; renderSysBar(); renderLog(); }
+  // One dispatcher, not two. This used to repeat renderCurrent's if-chain line
+  // for line, so a new tab had to be added in both places or one of them drew
+  // it as a job list.
+  renderCurrent();
 }));
 
 // ═══════════════════════════════════════════════════════
@@ -2435,6 +2542,313 @@ document.addEventListener("click", function(ev){
   if (mv){ ev.preventDefault(); moveJob(mv.dataset.move); return; }
   const t = ev.target.closest && ev.target.closest(".fcard, .cp-job");
   if (t) jumpToEntry(t.dataset.jump);
+});
+
+// ═══════════════════════════════════════════════════════
+// DOCUMENTS — the printed copies, readable and printable from the device
+//
+// The paper copies exist because they work when the electronics don't, so a
+// Documents tab that needed a connection would miss the point. Two kinds:
+//
+//  • THE PRINTED LOG is built here, from the log on this device: completed
+//    jobs, as the cabinet copy always was. Nothing to download, never stale.
+//  • FILES (the systems manual and its one-page Quick Reference) are PDFs in
+//    the server's file store, encrypted with the log's data key exactly like
+//    the log. Each device keeps the ENCRYPTED copy in IndexedDB once it has
+//    seen it, and decrypts only in memory to show or share it.
+//
+// Every file carries the log revision it was made for, and its card says
+// whether that matches the log — the version check deploy.sh makes, shown on
+// the page, so a stale manual says so on its face.
+// ═══════════════════════════════════════════════════════
+const DOC_FILES = [
+  { name: "manual",          label: "Systems Manual",
+    blurb: "The full manual — how every system on the boat is set up." },
+  { name: "quick-reference", label: "Quick Reference",
+    blurb: "The one-page cheat sheet, for taping up at a helm." },
+];
+const fileKey    = n => "file:" + (SYNC ? SYNC.logId : "local") + ":" + n;
+const fileIndex  = () => "files:" + (SYNC ? SYNC.logId : "local");
+const FILE_BLOBS = {};          // name → { blob, etag }, decrypted, this session only
+let FILES_SYNCING = false;
+const fmtSize = n => !n ? "" : n >= 1048576 ? (n / 1048576).toFixed(1) + " MB"
+                                            : Math.max(1, Math.round(n / 1024)) + " KB";
+const fmtDay = iso => { const d = new Date(iso); return isNaN(d) ? "" :
+  d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); };
+
+/** Bring this device's copies in line with the server. Fetches the list and
+ *  downloads only what changed — the etag is a hash of the ciphertext, so an
+ *  unchanged manual costs one small request, not megabytes. Runs quietly after
+ *  every successful check with the server; offline it does nothing and the
+ *  copies already here stay usable. */
+async function syncFiles(){
+  if (!SYNC || !DATA_KEY || FILES_SYNCING) return;
+  FILES_SYNCING = true;
+  let changed = false;
+  try {
+    const res = await fetch(syncUrl("/files/" + SYNC.logId), { cache: "no-store" });
+    if (!res.ok) return;
+    const { files } = await res.json();
+    for (const f of files) {
+      const have = await idbGet(fileKey(f.name));
+      if (have && have.meta && have.meta.etag === f.etag) continue;
+      const r = await fetch(syncUrl("/files/" + SYNC.logId + "/" + f.name), { cache: "no-store" });
+      if (!r.ok) continue;                       // try again next time
+      const full = await r.json();
+      await idbPut(fileKey(f.name), { enc: full.enc, meta: { version: full.version || null,
+        size: full.size || null, updatedAt: full.updatedAt || null, etag: full.etag } });
+      delete FILE_BLOBS[f.name];
+      changed = true;
+    }
+    // Removed on the server → removed here. A manual nobody can update any
+    // more is worse than none, because it still looks authoritative.
+    //
+    // But only on the server's own word for THAT file. The listing comes from
+    // KV's list(), which is eventually consistent: on 22 Nov 2026 it came back
+    // empty for ~20 s after two files had been written and could be read by
+    // name. Absence from a listing is a rumour; a 404 for the file is a fact.
+    // Without this check a lagging listing would make a phone delete the very
+    // offline copy that exists for when there is no signal.
+    for (const d of DOC_FILES) if (!files.some(f => f.name === d.name)) {
+      if (!(await idbGet(fileKey(d.name)))) continue;
+      const r = await fetch(syncUrl("/files/" + SYNC.logId + "/" + d.name), { cache: "no-store" });
+      if (r.status !== 404) continue;            // still there, or no answer — keep it
+      await idbDel(fileKey(d.name)); delete FILE_BLOBS[d.name]; changed = true;
+    }
+    await idbPut(fileIndex(), files.map(f => f.name));
+  } catch { /* offline — keep what this device has */ }
+  finally {
+    FILES_SYNCING = false;
+    if (changed && S.filter === "docs") renderDocs();
+  }
+}
+
+/** The PDF for a file, decrypted from this device's copy. Kept in memory for
+ *  the session so Share can be called straight from the tap: iOS only opens
+ *  the share sheet from a user gesture, and a decrypt on the way can cost it. */
+async function fileBlob(name){
+  if (!DATA_KEY) return null;
+  const rec = await idbGet(fileKey(name));
+  if (!rec || !rec.enc) return null;
+  const hit = FILE_BLOBS[name];
+  if (hit && hit.etag === rec.meta.etag) return hit.blob;
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(rec.enc.iv) },
+                                         DATA_KEY, b64ToBytes(rec.enc.ct));
+  const blob = new Blob([pt], { type: "application/pdf" });
+  FILE_BLOBS[name] = { blob, etag: rec.meta.etag };
+  return blob;
+}
+const docSpec = name => DOC_FILES.find(d => d.name === name) || { name, label: name };
+const docFileName = name => (((DOC && DOC.vessel && DOC.vessel.name) || "Boat") + " — "
+  + docSpec(name).label + ".pdf").replace(/[\\/:*?"<>|]/g, "");
+
+async function openDocFile(name){
+  const blob = await fileBlob(name);
+  if (!blob) return setEditStatus(docSpec(name).label + " is not on this device yet", true);
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (!w) saveBlob(url, docFileName(name));     // popups blocked — hand it over instead
+  setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+}
+function saveBlob(url, filename){
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+/** The phone's own share sheet: Print, Save to Files, AirDrop, Mail. Where
+ *  there is no share sheet for files (most desktops) the PDF is saved instead,
+ *  and the computer's own viewer prints it. */
+function shareDocFile(name){
+  const go = blob => {
+    const file = new File([blob], docFileName(name), { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] }))
+      return navigator.share({ files: [file], title: docSpec(name).label })
+        .catch(err => { if (!err || err.name !== "AbortError") openDocFile(name); });
+    const url = URL.createObjectURL(blob);
+    saveBlob(url, file.name);
+    setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+  };
+  const hit = FILE_BLOBS[name];
+  if (hit) return go(hit.blob);                  // no await between the tap and the sheet
+  fileBlob(name).then(b => b ? go(b)
+    : setEditStatus(docSpec(name).label + " is not on this device yet", true));
+}
+
+/** Add or replace a PDF from this device. The build side normally puts the
+ *  manual in with upload-file.js; this is the same thing from the app, which
+ *  is the only way for a log that has no build side behind it at all. */
+async function uploadDocFile(name, file){
+  if (!SYNC || !SYNC.writeKey || !DATA_KEY) return;
+  const spec = docSpec(name);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (String.fromCharCode(...bytes.slice(0, 5)) !== "%PDF-")
+    return askAlert("That file is not a PDF. Save the document as a PDF first, then add that.");
+  const rev = (DOC && DOC.document && DOC.document.revision) || "";
+  const ver = await askPrompt(`Which log revision is this ${spec.label} for?\n\nIts card compares this `
+    + `with the log's own revision${rev ? " (" + rev + ")" : ""}, so a copy that falls behind says so.`,
+    { title: fmtSize(bytes.length) + " — " + spec.label, value: rev, okLabel: "Upload" });
+  if (ver == null) return;
+  setEditStatus("Uploading " + spec.label + "…");
+  try {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, DATA_KEY, bytes));
+    const res = await fetch(syncUrl("/files/" + SYNC.logId + "/" + name), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SYNC.writeKey },
+      body: JSON.stringify({ enc: { iv: bytesToB64(iv), ct: bytesToB64(ct) },
+                             version: ver.trim() || null, size: bytes.length }),
+    });
+    if (!res.ok) throw new Error("the server said " + res.status);
+    await syncFiles();               // pulls it back down: proves the round trip, and caches it
+    setEditStatus(spec.label + " uploaded — every device picks it up on its next check");
+  } catch (err) {
+    setEditStatus(spec.label + " NOT uploaded — " + err.message, true);
+  }
+  if (S.filter === "docs") renderDocs();
+}
+async function removeDocFile(name){
+  const spec = docSpec(name);
+  if (!(await askConfirm(`Remove the ${spec.label} from this log?\n\nIt goes from every device on `
+      + `their next check. Upload it again any time.`, { okLabel: "Remove", danger: true }))) return;
+  try {
+    const res = await fetch(syncUrl("/files/" + SYNC.logId + "/" + name), {
+      method: "DELETE", headers: { Authorization: "Bearer " + SYNC.writeKey } });
+    if (!res.ok) throw new Error("the server said " + res.status);
+    await syncFiles();
+    setEditStatus(spec.label + " removed");
+  } catch (err) { setEditStatus(spec.label + " NOT removed — " + err.message, true); }
+  if (S.filter === "docs") renderDocs();
+}
+
+async function renderDocs(){
+  const box = document.getElementById("log-content");
+  const bar = document.getElementById("sysbar");
+  if (bar) bar.style.display = "none";
+  const rev = (DOC && DOC.document && DOC.document.revision) || null;
+  const done = DOC ? (DOC.entries || []).filter(e => e.status === "complete").length : 0;
+  const canWrite = !!(DOC && SYNC && SYNC.writeKey && DATA_KEY);
+  const editing = EDIT && canWrite;
+  const recs = {};
+  for (const d of DOC_FILES) recs[d.name] = await idbGet(fileKey(d.name));
+  const onServer = (await idbGet(fileIndex())) || [];
+  if (S.filter !== "docs") return;               // the tab changed while reading
+  document.getElementById("meta").innerHTML = rev ? `Documents &ensp;·&ensp; log ${esc(rev)}` : "Documents";
+
+  const verChip = v => {
+    if (!v) return `<span class="doc-ver old">no version given</span>`;
+    if (!rev || v === rev) return `<span class="doc-ver ok">${esc(v)}${rev ? " — matches the log" : ""}</span>`;
+    return `<span class="doc-ver old">${esc(v)} — the log is ${esc(rev)}</span>`;
+  };
+  let h = `<div class="docs">`;
+  h += `<div class="doc-card">
+      <div class="doc-hd"><span class="doc-title">Maintenance Log</span>
+        <span class="doc-ver ok">always current</span></div>
+      <div class="doc-blurb">Every completed job, as the cabinet copy always was. Built on this
+        device from the log${rev ? " (" + esc(rev) + ")" : ""}, so it is never out of date and needs no connection.</div>
+      <div class="doc-meta">${done} completed job${done === 1 ? "" : "s"}</div>
+      <div class="doc-acts"><button class="doc-btn" data-doc="printlog">Open printable log</button></div>
+    </div>`;
+  for (const d of DOC_FILES){
+    const rec = recs[d.name];
+    let chip, note, acts = "";
+    if (rec && rec.meta){
+      chip = verChip(rec.meta.version);
+      note = "Saved on this device" + (rec.meta.size ? " · " + fmtSize(rec.meta.size) : "")
+           + (rec.meta.updatedAt ? " · added " + esc(fmtDay(rec.meta.updatedAt)) : "");
+      acts = `<button class="doc-btn" data-doc="open" data-name="${d.name}">Open</button>
+              <button class="doc-btn" data-doc="share" data-name="${d.name}">Share / Print</button>`;
+    } else if (onServer.includes(d.name)){
+      chip = `<span class="doc-ver old">not downloaded</span>`;
+      note = "On the server, not on this device yet — it comes down next time the app has a connection.";
+    } else {
+      chip = `<span class="doc-ver none">none yet</span>`;
+      note = !SYNC ? "This log is not syncing, so there is nowhere to keep a file."
+           : "No PDF has been added." + (canWrite && !EDIT ? " Turn on Edit to add one." : "");
+    }
+    if (editing) acts += `<button class="doc-btn quiet" data-doc="upload" data-name="${d.name}">${rec ? "Replace PDF…" : "Add PDF…"}</button>`
+                      + (rec ? `<button class="doc-btn quiet danger" data-doc="remove" data-name="${d.name}">Remove</button>` : "");
+    h += `<div class="doc-card">
+      <div class="doc-hd"><span class="doc-title">${esc(d.label)}</span>${chip}</div>
+      <div class="doc-blurb">${esc(d.blurb)}</div>
+      <div class="doc-meta">${note}</div>
+      ${acts ? `<div class="doc-acts">${acts}</div>` : ""}
+    </div>`;
+  }
+  h += `<div class="doc-help"><b>Share / Print</b> opens your phone's share sheet: Print is in
+    there, and so is Save to Files for taking a copy to a print shop. Everything here works
+    with no signal once this device has it.</div></div>`;
+  box.innerHTML = h;
+  for (const d of DOC_FILES) if (recs[d.name]) fileBlob(d.name).catch(() => {});   // warm for Share
+  syncFiles();
+}
+
+// ── the printed log ───────────────────────────────────────────────────────
+// A page built from the log for paper: white, black, no app around it. Opened
+// over the app rather than in a new window, so it works the same in a browser
+// tab and in an app saved to the home screen; printing it hides the app.
+function openPrintLog(){
+  if (!DOC) return;
+  const v = DOC.vessel || {};
+  const rev = (DOC.document && DOC.document.revision) || "";
+  const sysName = id => { const s = (DOC.systems || []).find(x => x.id === id); return s ? s.name : id; };
+  const jobs = (DOC.entries || []).filter(e => e.status === "complete")
+    .sort((a, b) => String(a.sortKey).localeCompare(String(b.sortKey)));
+  const byYear = {};
+  for (const e of jobs) (byYear[e.year || String(e.sortKey).slice(0, 4)] ||= []).push(e);
+  const itemHTML = it => it.type === "task"
+    ? `<li class="pv-task">${it.done ? "☑" : "☐"} ${esc(it.text)}</li>`
+    : `<li>${esc(it.text)}</li>`;
+  let body = "";
+  for (const yr of Object.keys(byYear).sort()){
+    body += `<h2 class="pv-year">${esc(yr)}</h2>`;
+    for (const e of byYear[yr]) body += `<section class="pv-job">
+        <h3>${esc(e.title)}</h3>
+        <div class="pv-meta">${esc(e.dateLabel || "")}${e.dateLabel ? " · " : ""}${esc(sysName(e.system))}</div>
+        ${(e.items || []).length ? `<ul>${e.items.map(itemHTML).join("")}</ul>` : ""}
+      </section>`;
+  }
+  const wrap = document.createElement("div");
+  wrap.id = "printview";
+  wrap.setAttribute("role", "dialog");
+  wrap.setAttribute("aria-label", "Printable maintenance log");
+  wrap.innerHTML = `<div class="pv-bar">
+      <button data-pv="print">Print</button><button data-pv="close" class="quiet">Close</button>
+      <span class="pv-hint">${jobs.length} completed job${jobs.length === 1 ? "" : "s"}</span></div>
+    <article class="pv-paper">
+      <header class="pv-head"><div class="pv-boat">${esc(v.name || "")}</div>
+        <h1>Maintenance Log — Completed Work</h1>
+        <div class="pv-sub">Log ${esc(rev)} · printed ${esc(fmtDay(new Date().toISOString()))}</div></header>
+      ${body || `<p>No completed jobs yet.</p>`}
+    </article>`;
+  document.body.appendChild(wrap);
+  document.body.classList.add("printing");
+  wrap.querySelector('[data-pv="print"]').focus();
+}
+function closePrintLog(){
+  const w = document.getElementById("printview");
+  if (w) w.remove();
+  document.body.classList.remove("printing");
+}
+document.addEventListener("click", ev => {
+  const pv = ev.target.closest && ev.target.closest("[data-pv]");
+  if (pv){ if (pv.dataset.pv === "print") window.print(); else closePrintLog(); return; }
+  const b = ev.target.closest && ev.target.closest("[data-doc]");
+  if (!b) return;
+  const act = b.dataset.doc, name = b.dataset.name;
+  if (act === "printlog") return openPrintLog();
+  if (act === "open") return openDocFile(name);
+  if (act === "share") return shareDocFile(name);
+  if (act === "remove") return removeDocFile(name);
+  if (act === "upload"){
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "application/pdf,.pdf";
+    inp.onchange = () => { if (inp.files && inp.files[0]) uploadDocFile(name, inp.files[0]); };
+    inp.click();
+  }
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && document.getElementById("printview") && !document.querySelector(".dlg-overlay"))
+    closePrintLog();
 });
 
 // ═══════════════════════════════════════════════════════
@@ -3234,6 +3648,7 @@ function renderCurrent(){
   else if (S.filter === "manage" || S.filter === "boat") renderBoat();
   else if (S.filter === "settings") renderSettings();
   else if (S.filter === "voyages") renderVoyages();
+  else if (S.filter === "docs")    renderDocs();
   else if (S.filter === "updates") renderUpdates();
   else if (S.filter === "focus")   renderFocus();
   else { const b = document.getElementById("sysbar"); if (b) b.style.display = "";
@@ -4366,6 +4781,7 @@ async function pullRemote(opts){
     if (res.status === 404) return { state: "absent" };
     if (!res.ok) throw new Error("server said " + res.status);
     const { rev, updatedAt, blob } = await res.json();
+    syncFiles();                        // the printed documents — quiet, and only what changed
 
     if (rev === REMOTE_REV && !PUSH_PENDING){
       if (!quiet) setSyncStatus("Up to date", "ok");
@@ -4632,7 +5048,7 @@ async function recordRevision(){
     "This is the part nothing can work out on its own, and it is what makes the\n" +
     "history worth reading in five years. Leave it EMPTY and press OK to record\n" +
     "just the details below, which are filled in automatically either way.\n" +
-    "Cancel does not record anything.\n\n" + draft, "");
+    "Cancel does not record anything.\n\n" + draft, { value: "" });
   // Empty means "skip the headline". Cancel keeps its ordinary meaning — back
   // out — because a dialog whose Cancel still does the thing is worse than a
   // gate.
@@ -5307,6 +5723,23 @@ function renderHelp(){
       are on your Focus list without changing tab.</p>
     </div>
 
+    <div class="up-sec">Documents</div>
+    <div class="hp">The <b>Documents</b> tab holds the paper copies, readable and
+      printable from here — with no signal, once this device has them.
+      <ul class="hp-list">
+        <li><b>Maintenance Log</b> — every completed job, built from the log on
+          this device. Always current. <b>Open printable log</b> shows it as a
+          page with a Print button.</li>
+        <li><b>Systems Manual</b> and <b>Quick Reference</b> — PDFs kept with the
+          log, encrypted like it. <b>Share / Print</b> opens the phone's share
+          sheet, where Print and Save to Files are.</li>
+      </ul>
+      <p>Each card says which log revision its document was made for. When the
+      log has moved on past it, the card says so in amber.</p>
+      <p>With <b>Edit</b> on, a PDF can be added, replaced or removed from the tab.
+      Every device picks the change up on its next check.</p>
+    </div>
+
     <div class="up-sec">Changing things</div>
     <div class="hp">
       <p>Press <b>Edit</b>, top right. The header turns amber so you can tell at a
@@ -5936,7 +6369,13 @@ document.addEventListener("click", async function(ev){
       "Address of the sync service.\n\n" +
       "If this app is hosted on Cloudflare Pages the default below is right and\n" +
       "you can just press OK. Change it only to join a log kept somewhere else.",
-      (SYNC && SYNC.url) || (location.origin + "/api"));
+      // An options object, not a bare string. The native prompt() took its
+      // default as the second argument; askPrompt takes { value }, and this
+      // call kept the old form when 1.19.0 swapped the dialogs — so the box
+      // came up EMPTY under text saying the default was right, and OK on the
+      // empty box did nothing. Turning syncing on was broken from 1.19.0 to
+      // 1.21.0 for anyone not already syncing. Found testing the Documents tab.
+      { value: (SYNC && SYNC.url) || (location.origin + "/api") });
     if (!url) return;
     const join = await askConfirm(
       "Is this a log that already exists online?\n\n" +
@@ -5950,7 +6389,7 @@ document.addEventListener("click", async function(ev){
         const writeKey = await askPrompt(
           "Write key.\n\n" +
           "Leave this EMPTY for read-only — you will see the log and every update\n" +
-          "to it, but cannot change it. Paste the key for full access.", "");
+          "to it, but cannot change it. Paste the key for full access.", { value: "" });
         if (writeKey === null) return;
         const pass = await askPrompt("Password for that log:", { inputType: "password" });
         if (!pass) return;
